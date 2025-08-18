@@ -1,0 +1,92 @@
+{
+  "version": "1.0",
+  "created": "2025-08-13",
+  "classification_rules": {
+    "entertainment_industry": {
+      "keywords": [
+        "Finn Wolfhard", "Stranger Things", "Refinery", "MNT", "SAG-AFTRA", 
+        "Actor Agreement", "Deal Memo", "Casting", "Audition", "Script",
+        "Entertainment", "Artist Management", "Publicity", "Press"
+      ],
+      "patterns": [
+        "*Contract*", "*Agreement*", "*Schedule*", "*I-129*", "*I-797*",
+        "*Casting*", "*Audition*", "*Script*", "*Deal*Memo*"
+      ],
+      "file_types": [".pdf", ".docx", ".pages"],
+      "confidence_weights": {
+        "finn_wolfhard": 0.9,
+        "stranger_things": 0.9,
+        "refinery": 0.8,
+        "sag_aftra": 0.9,
+        "contract": 0.7,
+        "casting": 0.7
+      }
+    },
+    "financial_documents": {
+      "keywords": [
+        "Tax Return", "Payroll", "Invoice", "Payment Report", 
+        "Bank Statement", "Receipt", "Financial", "Amex", "Credit Card"
+      ],
+      "patterns": [
+        "*Tax*", "*Payroll*", "*Invoice*", "*Receipt*", "*Statement*",
+        "*2024*", "*2025*", "*Q1*", "*Q2*", "*Q3*", "*Q4*"
+      ],
+      "file_types": [".pdf", ".xlsx", ".numbers", ".csv"],
+      "confidence_weights": {
+        "tax_return": 0.95,
+        "payroll": 0.9,
+        "invoice": 0.8,
+        "receipt": 0.7
+      }
+    },
+    "creative_projects": {
+      "keywords": [
+        "Papers That Dream", "Episode", "Podcast", "Research", "AI",
+        "Audio", "Music", "Script", "Writing", "Creative"
+      ],
+      "patterns": [
+        "*Episode*", "*Research*", "*Audio*", "*Music*", "*Script*",
+        "*Papers*Dream*", "*Podcast*"
+      ],
+      "file_types": [".mp3", ".wav", ".aup3", ".pdf", ".docx", ".pages"],
+      "confidence_weights": {
+        "papers_that_dream": 0.95,
+        "episode": 0.8,
+        "podcast": 0.8,
+        "audio_file": 0.7
+      }
+    },
+    "development_projects": {
+      "keywords": [
+        "package.json", "README.md", "requirements.txt", "Next.js", 
+        "React", "Firebase", "GitHub", "Python", "TypeScript"
+      ],
+      "patterns": [
+        "*.ts", "*.py", "*.js", "*.html", "*.css", "package.json", 
+        "README*", "requirements.txt"
+      ],
+      "file_types": [".ts", ".py", ".js", ".html", ".css", ".json", ".md"],
+      "confidence_weights": {
+        "package_json": 0.95,
+        "readme": 0.8,
+        "typescript": 0.7,
+        "python": 0.7
+      }
+    }
+  },
+  "folder_mappings": {
+    "entertainment_industry": "01_ACTIVE_PROJECTS/Entertainment_Industry/",
+    "financial_documents": "01_ACTIVE_PROJECTS/Business_Operations/Financial_Current/",
+    "creative_projects": "01_ACTIVE_PROJECTS/Creative_Content/",
+    "development_projects": "01_ACTIVE_PROJECTS/Development_Projects/",
+    "screenshots": "02_MEDIA_ASSETS/Visual_Assets/Screenshots/",
+    "images": "02_MEDIA_ASSETS/Visual_Assets/Photos_Personal/",
+    "audio": "02_MEDIA_ASSETS/Audio_Library/by_type/",
+    "video": "02_MEDIA_ASSETS/Visual_Assets/Video_Files/"
+  },
+  "confidence_thresholds": {
+    "auto_move": 0.8,
+    "suggest_move": 0.6,
+    "manual_review": 0.4
+  }
+}

@@ -1,0 +1,2 @@
+timestamp,original_path,new_path,file_name,file_type,classification,confidence_score,action_taken,notes
+2025-08-13T00:00:00,/Users/ryanthomson/Desktop,/Users/ryanthomson/Documents,SYSTEM_INIT,SYSTEM,system_initialization,1.0,folder_structure_created,Base organizational structure created
