@@ -1,0 +1,29 @@
+# Database files
+*.db
+*.db-wal
+*.db-shm
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Content cache
+content_cache/
+
+# Log files
+*.log
+
+# Configuration files with sensitive data
+*config*.json
+
+# macOS
+.DS_Store
+
+# Virtual environments
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
