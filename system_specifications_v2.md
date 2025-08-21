@@ -31,7 +31,7 @@
 - Natural language query interface
 
 **Hardware Requirements:**
-- **RAM:** 8GB minimum, 16GB+ recommended
+- **MGMT:** 8GB minimum, 16GB+ recommended
 - **Storage:** 5-10GB for models and index
 - **Processor:** M1/M2 MacBook (optimal)
 
@@ -92,7 +92,7 @@ Images: OCR + metadata
 ```
 Semantic: "Find contracts with exclusivity clauses"
 Temporal: "What was I working on last month?"
-Relational: "Show me files related to example_show"
+Relational: "Show me files related to TV Show"
 Categorical: "Find all financial documents"
 Content-based: "Scripts mentioning AI consciousness"
 ```
@@ -107,7 +107,7 @@ Content-based: "Scripts mentioning AI consciousness"
 ### Tag Categories
 ```json
 {
-  "people": ["Client NameExampleClient", "example_show", "Netflix"],
+  "people": ["ClientName", "example_show", "Netflix"],
   "projects": ["PapersThatDream", "PlayStation", "ExampleMgmt"],
   "doc_types": ["Contract", "Script", "Audio", "Financial"],
   "status": ["Active", "Completed", "Draft", "Archive"],
@@ -119,14 +119,14 @@ Content-based: "Scripts mentioning AI consciousness"
 ### Auto-Tagging Rules
 ```python
 # High-confidence tagging
-if "Example Client" in filename or content:
-    add_tags(["Client NameExampleClient", "Entertainment"])
+if "Client Name" in filename or content:
+    add_tags(["ClientName", "Entertainment"])
     
 if "Payment Report" in filename:
     add_tags(["Financial", "ExampleMgmt", "Business"])
 ```
 
-## 🧪 Testing Framework
+## 🧪 Testing FMGMTework
 
 ### Test Categories
 1. **Unit Tests:** Individual components

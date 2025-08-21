@@ -51,7 +51,7 @@ class QueryProcessor:
         """Initialize entity recognition patterns"""
         return {
             'people': [
-                r'ExampleClient\s*ExampleClient?', r'Example Show', r'netflix',
+                r'ExampleClient\s*Client?', r'Example Show', r'netflix',
                 r'ExampleMgmt', r'artist\s*management', r'mnt'
             ],
             'projects': [
@@ -407,14 +407,14 @@ class QueryProcessor:
         
         # Common search patterns
         common_searches = [
-            "Find Example Client contracts",
+            "Find Client Name contracts",
             "Show me recent audio files",
             "Scripts from last month",
             "Financial documents from 2024", 
             "Development projects",
-            "Papers That Dream episodes",
+            "Creative Project episodes",
             "ExampleMgmt payment reports",
-            "example_show files",
+            "TV Show files",
             "Recent notebooks"
         ]
         
@@ -466,7 +466,7 @@ def test_query_interface():
     
     # Test queries
     test_queries = [
-        "Find Example Client contracts",
+        "Find Client Name contracts",
         "Show me recent audio files",
         "Financial documents from 2024",
         "Development projects",

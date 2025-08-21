@@ -61,7 +61,7 @@ class FileClassificationEngine:
             # Adapt the existing rules structure to our engine format
             self.rules = {
                 "people_indicators": {
-                    "ExampleClient": ["ExampleClient", "ExampleClient", "example_show", "netflix"],
+                    "ExampleClient": ["ExampleClient", "Client", "TV Show", "netflix"],
                     "business_contacts": ["ExampleMgmt", "payment report", "contract", "agreement"]
                 },
                 "project_indicators": {
@@ -108,7 +108,7 @@ class FileClassificationEngine:
             # Create default rules if none exist
             self.rules = {
                 "people_indicators": {
-                    "ExampleClient": ["ExampleClient", "ExampleClient", "example_show", "netflix"],
+                    "ExampleClient": ["ExampleClient", "Client", "TV Show", "netflix"],
                     "business_contacts": ["ExampleMgmt", "payment report", "contract", "agreement"]
                 },
                 "project_indicators": {
