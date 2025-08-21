@@ -5,7 +5,7 @@
 
 ### Documents Folder Organization
 - **Entertainment Industry Files**: 15+ files moved to proper categories
-  - Contracts: Finn Wolfhard agreements, voice talent proposals
+  - Contracts: Client Name agreements, voice talent proposals
   - Publicity: PlayStation partnerships, publicity schedules, press materials
   - Immigration: 7 I-129/I-797 immigration documents organized
 
@@ -31,13 +31,13 @@
 
 ### High-Confidence Classification Rules
 1. **Entertainment Industry** (95% confidence)
-   - Files containing "Finn Wolfhard", "Stranger Things"
+   - Files containing "Client Name", "TV Show"
    - I-129, I-797 immigration forms
    - Voice talent proposals, publicity schedules
 
 2. **Financial Documents** (90% confidence)
    - "Payment Report", "Invoice", "Commission" in filename
-   - Refinery Artist Management files
+   - Management Company files
    - Payroll-related documents
 
 3. **Creative Projects** (85% confidence)
@@ -58,7 +58,7 @@
 
 ### Auto-Move (High Confidence)
 ```
-Entertainment: *Finn*Wolfhard*, *Stranger*Things*, *I-129*, *I-797*
+Entertainment: *Finn*Client*, *Stranger*Things*, *I-129*, *I-797*
 Financial: *Payment*Report*, *Invoice*, *Commission*, *Refinery*
 Audio: *.aup3, *.mp3, *.wav (to appropriate subfolders)
 Development: *.swift, *.py, *.ts, package.json

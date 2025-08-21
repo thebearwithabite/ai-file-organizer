@@ -157,9 +157,11 @@ class LibrarianCLI:
         
         # Find files to index
         index_locations = [
-            self.base_dir / "01_ACTIVE_PROJECTS",
-            self.base_dir / "02_MEDIA_ASSETS",
-            self.base_dir / "03_ARCHIVE_REFERENCE"
+            self.base_dir / "00_ACTIVE_PROJECTS",
+            self.base_dir / "01_UNIVERSAL_ASSETS", 
+            self.base_dir / "02_TEMPLATES_PRESETS",
+            self.base_dir / "03_INSPIRATION_RESEARCH",
+            self.base_dir / "04_METADATA_SYSTEM"
         ]
         
         files_to_index = []
@@ -224,7 +226,7 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  librarian search "Find Finn Wolfhard contracts"
+  librarian search "Find Client Name contracts"
   librarian search "Recent audio files" --limit 5
   librarian organize --dry-run
   librarian status

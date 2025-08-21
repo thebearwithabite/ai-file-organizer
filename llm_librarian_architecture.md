@@ -101,21 +101,21 @@ class QueryProcessor:
     def parse_query(self, question):
         """
         Examples:
-        "Find Finn Wolfhard contracts from 2024"
-        → person: "Finn Wolfhard", type: "contracts", date: "2024"
+        "Find Client Name contracts from 2024"
+        → person: "Client Name", type: "contracts", date: "2024"
         
         "Show me scripts about AI consciousness" 
         → type: "scripts", topic: "AI consciousness"
         
         "What was I working on last month?"
-        → timeframe: "last month", type: "any"
+        → timefMGMTe: "last month", type: "any"
         """
         
         # Extract entities
         entities = self.extract_entities(question)
         
         # Determine search strategy
-        if entities['timeframe']:
+        if entities['timefMGMTe']:
             return self.temporal_search(entities)
         elif entities['person']:
             return self.person_search(entities)  
@@ -199,8 +199,8 @@ class IncrementalIndexer:
 def find_related_files(self, base_file):
     """
     Find files connected by:
-    - Shared people (Finn Wolfhard → all related contracts)
-    - Shared projects (Stranger Things → scripts, schedules, contracts)
+    - Shared people (Client Name → all related contracts)
+    - Shared projects (TV Show → scripts, schedules, contracts)
     - Temporal proximity (files from same time period)
     - Content similarity (similar topics/themes)
     """
@@ -208,7 +208,7 @@ def find_related_files(self, base_file):
     relationships = {
         'people': self.extract_people_mentioned(base_file),
         'projects': self.extract_projects_mentioned(base_file),
-        'timeframe': self.get_file_timeframe(base_file),
+        'timefMGMTe': self.get_file_timefMGMTe(base_file),
         'topics': self.extract_topics(base_file)
     }
     
@@ -217,7 +217,7 @@ def find_related_files(self, base_file):
 
 ### Time-Travel Queries
 ```python
-def temporal_search(self, timeframe, context=None):
+def temporal_search(self, timefMGMTe, context=None):
     """
     "What was I working on in July 2024?"
     "Show me contracts signed last quarter"
@@ -225,7 +225,7 @@ def temporal_search(self, timeframe, context=None):
     """
     
     # Parse time expressions
-    date_range = self.parse_timeframe(timeframe)
+    date_range = self.parse_timefMGMTe(timefMGMTe)
     
     # Filter by date
     candidates = self.filter_by_date_range(date_range)
@@ -242,7 +242,7 @@ def temporal_search(self, timeframe, context=None):
 ### Command Line Interface
 ```python
 # Simple queries
-$ librarian "find finn wolfhard contracts"
+$ librarian "find Client Name contracts"
 $ librarian "what did I work on last week?"
 $ librarian "show me audio projects"
 
@@ -255,10 +255,10 @@ $ librarian --time "2024-07" --type "financial"
 ```python
 from librarian import LocalLibrarian
 
-lib = LocalLibrarian("/Users/ryanthomson/Documents")
+lib = LocalLibrarian("/Users/user/Documents")
 
 # Quick searches
-results = lib.search("Finn Wolfhard contracts")
+results = lib.search("Client Name contracts")
 
 # Advanced searches
 results = lib.semantic_search("AI consciousness themes")
@@ -268,7 +268,7 @@ timeline = lib.temporal_search("last month", context="creative")
 
 ### Future: Voice Interface
 ```python
-# "Hey Librarian, find my Stranger Things contracts"
+# "Hey Librarian, find my TV Show contracts"
 # "Show me what I was working on yesterday"  
 # "Find all files related to this project"
 ```
