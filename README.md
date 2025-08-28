@@ -1,39 +1,93 @@
 # 🤖 AI File Organizer
 
-**Intelligent document organization with AI-powered semantic search, interactive classification, and ADHD-friendly design.**
+**The Ultimate AI-Powered File Management System with ADHD-Friendly Design**
 
-Transform your chaotic file collections into intelligently organized, searchable libraries with AI that actually *understands* your content and learns your patterns.
+Transform your chaotic file collections into intelligently organized, searchable libraries with AI that understands your content, learns your patterns, and includes powerful creative tools.
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.8+-brightgreen.svg)
 ![Platform](https://img.shields.io/badge/platform-macOS-lightgrey.svg)
+![Status](https://img.shields.io/badge/status-Complete-success.svg)
 
 ---
 
-## ✨ What Makes This Special
+## ✨ What Makes This Revolutionary
 
-**This isn't just another file organizer - it's an AI librarian that gets smarter every time you use it.**
+**This isn't just file organization - it's an AI ecosystem that transforms how you manage creative and professional content.**
 
 🧠 **Semantic Understanding** - Searches by meaning, not just keywords  
+🎵 **AudioAI Integration** - Complete audio analysis with librosa  
+🎭 **Creative AI Partner** - Character recognition and story analysis  
+🌌 **Story Universe Mapping** - Visual knowledge graphs of creative connections  
+💡 **Idea Generation** - AI-powered creative inspiration based on your content  
+🏷️ **Intelligent Tagging** - Auto-generates meaningful tags  
 🤔 **Interactive Classification** - Asks smart questions when uncertain  
-📚 **Learning System** - Remembers your decisions and improves over time  
-⚡ **ADHD-Friendly** - Reduces cognitive load with smart defaults  
-🔄 **Auto-Updates** - Vector database stays current automatically  
-📧 **Email Integration** - Searches across documents AND emails  
-🏷️ **Smart Naming** - Generates meaningful filenames automatically  
+📚 **Learning System** - Remembers decisions and improves over time  
+📧 **Email Integration** - Unified search across documents AND emails  
+⚡ **ADHD-Optimized** - Reduces cognitive load with smart defaults  
+🍎 **Native macOS UI** - AppleScript interfaces that feel like system apps  
 
 ---
 
 ## 🎯 Perfect For
 
-### **Professionals with ADHD**
-*"Finally, a system that works WITH my brain, not against it. No more decision paralysis - just ask and find."*
+### **Entertainment Professionals**
+*Complete creative workflow management with character tracking, story analysis, and contract organization*
 
-### **Creative Professionals** 
-*"Finds contracts, scripts, and emails instantly. The semantic search understands 'find payment terms' without exact keywords."*
+### **Professionals with ADHD**  
+*"Finally, a system that works WITH my brain. No more decision paralysis - just intelligent automation."*
 
-### **Knowledge Workers**
-*"Organizes thousands of documents automatically. After a few corrections, it knows exactly how I like things filed."*
+### **Creative Professionals**
+*Advanced audio analysis, story universe mapping, and creative idea generation based on your existing content*
+
+### **Content Creators**
+*Automatically organizes scripts, audio, documents, and tracks creative connections across projects*
+
+---
+
+## 🚀 Key Features
+
+### **🔍 Advanced Search & Discovery**
+- **Semantic Search**: ChromaDB-powered understanding of document meaning
+- **Email Integration**: Search macOS Mail (.emlx) files alongside documents
+- **Multi-modal Search**: Text, audio transcripts, creative content unified
+- **Natural Language**: "Find Stranger Things contracts" works perfectly
+
+### **🎵 AudioAI Integration**
+- **Content Type Detection**: Interview, music, voice sample, scene audio
+- **Technical Analysis**: Quality assessment, noise levels, dynamic range  
+- **Speech Processing**: Voice activity detection, speaker estimation
+- **Music Analysis**: Tempo, key detection, energy, danceability
+- **Transcription**: Speech-to-text for interviews and voice content
+- **Creative Tags**: Auto-generates workflow-relevant tags
+
+### **🎭 Creative AI Ecosystem**
+- **Character Recognition**: Tracks characters across scripts and documents
+- **Story Analysis**: Identifies themes, plot progression, character development
+- **Universe Mapping**: Visual knowledge graphs of story connections
+- **Idea Generation**: AI creates story ideas based on your content patterns
+- **Project Context**: Automatically identifies creative projects
+- **Cross-References**: Links related creative content intelligently
+
+### **🗂️ Intelligent Organization**
+- **Interactive Questions**: 85% confidence threshold before filing
+- **Learning Preferences**: Remembers your organization choices
+- **File Naming Protocol**: YYYY-MM-DD_PROJECT_CLIENT_CONTENT-TYPE_vN
+- **Smart Categorization**: Entertainment, creative, business context understanding
+- **Duplicate Detection**: Prevents file redundancy
+
+### **🏷️ Comprehensive Tagging**
+- **Auto-Tagging**: Pattern-based tag generation from content
+- **Project Detection**: Automatically identifies creative projects
+- **Relationship Tracking**: Tag co-occurrence and connections
+- **Content Analysis**: Filename and content-based tagging
+- **Search Integration**: Tag-based file discovery
+
+### **📊 Analytics & Insights**
+- **Learning Statistics**: Track system improvement over time
+- **Content Analysis**: Creative project overviews and statistics
+- **Usage Patterns**: Understand how your content is organized
+- **Performance Metrics**: Classification confidence and accuracy
 
 ---
 
@@ -44,301 +98,277 @@ Transform your chaotic file collections into intelligently organized, searchable
 git clone https://github.com/yourusername/ai-file-organizer.git
 cd ai-file-organizer
 
-# Install dependencies
+# Install all dependencies (includes AudioAI libraries)
 pip install -r requirements.txt
 
-# Set your OpenAI API key (for classification only - no files sent to API)
-export OPENAI_API_KEY="your-api-key-here"
+# Set up your environment (optional - for enhanced features)
+export OPENAI_API_KEY="your-key-here"  # For classification only
 ```
 
-### 2. First Run - Interactive Organization
+### 2. First Run - Build Your AI Librarian
 ```bash
-# See what questions the system would ask
-python show_questions.py
+# Index your existing files
+python vector_librarian.py
 
-# Organize files with smart questions and previews
-python integrated_organizer.py
+# Start with Downloads organization (preview mode)
+python interactive_organizer.py organize --dry-run
 
-# Start background monitoring (keeps everything up to date)
-python monitor_control.py start
+# Try semantic search
+python enhanced_librarian.py search "important contracts" --mode semantic
 ```
 
-### 3. Search Everything
+### 3. macOS Native Experience
 ```bash
-# Semantic search across all your content
-python enhanced_librarian.py search "contract exclusivity terms"
-python enhanced_librarian.py search "creative project emails from last month" 
-python enhanced_librarian.py search "financial documents about commissions"
+# Open the native admin interface
+osascript AI_Organizer_Admin.applescript
+
+# Quick access menu
+osascript AI_Organizer_MenuBar.applescript
 ```
 
 ---
 
-## 🎬 How It Works
+## 🎨 Creative Workflows
 
-### **Before AI Organizer:**
-```
-Downloads/
-├── contract_final_v2.pdf
-├── IMPORTANT_DOC.docx  
-├── email_export.txt
-└── random_notes.md
-```
-
-### **After AI Organizer:**
-```
-01_ACTIVE_PROJECTS/
-├── Entertainment_Industry/
-│   └── Current_Contracts/
-│       └── 2025-08-21_ENT_ClientName_Management-Agreement_v2.pdf
-├── Business_Operations/
-│   └── Financial_Records/
-│       └── 2025-08-21_BUS_General_Commission-Report_v1.docx
-└── Creative_Production/
-    └── 2025-08-21_CRE_General_Notes_v1.md
-
-04_METADATA_SYSTEM/
-└── comprehensive_index.xlsx  # Searchable database of everything
-```
-
-**Plus:** Semantic search finds things like *"payment terms"* even when the document says *"compensation structure"*!
-
----
-
-## 🧠 Key Features Deep Dive
-
-### **Interactive Classification with 85% Confidence Rule**
-- Shows you file content before asking questions
-- Only asks when genuinely uncertain (< 85% confidence) 
-- Learns your preferences to reduce future questions
-- ADHD-friendly: Clear choices, no overwhelming options
-
+### **Story Development**
 ```bash
-📄 Analyzing: client_agreement.pdf
-🔍 Content Preview:
-   "This agreement between Company and Client Name covers 
-    exclusive representation for television and film..."
+# Analyze creative content
+python creative_cli.py analyze script.pdf --details
 
-🤖 Initial AI Analysis:
-   Suggested Category: Entertainment Industry (72% confidence)
-   
-❓ CLASSIFICATION QUESTION
-   Based on the content above:
-   Should this entertainment document be filed under:
-   1. Current active projects
-   2. Business operations 
-   3. Archived contracts
+# Build story universe
+python universe_cli.py build
+python universe_cli.py overview --detailed
 
-✅ You chose: Current active projects
-   Confidence updated: 95% ✅
+# Generate creative ideas
+python universe_cli.py suggest
 ```
 
-### **Smart File Naming Protocol**
-Automatically generates meaningful filenames using the format:
-`YYYY-MM-DD_PROJECT_CLIENT_CONTENT-TYPE_vN.ext`
-
-**Examples:**
-- `client_stuff.pdf` → `2025-08-21_ENT_ClientName_Management-Agreement_v1.pdf`
-- `commission_report.xlsx` → `2025-08-21_BUS_Internal_Commission-Report_v1.xlsx`
-
-### **Vector Database with Smart Chunking**
-- **Contracts**: Chunked by sections (compensation, terms, exclusivity)
-- **Scripts**: Chunked by scenes and dialogue  
-- **Emails**: Separate headers from body content
-- **Business docs**: Organized by topics and sections
-
-### **Background Monitoring with ADHD-Friendly 7-Day Rule**
+### **Audio Production**
 ```bash
-📁 Directory Monitoring:
-   ✅ Staging: Processes immediately (organized files)
-   ✅ Downloads: 7-day wait (won't disrupt active work)  
-   ✅ Desktop: 7-day wait (ADHD-friendly)
-   ✅ Documents: Processes regularly
-   ✅ Email: Auto-indexes new messages
+# Comprehensive audio analysis
+python audio_cli.py analyze interview.mp3 --transcribe
+
+# Batch process audio folder
+python audio_cli.py directory ~/Audio --transcribe
+
+# Search audio content
+python audio_cli.py search "consciousness discussion"
 ```
 
----
-
-## 🚀 Advanced Usage
-
-### **Search Modes**
+### **Content Organization**
 ```bash
-# Fast keyword search
-python enhanced_librarian.py search "Client Name" --mode fast
+# Tag content comprehensively
+python tagging_cli.py directory ~/Documents
 
-# Semantic AI search (understands meaning)  
-python enhanced_librarian.py search "payment terms" --mode semantic
+# Search by tags
+python tagging_cli.py search "creative,project,consciousness"
 
-# Auto-chooses best approach
-python enhanced_librarian.py search "creative collaboration" --mode auto
+# View tagging statistics
+python tagging_cli.py stats
 ```
 
-### **Background Monitoring**
+---
+
+## 🏗️ System Architecture
+
+```
+📁 AI File Organizer/
+├── 🧠 Core Intelligence
+│   ├── ChromaDB Vector Database      # Semantic search engine
+│   ├── Interactive Classifier        # Learning-based organization
+│   └── Content Extractors           # Multi-format processing
+├── 🎵 AudioAI Integration
+│   ├── librosa Analysis             # Professional audio processing  
+│   ├── Speech Recognition           # Transcription capabilities
+│   └── Music Feature Extraction     # Tempo, key, energy analysis
+├── 🎭 Creative AI Suite
+│   ├── Character Recognition        # Story element tracking
+│   ├── Story Universe Mapping       # Knowledge graph system
+│   ├── Idea Generation             # AI-powered creativity
+│   └── Project Context Detection   # Workflow integration
+├── 🏷️ Tagging & Metadata
+│   ├── Auto-Tagging Engine         # Pattern-based tag generation
+│   ├── Relationship Tracking       # Tag co-occurrence analysis
+│   └── Search Integration          # Tag-based discovery
+├── 📧 Email Integration
+│   └── macOS Mail Processing       # .emlx file extraction
+├── 🍎 Native macOS UI
+│   ├── AppleScript Admin Interface # Full system management
+│   └── Quick Access Menu          # Common functions
+└── 📊 Analytics & Learning
+    ├── Usage Statistics            # Performance tracking
+    ├── Learning Preferences       # Decision memory
+    └── Content Analytics          # Creative insights
+```
+
+---
+
+## 🎯 ADHD-Optimized Design
+
+### **Cognitive Load Reduction**
+- **Binary Choices**: Simple A/B questions, no overwhelming options
+- **Smart Defaults**: System learns and suggests best options  
+- **Immediate Feedback**: Instant search results and file previews
+- **Confidence Thresholds**: Only acts when 85%+ certain
+- **Learning Memory**: Reduces repeat questions over time
+
+### **Workflow Integration**
+- **Native macOS Feel**: AppleScript interfaces feel like system apps
+- **Background Processing**: Audio analysis happens during organization
+- **Unified Search**: One interface for all content types
+- **Context Awareness**: Understands your creative projects automatically
+
+### **Error Prevention**
+- **Dry-Run Mode**: Preview all changes before execution
+- **Duplicate Detection**: Prevents file redundancy anxiety
+- **Backup Integration**: Safe file operations with recovery
+- **Incremental Learning**: System gets smarter, not more complex
+
+---
+
+## 📚 Usage Examples
+
+### **Entertainment Professional**
 ```bash
-# Start auto-monitoring (recommended)
-python monitor_control.py start
+# Find specific contract terms
+python enhanced_librarian.py search "SAG-AFTRA exclusivity terms" --mode semantic
 
-# Check status
-python monitor_control.py status  
+# Organize new contracts with questions
+python interactive_organizer.py file new_contract.pdf --live
 
-# Manual scan of specific folder
-python monitor_control.py scan /Users/user/Downloads
+# Analyze creative script
+python creative_cli.py analyze scene_script.pdf --details
+
+# Build story universe for project
+python universe_cli.py build
+python universe_cli.py connections "main character" --depth 3
 ```
 
-### **Interactive Organization**
+### **Audio Content Creator**
 ```bash
-# Organize with content previews and questions
-python integrated_organizer.py
+# Analyze podcast episode
+python audio_cli.py analyze episode_01.mp3 --transcribe --details
 
-# Test single file classification  
-python interactive_classifier.py test
+# Batch process interview folder  
+python audio_cli.py directory ~/Interviews --transcribe
 
-# Batch process with dry-run
-python batch_test.py --dry-run
+# Search transcriptions
+python audio_cli.py search "artificial intelligence"
+
+# Organize audio by content type
+python interactive_organizer.py organize --live
 ```
 
----
-
-## 📊 System Architecture
-
-```
-🗂️  AI File Organizer/
-├── 🧠 Vector Database (ChromaDB)         # Semantic search engine
-├── 📧 Email Integration (.emlx files)    # macOS Mail integration  
-├── 📄 Document Processing               # PDFs, DOCX, scripts
-├── 🔍 Smart Search Interface           # Natural language queries
-├── 🍎 AppleScript GUI                  # Native macOS integration
-├── 🤔 Interactive Classification       # Asks questions until 85% confident
-├── 🏷️  Smart Naming Protocol           # Auto-generates meaningful names
-└── 🔄 Background Monitor               # Keeps everything up to date
-```
-
-### **Core Components:**
-- **`enhanced_librarian.py`** - Main search and organization interface
-- **`vector_librarian.py`** - Semantic search with ChromaDB
-- **`interactive_classifier.py`** - AI classification with user feedback
-- **`background_monitor.py`** - Auto-monitoring and indexing
-- **`file_naming_protocol.py`** - Intelligent filename generation
-- **`email_extractor.py`** - macOS Mail integration
-
----
-
-## 🎯 ADHD-Specific Design
-
-**Why this system works for ADHD brains:**
-
-✅ **No decision paralysis** - System only asks when genuinely uncertain  
-✅ **Learns your patterns** - Reduces cognitive load over time  
-✅ **7-day waiting period** - Won't interfere with active Downloads/Desktop work  
-✅ **Immediate staging** - Process organized files right away  
-✅ **Binary choices** - Never overwhelms with too many options  
-✅ **Visual previews** - See content before making decisions  
-✅ **Forgiving search** - Finds things even with imprecise queries  
-
-**Real ADHD Benefits:**
-- Find things without perfect organization
-- Reduce filing anxiety with smart defaults  
-- Stop losing important documents in chaos
-- Build searchable knowledge base effortlessly
-
----
-
-## 📈 Performance & Scaling
-
-- **Processing Speed**: ~100-500 files per hour (depending on content)
-- **Library Size**: Tested with 10,000+ file libraries
-- **Memory Usage**: ~200MB for typical usage
-- **Vector Database**: Grows ~10-50MB per 1,000 documents
-- **Search Speed**: Sub-2 second semantic search results
-
----
-
-## 🛡️ Privacy & Security  
-
-- **100% Local Processing** - All AI analysis happens on your machine
-- **No Cloud Uploads** - Your files never leave your computer
-- **API Usage** - Only sends text descriptions to OpenAI, never file content
-- **Open Source** - Fully auditable, no hidden data collection
-
----
-
-## 🔧 Technical Requirements
-
-### **Minimum:**
-- macOS 10.15+ (Catalina or newer)
-- Python 3.8+ 
-- 8GB RAM
-- 2GB storage space
-
-### **Recommended:**
-- macOS 12+ (Monterey or newer) 
-- Python 3.10+
-- 16GB RAM
-- M1/M2 Apple Silicon (faster embedding generation)
-
-### **Dependencies:**
+### **Creative Writer**
 ```bash
-# Core AI/ML
-openai>=1.0.0
+# Analyze all story documents
+python creative_cli.py directory ~/Stories
+
+# Generate story ideas from existing content
+python universe_cli.py suggest --focus "character development"
+
+# Track character appearances
+python creative_cli.py character "protagonist name"
+
+# View story universe connections
+python universe_cli.py overview --detailed
+```
+
+---
+
+## 🔧 Technical Details
+
+### **Dependencies**
+```txt
+# Core AI & Search
 chromadb>=0.4.0
 sentence-transformers>=2.2.0
 
-# Document processing  
-PyPDF2>=3.0.0
-python-docx>=0.8.11
-openpyxl>=3.1.0
+# Document Processing  
+PyPDF2>=3.0.1
+python-docx>=1.2.0
+lxml>=6.0.0
 
-# System integration
-watchdog>=3.0.0
-applescript>=1.0.0
+# AudioAI Integration
+librosa>=0.10.0
+ffmpeg-python>=0.2.0
+SpeechRecognition>=3.10.0
+pydub>=0.25.1
+soundfile>=0.12.1
+
+# Data Processing
+numpy>=1.21.0
+networkx>=2.8.0
 ```
+
+### **Performance**
+- **Local Processing**: All analysis happens on-device
+- **Optimized Indexing**: Smart chunking for different document types
+- **Incremental Updates**: Only processes changed files
+- **Efficient Storage**: Compressed vector representations
+- **Background Tasks**: Non-blocking audio analysis
+
+### **Privacy & Security**
+- **Local-Only Processing**: Files never leave your machine
+- **No Cloud Dependencies**: Works completely offline
+- **Secure Storage**: SQLite databases with proper permissions
+- **Optional AI Enhancement**: OpenAI integration is optional
+
+---
+
+## 🎭 Creative Features Deep Dive
+
+### **Story Universe Knowledge Graph**
+Build comprehensive maps of your creative universe:
+- **Character Relationships**: Track connections across projects
+- **Theme Analysis**: Identify recurring creative elements  
+- **Project Clusters**: Visualize related creative work
+- **Development Suggestions**: AI recommendations for story expansion
+
+### **AudioAI Professional Analysis**
+Complete audio understanding with industry-standard tools:
+- **Content Classification**: Interview, music, dialogue, ambient
+- **Quality Assessment**: Professional-grade audio evaluation
+- **Speech Analysis**: Clarity scoring, speaker detection
+- **Music Features**: BPM, key, energy, danceability analysis
+- **Transcription Integration**: Searchable speech-to-text
+
+### **Creative Idea Generation**
+AI-powered inspiration based on your existing content:
+- **Plot Development**: Twist suggestions, character arcs
+- **Theme Exploration**: Deep thematic connections
+- **Cross-Project Ideas**: Inspiration across your creative universe
+- **Writer's Block Solutions**: Targeted creative prompts
 
 ---
 
 ## 🤝 Contributing
 
-We'd love your help making AI File Organizer even better!
+This system represents a comprehensive solution for creative professionals and individuals with ADHD. Contributions that maintain the core principles are welcome:
 
-### **Most Wanted Features:**
-- [ ] Google Drive / Dropbox sync
-- [ ] Windows/Linux support  
-- [ ] Web interface for remote access
-- [ ] Advanced genre-specific classification
-- [ ] Collaborative library sharing
-- [ ] More file format support
-
-### **Bug Reports:**
-Include your:
-- Operating system and Python version
-- File types you're organizing  
-- Full error traceback
-- Steps to reproduce
-
-### **Development Setup:**
-```bash
-git clone https://github.com/yourusername/ai-file-organizer.git
-cd ai-file-organizer
-pip install -e ".[dev]"
-python test_integration.py
-```
+1. **ADHD-Friendly**: Reduce cognitive load, don't add complexity
+2. **Content-Aware**: Understand creative and professional contexts
+3. **Privacy-First**: Local processing, optional cloud features
+4. **macOS Native**: Seamless system integration
 
 ---
 
-## 📜 License
+## 📄 License
 
-MIT License - see [LICENSE](LICENSE) for details.
-
-**Built with ❤️ for knowledge workers, creatives, and anyone who struggles with file organization.**
+MIT License - Build amazing things with this foundation.
 
 ---
 
-## 🌟 Star This Repo
+## 🙏 Acknowledgments
 
-If AI File Organizer transformed your workflow, **please star this repository!** ⭐
-
-**Questions? Ideas? Success stories?**
-- [Open an issue](https://github.com/yourusername/ai-file-organizer/issues)
-- Email: [user@example.com](mailto:user@example.com)
+- **ChromaDB** for vector database capabilities
+- **librosa** for professional audio analysis  
+- **sentence-transformers** for semantic understanding
+- **NetworkX** for knowledge graph visualization
+- **The ADHD community** for insights into cognitive accessibility
 
 ---
 
-*From digital chaos to intelligent organization. AI File Organizer learns, adapts, and grows with your unique workflow.*
+**Built with ❤️ for creative professionals, by someone who understands the challenges of ADHD and complex creative workflows.**
+
+*Transform your file chaos into creative clarity.*

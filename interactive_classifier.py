@@ -14,6 +14,7 @@ from datetime import datetime
 import re
 
 from classification_engine import FileClassificationEngine, ClassificationResult
+from interaction_modes import InteractionModeManager, InteractionMode
 
 @dataclass
 class ClassificationQuestion:
@@ -40,12 +41,14 @@ class InteractiveClassifier:
         self.base_dir = Path(base_dir) if base_dir else Path.home() / "Documents"
         self.base_classifier = FileClassificationEngine(str(self.base_dir))
         
+        # Interaction modes system (like AudioAI)
+        self.interaction_manager = InteractionModeManager(str(self.base_dir))
+        
         # Learning system
         self.learning_file = self.base_dir / "04_METADATA_SYSTEM" / "user_preferences.json"
         self.user_preferences = self._load_user_preferences()
         
-        # Confidence threshold
-        self.target_confidence = 85.0
+        # Dynamic confidence threshold based on interaction mode
         self.max_questions = 3  # Prevent endless questioning
         
         # Question templates for different uncertainty types
@@ -122,8 +125,23 @@ class InteractiveClassifier:
         
         print(f"Initial confidence: {current_result.confidence:.1f}%")
         
+        # Get dynamic confidence threshold from interaction mode
+        target_confidence = self.interaction_manager.get_confidence_threshold() * 100  # Convert to percentage
+        mode = self.interaction_manager.get_interaction_mode()
+        
+        print(f"Mode: {mode.value} (threshold: {target_confidence:.0f}%)")
+        
+        # Check if we should ask questions based on interaction mode
+        should_ask = self.interaction_manager.should_ask_user(current_result.confidence / 100)
+        
+        if not should_ask:
+            # Auto-process mode - update stats and return
+            print(f"✅ Auto-processing (confidence {current_result.confidence:.1f}% meets {mode.value} mode threshold)")
+            self.interaction_manager.update_stats(asked_question=False, auto_processed=True)
+            return current_result
+        
         # Ask questions until confident or max questions reached
-        while current_result.confidence < self.target_confidence and questions_asked < self.max_questions:
+        while current_result.confidence < target_confidence and questions_asked < self.max_questions:
             question = self._generate_question(current_result, file_path, content)
             
             if not question:
@@ -139,8 +157,14 @@ class InteractiveClassifier:
             questions_asked += 1
             print(f"Updated confidence: {current_result.confidence:.1f}%")
         
+        # Update interaction statistics
+        self.interaction_manager.update_stats(
+            asked_question=(questions_asked > 0), 
+            auto_processed=(questions_asked == 0)
+        )
+        
         # Final result
-        if current_result.confidence >= self.target_confidence:
+        if current_result.confidence >= target_confidence:
             print(f"✅ Classification complete with {current_result.confidence:.1f}% confidence")
         else:
             print(f"⚠️  Proceeding with {current_result.confidence:.1f}% confidence after {questions_asked} questions")
@@ -415,6 +439,23 @@ class InteractiveClassifier:
         
         # Save preferences
         self._save_user_preferences()
+    
+    # Interaction Mode Management Methods (like AudioAI)
+    def set_interaction_mode(self, mode: InteractionMode):
+        """Set interaction mode (smart/minimal/always/never)"""
+        self.interaction_manager.set_interaction_mode(mode)
+    
+    def get_interaction_mode(self) -> InteractionMode:
+        """Get current interaction mode"""
+        return self.interaction_manager.get_interaction_mode()
+    
+    def show_interaction_stats(self):
+        """Show interaction statistics like AudioAI"""
+        self.interaction_manager.show_mode_info()
+    
+    def show_available_modes(self):
+        """Show all available interaction modes"""
+        self.interaction_manager.show_all_modes()
 
 def test_interactive_classifier():
     """Test the interactive classification system"""

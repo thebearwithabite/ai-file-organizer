@@ -38,6 +38,10 @@ class FileClassificationEngine:
         # Load classification rules
         self._load_classification_rules()
         
+        # Initialize custom categories manager
+        self.custom_categories = None
+        self._init_custom_categories()
+        
         # Folder structure mapping
         self.folder_structure = {
             "entertainment": "01_ACTIVE_PROJECTS/Entertainment_Industry",
@@ -140,6 +144,15 @@ class FileClassificationEngine:
                 }
             }
             self._save_classification_rules()
+    
+    def _init_custom_categories(self):
+        """Initialize custom categories manager if available"""
+        try:
+            from custom_categories import CustomCategoryManager
+            self.custom_categories = CustomCategoryManager(str(self.base_dir))
+        except ImportError:
+            # Custom categories not available
+            pass
     
     def _map_category_to_folder(self, category: str) -> str:
         """Map category names to folder keys"""
@@ -258,7 +271,15 @@ class FileClassificationEngine:
         best_confidence = 0.0
         best_reasoning = []
         
-        # Test against each document type
+        # First try custom categories if available
+        if self.custom_categories:
+            custom_result = self.custom_categories.classify_with_custom_categories(file_path)
+            if custom_result and custom_result['confidence'] > best_confidence:
+                best_confidence = custom_result['confidence']
+                best_classification = custom_result['category']
+                best_reasoning = [f"Custom category match: {custom_result['display_name']}"]
+        
+        # Test against each built-in document type
         for doc_type, rules in self.rules["document_types"].items():
             confidence, reasoning = self.calculate_confidence_score(analysis, doc_type)
             
