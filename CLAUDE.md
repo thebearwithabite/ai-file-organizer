@@ -1,5 +1,21 @@
 # User's AI File Organizer
 
+---
+
+### Requirements
+- Python 3.11+
+- macOS with AppleScript support
+- Node.js (for optional UI wrappers)
+
+### Installation
+```bash
+git clone https://github.com/ryan/ai-file-organizer
+cd ai-file-organizer
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+
+---
+
 ## 🎯 **Why This System Exists**
 
 User has ADHD and managing file organization is genuinely difficult. This system creates an **intelligent librarian** that:
