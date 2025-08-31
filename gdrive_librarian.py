@@ -117,8 +117,8 @@ class GoogleDriveLibrarian:
             return {}
     
     def upload_file(self, local_path: str, gdrive_folder: str = None, 
-                   new_name: str = None) -> Optional[str]:
-        """Upload file to Google Drive with AI classification"""
+                   new_name: str = None, auto_delete: bool = False) -> Optional[str]:
+        """Upload file to Google Drive with AI classification and optional auto-deletion"""
         if not self.authenticated:
             print("❌ Not authenticated with Google Drive")
             return None
@@ -127,6 +127,9 @@ class GoogleDriveLibrarian:
         if not local_file.exists():
             print(f"❌ File not found: {local_path}")
             return None
+        
+        # Store file size for logging before upload
+        file_size_mb = local_file.stat().st_size / (1024 * 1024)
         
         try:
             # Quick classification for emergency upload
@@ -169,11 +172,49 @@ class GoogleDriveLibrarian:
             ).execute()
             
             print(f"✅ Uploaded: {file_name} → {gdrive_folder}")
-            print(f"   File ID: {file_result.get('id')}")
-            print(f"   Size: {int(file_result.get('size', 0)) / (1024*1024):.1f} MB")
+            upload_file_id = file_result.get('id')
+            print(f"   File ID: {upload_file_id}")
+            print(f"   Size: {file_size_mb:.1f} MB")
             print(f"   Classification: {category} ({confidence:.1f}%)")
             
-            return file_result.get('id')
+            # Critical: Only proceed with auto-delete if metadata logging succeeds
+            metadata_logged = False
+            if auto_delete:
+                try:
+                    # Attempt metadata logging with success verification
+                    success = self._log_metadata_operation(local_file, gdrive_folder, category, confidence, file_size_mb)
+                    if success:
+                        metadata_logged = True
+                        print(f"📊 Metadata logged successfully")
+                    else:
+                        print(f"❌ Metadata logging failed - database save unsuccessful")
+                        print(f"⚠️  File uploaded but NOT deleted locally due to logging failure")
+                        print(f"📄 Manual cleanup may be needed: {local_path}")
+                        # Return successful upload ID but don't delete
+                        return upload_file_id
+                        
+                except Exception as e:
+                    print(f"❌ Metadata logging exception: {e}")
+                    print(f"⚠️  File uploaded but NOT deleted locally due to logging failure")
+                    print(f"📄 Manual cleanup may be needed: {local_path}")
+                    # Return successful upload ID but don't delete
+                    return upload_file_id
+            
+            # Safe auto-delete: Only if metadata logging succeeded OR auto_delete is False
+            if auto_delete and metadata_logged:
+                try:
+                    local_file.unlink()
+                    print(f"🗑️  Deleted local file: {local_file.name}")
+                    print(f"💾 Freed {file_size_mb:.1f} MB of local space")
+                    print(f"✅ Complete: Upload + Metadata + Cleanup successful")
+                    
+                except Exception as e:
+                    print(f"❌ Could not delete local file: {e}")
+                    print(f"⚠️  Manual deletion required: {local_path}")
+                    print(f"✅ Note: File is uploaded and metadata logged correctly")
+                    # File is uploaded and logged, just deletion failed - still return success
+            
+            return upload_file_id
             
         except HttpError as error:
             print(f"❌ Upload error: {error}")
@@ -238,24 +279,18 @@ class GoogleDriveLibrarian:
                     print(f"   🎯 Classification: {category} ({confidence:.1f}%)")
                     print(f"   💾 Would free: {size_mb:.1f} MB")
                     
+                    results["uploaded"] += 1  # Count as would-be uploaded
                     results["space_freed"] += size_mb
                     
                 except Exception as e:
                     print(f"   ❌ Classification error: {e}")
                     results["errors"] += 1
             else:
-                # Actually upload
-                file_id = self.upload_file(str(file_path))
+                # Actually upload with auto-deletion enabled
+                file_id = self.upload_file(str(file_path), auto_delete=True)
                 if file_id:
                     results["uploaded"] += 1
                     results["space_freed"] += size_mb
-                    
-                    # Delete local file after successful upload
-                    try:
-                        file_path.unlink()
-                        print(f"   🗑️  Deleted local copy")
-                    except Exception as e:
-                        print(f"   ⚠️  Could not delete local file: {e}")
                 else:
                     results["errors"] += 1
         
@@ -321,6 +356,46 @@ class GoogleDriveLibrarian:
         }
         
         return mapping.get(category, "Reference Material")
+    
+    def _log_metadata_operation(self, local_file: Path, gdrive_folder: str, category: str, confidence: float, size_mb: float) -> bool:
+        """Log upload operation to metadata system for tracking with success verification"""
+        try:
+            # Import metadata generator
+            from metadata_generator import MetadataGenerator
+            
+            # Create metadata entry for the upload operation
+            metadata_gen = MetadataGenerator(str(self.base_dir))
+            
+            # Analyze the file before upload (if it still exists)
+            if local_file.exists():
+                metadata = metadata_gen.analyze_file_comprehensive(local_file)
+                
+                # Add Google Drive specific metadata
+                metadata.update({
+                    'gdrive_upload': True,
+                    'gdrive_folder': gdrive_folder,
+                    'gdrive_category': category,
+                    'gdrive_confidence': confidence,
+                    'upload_timestamp': datetime.now().isoformat(),
+                    'organization_status': 'Uploaded_to_GDrive',
+                    'space_freed_mb': size_mb
+                })
+                
+                # Critical: Verify metadata was actually saved
+                success = metadata_gen.save_file_metadata(metadata)
+                if success:
+                    print(f"   📊 Metadata logged and verified")
+                    return True
+                else:
+                    print(f"   ❌ Metadata save to database failed")
+                    return False
+            else:
+                print(f"   ⚠️  File no longer exists for metadata logging")
+                return False
+            
+        except Exception as e:
+            print(f"   ❌ Metadata logging exception: {e}")
+            return False
     
     def get_storage_info(self) -> Dict:
         """Get Google Drive storage information"""

@@ -112,7 +112,15 @@ class MetadataGenerator:
     def _init_tracking_db(self):
         """Initialize SQLite database for tracking file metadata"""
         with sqlite3.connect(self.db_path) as conn:
-            conn.execute("""
+            # First, create the table with the current schema
+            self._create_tables(conn)
+            
+            # Then, migrate any missing columns
+            self._migrate_database_schema(conn)
+    
+    def _create_tables(self, conn):
+        """Create database tables with full schema"""
+        conn.execute("""
                 CREATE TABLE IF NOT EXISTS file_metadata (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     file_path TEXT UNIQUE,
@@ -152,6 +160,15 @@ class MetadataGenerator:
                     enhanced_filename TEXT,
                     organization_status TEXT,
                     
+                    -- Google Drive integration
+                    gdrive_upload BOOLEAN DEFAULT 0,
+                    gdrive_folder TEXT,
+                    gdrive_file_id TEXT,
+                    gdrive_category TEXT,
+                    gdrive_confidence REAL,
+                    upload_timestamp TEXT,
+                    space_freed_mb REAL,
+                    
                     -- Audio/Video specific (when applicable)
                     duration_seconds REAL,
                     audio_bitrate INTEGER,
@@ -165,7 +182,7 @@ class MetadataGenerator:
                 )
             """)
             
-            conn.execute("""
+        conn.execute("""
                 CREATE TABLE IF NOT EXISTS processing_sessions (
                     session_id TEXT PRIMARY KEY,
                     start_time TEXT,
@@ -179,7 +196,95 @@ class MetadataGenerator:
                 )
             """)
             
+        conn.commit()
+    
+    def _migrate_database_schema(self, conn):
+        """Atomic database migration with backup/rollback capability"""
+        import shutil
+        from datetime import datetime
+        
+        # Step 1: Create backup before any changes
+        backup_path = self._create_database_backup()
+        
+        try:
+            # Step 2: Begin exclusive transaction for atomic operations
+            conn.execute("BEGIN EXCLUSIVE TRANSACTION")
+            
+            # Step 3: Check existing columns
+            cursor = conn.execute("PRAGMA table_info(file_metadata)")
+            existing_columns = [row[1] for row in cursor.fetchall()]
+            
+            # Step 4: Define Google Drive columns to add
+            gdrive_columns = {
+                'gdrive_upload': 'BOOLEAN DEFAULT 0',
+                'gdrive_folder': 'TEXT',
+                'gdrive_file_id': 'TEXT', 
+                'gdrive_category': 'TEXT',
+                'gdrive_confidence': 'REAL',
+                'upload_timestamp': 'TEXT',
+                'space_freed_mb': 'REAL'
+            }
+            
+            # Step 5: Add missing columns atomically
+            migration_count = 0
+            for col_name, col_type in gdrive_columns.items():
+                if col_name not in existing_columns:
+                    conn.execute(f"ALTER TABLE file_metadata ADD COLUMN {col_name} {col_type}")
+                    migration_count += 1
+                    print(f"   ✅ Added column: {col_name}")
+            
+            # Step 6: Commit all changes atomically
             conn.commit()
+            print(f"✅ Database migration successful: {migration_count} columns added")
+            
+            # Step 7: Cleanup backup if successful
+            if backup_path and backup_path.exists():
+                backup_path.unlink()
+                print(f"🗑️  Cleanup: Removed backup {backup_path.name}")
+            
+        except sqlite3.Error as e:
+            # Step 8: Rollback transaction and restore from backup
+            print(f"❌ Database migration failed: {e}")
+            conn.rollback()
+            
+            if backup_path and backup_path.exists():
+                print("🔄 Restoring database from backup...")
+                try:
+                    shutil.copy2(backup_path, self.db_path)
+                    print("✅ Database restored from backup")
+                except Exception as restore_error:
+                    print(f"❌ CRITICAL: Backup restoration failed: {restore_error}")
+                    print(f"📁 Manual restore required from: {backup_path}")
+            
+            raise e
+        
+        except Exception as e:
+            # Handle non-SQLite errors
+            print(f"❌ Unexpected migration error: {e}")
+            conn.rollback()
+            raise e
+
+    def _create_database_backup(self):
+        """Create timestamped backup of database before migration"""
+        import shutil
+        from datetime import datetime
+        
+        if not self.db_path.exists():
+            print("📄 No existing database to backup")
+            return None
+        
+        try:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            backup_path = self.db_path.with_name(f"{self.db_path.stem}_backup_{timestamp}.db")
+            
+            shutil.copy2(self.db_path, backup_path)
+            print(f"📁 Database backup created: {backup_path.name}")
+            return backup_path
+            
+        except Exception as e:
+            print(f"⚠️  Could not create database backup: {e}")
+            print("🚨 Proceeding without backup - increased risk!")
+            return None
     
     def analyze_file_comprehensive(self, file_path: Path) -> Dict[str, Any]:
         """Perform comprehensive analysis of a single file"""

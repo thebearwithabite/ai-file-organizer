@@ -197,7 +197,93 @@ When working on this system:
 
 This isn't just a file organizer - it's an accessibility tool that makes information management possible for someone with ADHD working in a complex, document-heavy industry.
 
+## 🤖 **Claude Code Agent Integration**
+
+The following specialized agents are configured to work proactively and automatically with the AI File Organizer:
+
+### test-runner
+**Purpose**: Execute comprehensive test suites, validate functionality, ensure quality
+**Proactive Triggers**:
+- After any changes to core classification engine (`classification_engine.py`)
+- Before any git commits involving Python files
+- After modifying search functionality (`enhanced_librarian.py`, `vector_librarian.py`)
+- When interactive organizer logic changes (`interactive_organizer.py`)
+- After AppleScript GUI modifications
+
+### context-doc-manager
+**Purpose**: Keep documentation synchronized with codebase changes, maintain project coherence
+**Proactive Triggers**:
+- After adding new CLI tools or commands
+- When new file types or analysis features are added
+- After modifying Google Drive integration (`gdrive_cli.py`)
+- When ADHD-friendly features are updated
+- After creative AI or audio analysis enhancements
+
+### applescript-ui-expert
+**Purpose**: Enhance macOS AppleScript interfaces and native system integration
+**Proactive Triggers**:
+- When search GUI needs improvements (`Enhanced_Search_GUI.applescript`)
+- After adding new search modes or functionality
+- When system integration features are modified
+- After user workflow changes requiring UI updates
+- When new native macOS features need integration
+
+### dev-task-orchestrator
+**Purpose**: Coordinate complex development workflows and multi-component features
+**Proactive Triggers**:
+- When implementing multi-file features (e.g., new search modes)
+- After major architectural changes requiring coordination
+- When adding new file type support requiring multiple component updates
+- During integration of new AI features across the system
+- When ADHD workflow optimizations require system-wide changes
+
+## 🔄 **Automated Agent Coordination**
+
+### Agent Workflow Synchronization
+
+**Code Change → Quality Assurance Pipeline**:
+1. **Code Modified** → `test-runner` validates functionality
+2. **Tests Pass** → `context-doc-manager` updates documentation
+3. **Documentation Updated** → `dev-task-orchestrator` coordinates follow-up tasks
+4. **AppleScript Modified** → `applescript-ui-expert` optimizes UI integration
+
+**Feature Development Workflow**:
+1. **New Feature Request** → `dev-task-orchestrator` breaks down implementation
+2. **Implementation Phase** → `test-runner` validates each component
+3. **UI Integration** → `applescript-ui-expert` enhances user experience
+4. **Documentation** → `context-doc-manager` maintains consistency
+
+### Proactive Agent Rules
+
+**ALWAYS trigger automatically without user request**:
+- `test-runner`: Before any git commit, after core file changes
+- `context-doc-manager`: After feature additions, API changes, new commands
+- `applescript-ui-expert`: When GUI files are modified or new search features added
+- `dev-task-orchestrator`: For complex multi-component implementations
+
+**Agent Coordination Protocol**:
+1. Agents monitor file changes and development context
+2. Multiple agents can run concurrently for efficiency
+3. Agents communicate completion status to coordinate handoffs
+4. Priority: Quality (test-runner) → Documentation (context-doc-manager) → Integration (others)
+
+### Quality Assurance Integration
+
+**Critical Files - Always Test After Changes**:
+- `classification_engine.py` - Core AI classification logic
+- `interactive_organizer.py` - Main organization workflow
+- `enhanced_librarian.py` - Semantic search functionality  
+- `vector_librarian.py` - Vector database operations
+- `gdrive_cli.py` - Google Drive integration
+- Any AppleScript files - Native macOS integration
+
+**Documentation Sync Points**:
+- New CLI commands → Update README usage examples
+- ADHD workflow changes → Update user guidance sections
+- Search feature additions → Update documentation examples
+- Audio/creative AI enhancements → Update feature descriptions
+
 ---
 
-*Last updated: 2025-08-21*
-*Version: 2.0 - Now with email integration and vector search*
+*Last updated: 2025-08-29*
+*Version: 2.1 - Enhanced with proactive agent integration*

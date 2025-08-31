@@ -374,6 +374,17 @@ mindmap
 
 ## 📖 Documentation
 
+### **Proactive AI Agent System**
+
+This project includes an advanced **automated agent coordination system** that works proactively to ensure quality and consistency:
+
+- **🧪 test-runner**: Automatically validates all code changes and runs comprehensive test suites
+- **📚 context-doc-manager**: Keeps documentation synchronized with codebase changes  
+- **🍎 applescript-ui-expert**: Optimizes macOS integration and native user experience
+- **🎯 dev-task-orchestrator**: Coordinates complex development workflows
+
+**These agents activate automatically** - no commands needed. They ensure every change maintains ADHD-friendly design principles and system quality.
+
 ### **Installation Guide**
 
 <details>
@@ -1028,5 +1039,7 @@ This project stands on the shoulders of giants:
 ---
 
 **Quick Links:** [Installation](#-quick-start) • [ADHD Guide](#-adhd-optimized-design) • [Audio Features](#-audioai-integration) • [Google Drive](#-google-drive-integration) • [Creative Tools](#-creative-ai-ecosystem)
+
+**Developer Documentation:** [CLAUDE.md](/Users/user/Github/ai-file-organizer/CLAUDE.md) • [Agent System](/Users/user/Github/ai-file-organizer/agents.md) • [Architecture](/Users/user/Github/ai-file-organizer/llm_librarian_architecture.md) • [Specifications](/Users/user/Github/ai-file-organizer/system_specifications_v2.md)
 
 </div>
