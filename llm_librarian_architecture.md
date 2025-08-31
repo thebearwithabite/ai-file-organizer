@@ -275,29 +275,37 @@ timeline = lib.temporal_search("last month", context="creative")
 
 ## 🛠️ Implementation Phases
 
+### Automated Quality Assurance
+Each phase leverages **proactive agent coordination** to ensure quality:
+
+- **🧪 test-runner**: Validates each component before phase advancement
+- **📚 context-doc-manager**: Updates architecture documentation as implementation evolves
+- **🍎 applescript-ui-expert**: Ensures ADHD-friendly interface design
+- **🎯 dev-task-orchestrator**: Coordinates complex multi-component implementations
+
 ### Phase 1: Foundation (Week 1)
 - [ ] Basic file indexing system
-- [ ] Metadata extraction pipeline
+- [ ] Metadata extraction pipeline  
 - [ ] Simple text search
-- [ ] **TEST:** Index 1000 files in <1 hour
+- [ ] **TEST:** Index 1000 files in <1 hour (automated via test-runner)
 
 ### Phase 2: Intelligence (Week 2)
 - [ ] Embedding generation
 - [ ] Vector similarity search
 - [ ] Query parsing logic
-- [ ] **TEST:** Query response <2 seconds
+- [ ] **TEST:** Query response <2 seconds (automated via test-runner)
 
 ### Phase 3: Optimization (Week 3)
 - [ ] Smart caching system
 - [ ] Incremental indexing
 - [ ] Performance monitoring
-- [ ] **TEST:** Memory usage <4GB
+- [ ] **TEST:** Memory usage <4GB (continuous monitoring)
 
 ### Phase 4: Advanced Features (Week 4)
 - [ ] Relationship discovery
-- [ ] Temporal queries
+- [ ] Temporal queries  
 - [ ] Result ranking
-- [ ] **TEST:** Search accuracy >85%
+- [ ] **TEST:** Search accuracy >85% (automated validation)
 
 ## 🎯 Success Metrics
 
