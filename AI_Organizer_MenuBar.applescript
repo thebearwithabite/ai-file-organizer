@@ -40,7 +40,7 @@ end run
 
 on quickSearch()
 	try
-		set searchQuery to text returned of (display dialog "Search your files:" default answer "" with title "AI Librarian" with icon note)
+		set searchQuery to text returned of (display dialog "Search your files:" default answer "" with title "AI Librarian")
 		if searchQuery is not "" then
 			
 			-- Show progress
@@ -50,8 +50,7 @@ on quickSearch()
 			set searchResults to do shell script searchCommand
 			
 			-- Show results in a clean format
-			display dialog searchResults with title "Search Results" buttons {"New Search", "Open Admin", "Close"} default button "Close" with icon note
-			
+			display dialog searchResults with title "Search Results" buttons {"New Search", "Open Admin", "Close"} default button "Close" 			
 			set buttonResult to button returned of result
 			if buttonResult is "New Search" then
 				quickSearch()
@@ -66,7 +65,7 @@ end quickSearch
 
 on quickOrganizeDownloads()
 	try
-		set modeChoice to choose from list {"👀 Preview Only", "✅ Organize Now"} with title "Organize Downloads" with prompt "Choose mode:" default items {"👀 Preview Only"} with icon note
+		set modeChoice to choose from list {"👀 Preview Only", "✅ Organize Now"} with title "Organize Downloads" with prompt "Choose mode:" default items {"👀 Preview Only"}
 		
 		if modeChoice is not false then
 			set selectedMode to item 1 of modeChoice
@@ -84,7 +83,7 @@ on quickOrganizeDownloads()
 			set organizeResults to do shell script organizeCommand
 			
 			if selectedMode is "👀 Preview Only" then
-				display dialog "Organization Preview:" & return & return & organizeResults with title "Preview Results" buttons {"Organize Now", "Close"} default button "Close" with icon note
+				display dialog "Organization Preview:" & return & return & organizeResults with title "Preview Results" buttons {"Organize Now", "Close"} default button "Close"
 				if button returned of result is "Organize Now" then
 					-- Run in live mode
 					display notification "Organizing Downloads folder..." with title "AI File Organizer" subtitle "Moving files..."
@@ -94,7 +93,7 @@ on quickOrganizeDownloads()
 				end if
 			else
 				display notification "Downloads organized!" with title "AI File Organizer" sound name "Glass"
-				display dialog "Organization Complete!" & return & return & organizeResults with title "Organization Results" buttons {"OK"} default button "OK" with icon note
+				display dialog "Organization Complete!" & return & return & organizeResults with title "Organization Results" buttons {"OK"} default button "OK"
 			end if
 		end if
 	on error errorMsg
@@ -104,7 +103,7 @@ end quickOrganizeDownloads
 
 on quickAnalyzeAudio()
 	try
-		set audioFile to choose file with prompt "Choose audio file to analyze:" of type {"public.audio"} with icon note
+		set audioFile to choose file with prompt "Choose audio file to analyze:" of type {"public.audio"}
 		set filePath to POSIX path of audioFile
 		set fileName to name of (info for audioFile)
 		
@@ -115,8 +114,7 @@ on quickAnalyzeAudio()
 		
 		display notification "Analysis complete!" with title "Audio AI" sound name "Glass"
 		
-		display dialog "Audio Analysis Results:" & return & return & analysisResults with title "Audio AI Analysis" buttons {"Analyze Another", "Close"} default button "Close" with icon note
-		
+		display dialog "Audio Analysis Results:" & return & return & analysisResults with title "Audio AI Analysis" buttons {"Analyze Another", "Close"} default button "Close"
 		if button returned of result is "Analyze Another" then
 			quickAnalyzeAudio()
 		end if
@@ -178,8 +176,7 @@ except:
 		
 		set statusResults to do shell script statusCommand
 		
-		display dialog statusResults with title "System Status" buttons {"Full Admin", "Refresh", "OK"} default button "OK" with icon note
-		
+		display dialog statusResults with title "System Status" buttons {"Full Admin", "Refresh", "OK"} default button "OK"
 		set buttonResult to button returned of result
 		if buttonResult is "Full Admin" then
 			do shell script "osascript " & quoted form of (organizerPath & "/AI_Organizer_Admin.applescript")
@@ -226,8 +223,7 @@ on showQuickHelp()
 • Search supports partial matches
 • System learns from your choices"
 	
-	display dialog helpText with title "AI File Organizer Help" buttons {"Open Full Admin", "Close"} default button "Close" with icon note
-	
+	display dialog helpText with title "AI File Organizer Help" buttons {"Open Full Admin", "Close"} default button "Close"
 	if button returned of result is "Open Full Admin" then
 		do shell script "osascript " & quoted form of (organizerPath & "/AI_Organizer_Admin.applescript")
 	end if

@@ -126,20 +126,28 @@ if "Payment Report" in filename:
     add_tags(["Financial", "ExampleMgmt", "Business"])
 ```
 
-## 🧪 Testing FMGMTework
+## 🧪 Testing Framework & Agent Coordination
+
+### Proactive Testing System
+This system includes **automated agents** that ensure continuous quality without manual intervention:
+
+- **🧪 test-runner**: Automatically executes comprehensive test suites after code changes
+- **📚 context-doc-manager**: Maintains documentation consistency with implementation
+- **🍎 applescript-ui-expert**: Ensures ADHD-friendly UI design principles
+- **🎯 dev-task-orchestrator**: Coordinates complex multi-component implementations
 
 ### Test Categories
-1. **Unit Tests:** Individual components
-2. **Integration Tests:** Component interactions  
-3. **User Experience Tests:** Real workflow validation
-4. **Performance Tests:** Speed and resource usage
-5. **Accuracy Tests:** Organization and search precision
+1. **Unit Tests:** Individual components (automated via test-runner)
+2. **Integration Tests:** Component interactions (automated via test-runner)
+3. **User Experience Tests:** Real workflow validation (guided by applescript-ui-expert)
+4. **Performance Tests:** Speed and resource usage (monitored continuously)
+5. **Accuracy Tests:** Organization and search precision (validated automatically)
 
 ### Testing Schedule
-- **After each feature completion**
-- **Before phase transitions**
-- **Weekly performance benchmarks**
-- **Monthly user experience reviews**
+- **After each feature completion** (agents trigger automatically)
+- **Before phase transitions** (agent coordination validates readiness)
+- **Weekly performance benchmarks** (automated monitoring)
+- **Monthly user experience reviews** (ADHD-friendly validation)
 
 ### Success Metrics
 - **Organization Accuracy:** >90% correct classifications
