@@ -337,7 +337,7 @@ If AI File Organizer transformed your workflow, **please star this repository!**
 
 **Questions? Ideas? Success stories?**
 - [Open an issue](https://github.com/yourusername/ai-file-organizer/issues)
-- Email: [user@example.com](mailto:user@example.com)
+- Email: [user@example.com](mailto:rt@papersthatdream.com)
 
 ---
 
