@@ -11,8 +11,9 @@ from pathlib import Path
 
 class InteractionMode(Enum):
     """Different interaction modes for file organization"""
-    SMART = "smart"       # 70% confidence threshold - asks when uncertain (recommended)
+    SMART = "smart"       # 75% confidence threshold - asks when uncertain (recommended)
     MINIMAL = "minimal"   # 40% confidence threshold - only very uncertain files
+    LEARNING = "learning" # 85% confidence threshold - aggressive learning mode
     ALWAYS = "always"     # 100% threshold - asks about every file (maximum accuracy)  
     NEVER = "never"       # 0% threshold - fully automatic (bulk processing)
 
@@ -29,10 +30,10 @@ class InteractionModeManager:
         # Default mode configuration (matching AudioAI patterns)
         self.mode_configs = {
             InteractionMode.SMART: {
-                'confidence_threshold': 0.70,
-                'description': 'Asks when uncertain (recommended)',
+                'confidence_threshold': 0.75,
+                'description': 'Asks when uncertain - optimized for learning (recommended)',
                 'auto_process': True,
-                'ask_threshold': 0.70,
+                'ask_threshold': 0.75,
                 'batch_friendly': True,
                 'suitable_for': ['daily_use', 'mixed_content', 'learning_phase']
             },
@@ -43,6 +44,14 @@ class InteractionModeManager:
                 'ask_threshold': 0.40,
                 'batch_friendly': True,
                 'suitable_for': ['experienced_users', 'bulk_processing', 'trusted_content']
+            },
+            InteractionMode.LEARNING: {
+                'confidence_threshold': 0.85,
+                'description': 'Fast learning mode - asks frequently to build intelligence quickly',
+                'auto_process': True,
+                'ask_threshold': 0.85,
+                'batch_friendly': True,
+                'suitable_for': ['initial_setup', 'training_period', 'new_projects', 'rapid_learning']
             },
             InteractionMode.ALWAYS: {
                 'confidence_threshold': 1.0,

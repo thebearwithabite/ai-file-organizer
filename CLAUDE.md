@@ -66,24 +66,35 @@ User has ADHD and managing file organization is genuinely difficult. This system
 ## 🏗️ **System Architecture**
 
 ```
-📁 AI File Organizer/
+📁 AI File Organizer v3.0/
 ├── 🧠 Vector Database (ChromaDB)         # Semantic search engine
 ├── 📧 Email Integration (.emlx files)    # macOS Mail integration  
 ├── 📄 Document Processing               # PDFs, DOCX, scripts
+├── 🎬 Computer Vision (Gemini 2.5 Flash) # Images and video analysis
+├── 🎵 Audio AI Analysis               # Professional audio processing
+├── 📚 Video Project Trainer           # Learns user's projects
 ├── 🔍 Smart Search Interface           # Natural language queries
 ├── 🍎 AppleScript GUI                  # Native macOS integration
-├── 🤔 Interactive Classification       # Asks questions until 85% confident
+├── 🤔 Interactive Classification       # 5 interaction modes with learning
+├── 🏷️ Comprehensive Tagging System     # Multi-source auto-tagging
+├── ☁️ Google Drive Integration         # 2TB cloud storage
 └── 🗂️ Intelligent Organization         # Auto-categorization with learning
 ```
 
-### Key Components:
-- **vector_librarian.py**: The brain - semantic search with smart chunking
-- **email_extractor.py**: Reads macOS Mail for unified search
-- **interactive_classifier.py**: Asks questions until 85% confident, learns preferences
+### Core Components:
+- **enhanced_librarian.py**: Advanced semantic search with hybrid modes
 - **interactive_organizer.py**: Main organization workflow with questioning
+- **vision_content_extractor.py**: Computer vision analysis (Gemini 2.5 Flash)
+- **video_project_trainer.py**: Learns user's specific projects (thebearwithabite, Papers That Dream)
+- **interactive_classifier.py**: 5 interaction modes (SMART, MINIMAL, LEARNING, ALWAYS, NEVER)
+- **quick_learning_mode.py**: Easy mode switching for training
+- **tagging_cli.py**: Comprehensive auto-tagging system
+- **gdrive_cli.py**: Google Drive integration with emergency space recovery
+- **audio_cli.py**: Professional audio analysis and transcription
+- **batch_cli.py**: ADHD-friendly batch processing
+- **email_extractor.py**: macOS Mail integration
+- **vector_librarian.py**: Vector database operations
 - **Enhanced_Search_GUI.applescript**: Native Mac search interface
-- **content_extractor.py**: Handles PDFs, DOCX, text files
-- **staging_monitor.py**: Auto-organizes new files
 
 ## 🚀 **How to Use**
 
@@ -95,14 +106,26 @@ User has ADHD and managing file organization is genuinely difficult. This system
 
 ### Command Line Search:
 ```bash
+# Enhanced semantic search
 python enhanced_librarian.py search "AI consciousness papers" --mode semantic
 python enhanced_librarian.py search "payment terms" --mode fast  
 python enhanced_librarian.py search "meeting schedules" --mode auto
+
+# Search by tags
+python tagging_cli.py search "project:,netflix" --match-all
+python tagging_cli.py search "contract,client"
+
+# Audio content search
+python audio_cli.py search "consciousness"
+python audio_cli.py search "interview" --type interview
+
+# Google Drive search
+python gdrive_cli.py search --query "contract"
 ```
 
 ### Interactive File Organization:
 ```bash
-# Organize files with smart questions (ADHD-friendly)
+# Main organization workflow
 python interactive_organizer.py organize --live     # Actually move files
 python interactive_organizer.py organize --dry-run  # Preview only
 
@@ -111,12 +134,57 @@ python interactive_organizer.py quick /Users/user/Downloads --live
 
 # Test single file
 python interactive_organizer.py file "/path/to/document.pdf" --live
+
+# Batch processing (ADHD-friendly)
+python batch_cli.py directory ~/Downloads --dry-run --batch-size 20
+python batch_cli.py directory ~/Documents --live
+```
+
+### Computer Vision Analysis:
+```bash
+# Analyze images and videos
+python vision_cli.py analyze screenshot.png
+python vision_cli.py analyze video.mp4 --context entertainment
+python vision_cli.py directory ~/Downloads --limit 5
+
+# Video project recognition
+python video_project_trainer.py analyze ~/Videos
+python video_project_trainer.py train --project "thebearwithabite"
+```
+
+### Interaction Modes & Learning:
+```bash
+# Quick learning mode activation
+python quick_learning_mode.py --learning  # Aggressive learning
+python quick_learning_mode.py --smart     # Normal operation
+python quick_learning_mode.py --status    # Check current mode
+
+# Manual mode control
+python demo_interaction_modes.py  # Interactive mode selection
+```
+
+### Google Drive Integration:
+```bash
+# Emergency space recovery
+python gdrive_cli.py emergency --live     # Free up space immediately
+python gdrive_cli.py organize --live      # Organize and upload files
+python gdrive_cli.py status               # Check storage status
+
+# Authentication and setup
+python gdrive_cli.py auth --credentials gdrive_credentials.json
+python gdrive_cli.py folders              # List folder structure
 ```
 
 ### Index New Content:
 ```bash
+# Enhanced indexing
 python enhanced_librarian.py index --folder "/Users/user/Documents/NewProject"
-python vector_librarian.py  # Index emails + documents with smart chunking
+python enhanced_librarian.py index --semantic  # Build vector database
+python vector_librarian.py                     # Index emails + documents
+
+# Tagging and metadata
+python tagging_cli.py directory ~/Documents
+python metadata_cli.py analyze ~/Documents
 ```
 
 ## 💡 **Real Examples**
@@ -137,10 +205,13 @@ python vector_librarian.py  # Index emails + documents with smart chunking
 ## 🔧 **Technical Details**
 
 ### File Types Supported:
-- **Documents**: PDF, DOCX, Pages, TXT, MD
+- **Documents**: PDF, DOCX, Pages, TXT, MD, RTF
+- **Images**: PNG, JPG, GIF, TIFF, WEBP (with computer vision)
+- **Videos**: MP4, MOV, AVI, MKV (with computer vision and project recognition)
+- **Audio**: MP3, WAV, FLAC, M4A, AUP3 (with AI analysis and transcription)
 - **Emails**: macOS Mail (.emlx files)
-- **Code**: Python, JavaScript, Jupyter notebooks
-- **Creative**: Scripts, research papers, audio specs
+- **Code**: Python, JavaScript, Jupyter notebooks, HTML, CSS
+- **Creative**: Scripts, research papers, story documents
 
 ### Smart Chunking System:
 - **Contracts**: Chunks by sections (compensation, terms, exclusivity)
@@ -153,6 +224,18 @@ python vector_librarian.py  # Index emails + documents with smart chunking
 - **Semantic**: AI understanding (good for concepts, themes)
 - **Auto**: Intelligently chooses best approach
 - **Hybrid**: Combines both for comprehensive results
+
+### Interaction Modes:
+- **SMART** (75%): Default - asks when uncertain, optimized for learning
+- **MINIMAL** (40%): Only asks about very uncertain files  
+- **LEARNING** (85%): Aggressive learning mode for rapid system training
+- **ALWAYS** (100%): Maximum accuracy - asks about every file
+- **NEVER** (0%): Fully automatic - no questions (bulk processing)
+
+### Computer Vision Contexts:
+- **General**: Standard image/video analysis
+- **Entertainment**: Entertainment industry focus (Client Name Wolfhard projects)
+- **Creative**: Creative projects (Papers That Dream, AI content, thebearwithabite)
 
 ## 🎯 **ADHD-Specific Design Decisions**
 
@@ -283,7 +366,38 @@ The following specialized agents are configured to work proactively and automati
 - Search feature additions → Update documentation examples
 - Audio/creative AI enhancements → Update feature descriptions
 
+## 📖 **Complete Command Reference**
+
+All Python commands are now comprehensively documented in **[COMMANDS.md](COMMANDS.md)** - your go-to reference for:
+
+- **Core Organization**: `interactive_organizer.py`, `batch_cli.py`
+- **Search & Discovery**: `enhanced_librarian.py`, `tagging_cli.py`
+- **Computer Vision**: `vision_cli.py`, `video_project_trainer.py` (Gemini 2.5 Flash)
+- **Audio Analysis**: `audio_cli.py`, `multimedia_cli.py`
+- **Learning Modes**: `quick_learning_mode.py`, `learning_cli.py`
+- **Google Drive**: `gdrive_cli.py`
+- **Creative Tools**: `creative_cli.py`, `universe_cli.py`
+
+**Quick Command Lookup**:
+```bash
+# Set learning mode for training
+python quick_learning_mode.py --learning
+
+# Organize with computer vision
+python vision_cli.py analyze screenshot.png --context entertainment
+python interactive_organizer.py organize --live
+
+# Search everything
+python enhanced_librarian.py search "consciousness papers" --mode semantic
+python tagging_cli.py search "finn,contract,active" --match-all
+
+# Emergency space recovery
+python gdrive_cli.py emergency --live
+```
+
+**See [COMMANDS.md](COMMANDS.md) for complete usage examples, troubleshooting, and workflow patterns.**
+
 ---
 
-*Last updated: 2025-08-29*
-*Version: 2.1 - Enhanced with proactive agent integration*
+*Last updated: 2025-09-03*
+*Version: 3.0 - Computer vision integration, video project trainer, comprehensive command reference*
