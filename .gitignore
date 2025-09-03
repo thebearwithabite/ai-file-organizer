@@ -27,3 +27,7 @@ env/
 # IDE
 .vscode/
 .idea/
+
+# Google Drive credentials (contains OAuth secrets)
+gdrive_credentials.json
+gdrive_token.pickle

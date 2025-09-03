@@ -21,13 +21,17 @@ sys.path.insert(0, str(project_dir))
 from vector_librarian import VectorLibrarian
 from email_extractor import EmailExtractor
 from content_extractor import ContentExtractor
+from path_config import paths
 
-# Set up logging
+# Set up logging with dynamic path resolution
+paths.create_required_directories(verbose=False)  # Ensure log directory exists
+log_file = paths.get_path('logs') / 'monitor.log'
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('/Users/user/Github/ai-file-organizer/monitor.log'),
+        logging.FileHandler(str(log_file)),
         logging.StreamHandler()
     ]
 )
@@ -78,7 +82,7 @@ class EnhancedBackgroundMonitor:
         return {
             # High priority - check frequently
             'staging': {
-                'path': Path("/Users/user/Documents/TEMP_PROCESSING/Downloads_Staging"),
+                'path': paths.get_path('temp_processing') / "Downloads_Staging",
                 'priority': 'high',
                 'auto_organize': True
             },

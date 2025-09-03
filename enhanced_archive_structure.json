@@ -1,0 +1,217 @@
+{
+  "version": "2.0",
+  "created": "2025-08-31",
+  "description": "Enhanced archive organization structure integrating Google Drive analysis with ADHD-friendly design",
+  
+  "archive_structure": {
+    "01_ACTIVE_PROJECTS": {
+      "description": "Current work requiring immediate access",
+      "retention": "active",
+      "priority": "high",
+      "subdirectories": {
+        "Entertainment_Industry": {
+          "contracts_current": "Active SAG-AFTRA, management agreements",
+          "casting_schedules": "Current auditions and bookings", 
+          "publicity_materials": "Press kits, headshots, current campaigns",
+          "immigration_docs": "I-129, I-797, work authorization docs"
+        },
+        "Business_Operations": {
+          "financial_current": "Current tax year, active invoices",
+          "client_communications": "Active email threads, meeting notes",
+          "legal_active": "Current contracts, agreements in negotiation",
+          "admin_current": "Insurance, business registrations"
+        },
+        "Creative_Content": {
+          "papers_that_dream": "Current podcast episodes, research",
+          "ai_research": "Active AI consciousness projects",
+          "scripts_development": "Current writing projects",
+          "collaboration_active": "Active creative partnerships"
+        },
+        "Development_Projects": {
+          "ai_file_organizer": "This project",
+          "active_coding": "Current development work",
+          "client_projects": "Active client development"
+        }
+      }
+    },
+    
+    "02_ARCHIVE_HISTORICAL": {
+      "description": "Completed projects and historical records",
+      "retention": "permanent", 
+      "priority": "medium",
+      "aging_rules": {
+        "auto_archive_after": "12_months",
+        "compress_after": "24_months",
+        "deep_storage_after": "60_months"
+      },
+      "subdirectories": {
+        "Entertainment_Archive": {
+          "by_year": {
+            "2024": "All 2024 entertainment projects",
+            "2023": "All 2023 entertainment projects", 
+            "2022": "All 2022 entertainment projects"
+          },
+          "by_project": {
+            "stranger_things": "Complete ST project history",
+            "completed_contracts": "Fulfilled agreements",
+            "past_auditions": "Historical casting records"
+          },
+          "by_client": {
+            "finn_wolfhard": "Complete client history"
+          }
+        },
+        "Business_Archive": {
+          "by_year": {
+            "tax_years": "Complete tax records by year",
+            "financial_statements": "Historical financial records"
+          },
+          "by_category": {
+            "completed_contracts": "Fulfilled business agreements",
+            "vendor_history": "Past vendor relationships",
+            "expense_records": "Historical business expenses"
+          }
+        },
+        "Creative_Archive": {
+          "completed_episodes": "Published Papers That Dream episodes",
+          "research_archive": "Completed AI research projects",
+          "published_scripts": "Completed writing projects",
+          "collaboration_history": "Past creative partnerships"
+        }
+      }
+    },
+    
+    "03_REFERENCE_LIBRARY": {
+      "description": "Templates, resources, and reference materials",
+      "retention": "permanent",
+      "priority": "low",
+      "subdirectories": {
+        "Legal_Templates": {
+          "contract_templates": "Standard agreement templates",
+          "legal_forms": "Immigration, business forms",
+          "compliance_guides": "SAG-AFTRA rules, industry standards"
+        },
+        "Business_Resources": {
+          "financial_templates": "Invoice, expense templates",
+          "process_documentation": "How-to guides, procedures",
+          "vendor_contacts": "Service provider information"
+        },
+        "Creative_Resources": {
+          "research_methodology": "AI research frameworks",
+          "production_templates": "Podcast production guides",
+          "style_guides": "Writing and content standards"
+        }
+      }
+    },
+    
+    "04_TEMP_PROCESSING": {
+      "description": "Temporary staging area for new files",
+      "retention": "7_days",
+      "priority": "high",
+      "auto_cleanup": true,
+      "subdirectories": {
+        "Downloads_Staging": "New downloads awaiting classification",
+        "Email_Extracts": "Email attachments awaiting processing", 
+        "Scan_Intake": "Scanned documents awaiting OCR",
+        "Quick_Capture": "Phone photos, voice memos for processing"
+      }
+    }
+  },
+  
+  "intelligent_filing_rules": {
+    "entertainment_industry": {
+      "keywords": [
+        "Client Name Wolfhard", "Stranger Things", "Refinery", "MNT", "SAG-AFTRA",
+        "Actor Agreement", "Deal Memo", "Casting", "Audition", "Script",
+        "Entertainment", "Artist Management", "Publicity", "Press", "I-129", "I-797"
+      ],
+      "active_indicators": [
+        "current", "active", "pending", "2024", "2025", "draft", "negotiation"
+      ],
+      "archive_indicators": [
+        "completed", "executed", "final", "2023", "2022", "2021", "closed"
+      ],
+      "confidence_weights": {
+        "finn_wolfhard": 0.9,
+        "stranger_things": 0.9,
+        "current_date_match": 0.8,
+        "active_language": 0.7
+      }
+    },
+    
+    "financial_documents": {
+      "keywords": [
+        "Tax Return", "Payroll", "Invoice", "Payment Report", 
+        "Bank Statement", "Receipt", "Financial", "Amex", "Credit Card",
+        "Quarterly", "Annual", "Expense", "Commission"
+      ],
+      "active_indicators": [
+        "2024", "2025", "current", "outstanding", "pending", "draft"
+      ],
+      "archive_indicators": [
+        "2023", "2022", "2021", "paid", "completed", "filed", "reconciled"
+      ],
+      "retention_rules": {
+        "tax_documents": "7_years",
+        "receipts": "3_years", 
+        "bank_statements": "5_years"
+      }
+    },
+    
+    "creative_projects": {
+      "keywords": [
+        "Papers That Dream", "Episode", "Podcast", "Research", "AI",
+        "Audio", "Music", "Script", "Writing", "Creative", "Consciousness",
+        "Collaboration", "Interview", "Notes"
+      ],
+      "active_indicators": [
+        "draft", "recording", "editing", "current", "in_progress", "development"
+      ],
+      "archive_indicators": [
+        "published", "released", "completed", "aired", "final"
+      ]
+    }
+  },
+  
+  "adhd_friendly_features": {
+    "visual_organization": {
+      "use_emoji_prefixes": true,
+      "color_coding": {
+        "active": "🔴 Red (urgent attention)",
+        "archive": "🔵 Blue (reference only)",
+        "reference": "🟢 Green (templates/resources)",
+        "temp": "🟡 Yellow (needs action)"
+      }
+    },
+    
+    "cognitive_load_reduction": {
+      "max_folder_depth": 3,
+      "max_items_per_folder": 20,
+      "auto_suggest_filing": true,
+      "smart_search_shortcuts": [
+        "Recent Client Name docs",
+        "Current tax materials",
+        "This month's episodes"
+      ]
+    },
+    
+    "time_based_helpers": {
+      "auto_archive_suggestions": "After 12 months of inactivity",
+      "seasonal_reminders": "Tax season prep, year-end reviews",
+      "context_preservation": "Keep related files together always"
+    }
+  },
+  
+  "search_optimization": {
+    "semantic_chunks": {
+      "contracts": "By parties, terms, dates, amounts",
+      "creative_content": "By themes, collaborators, publication status",
+      "financial_docs": "By tax year, expense category, vendor"
+    },
+    
+    "cross_reference_links": {
+      "client_connections": "Link all Client Name-related docs across categories",
+      "project_connections": "Link creative and business aspects of same project",
+      "temporal_connections": "Link documents by time periods"
+    }
+  }
+}

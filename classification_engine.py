@@ -62,32 +62,40 @@ class FileClassificationEngine:
             with open(self.rules_path, 'r') as f:
                 loaded_data = json.load(f)
             
-            # Adapt the existing rules structure to our engine format
+            # Enhanced v3.0 rules structure with better integration
             self.rules = {
                 "people_indicators": {
-                    "finn_Client": ["finn", "Client", "TV Show", "netflix"],
-                    "business_contacts": ["refinery", "payment report", "contract", "agreement"]
+                    "finn_Client": ["finn", "client", "finn wolfhard", "stranger things", "netflix", "hawkins"],
+                    "business_contacts": ["refinery", "refinery artist mgmt", "payment report", "contract", "agreement", "commission", "residual"],
+                    "creative_contacts": ["papers that dream", "podcast", "episode", "ai consciousness"]
                 },
                 "project_indicators": {
-                    "stranger_things": ["stranger", "things", "netflix", "hawkins"], 
-                    "papers_that_dream": ["papers", "dream", "screenplay"],
-                    "refinery": ["refinery", "payment", "residual"]
+                    "stranger_things": ["stranger", "things", "netflix", "hawkins", "finn", "demo reel"], 
+                    "papers_that_dream": ["papers", "dream", "podcast", "episode", "elevenlabs", "tts", "voice"],
+                    "refinery_business": ["refinery", "artist", "mgmt", "commission", "residual", "bank feed"],
+                    "threads_development": ["threads", "exporter", "downloader", "dataset", "react", "typescript"],
+                    "creative_production": ["creative", "audio", "music", "sound", "production", "editing"]
                 },
                 "document_types": {},
                 "confidence_thresholds": {
-                    "auto_organize": loaded_data.get("confidence_thresholds", {}).get("auto_move", 0.8),
-                    "suggest_organization": loaded_data.get("confidence_thresholds", {}).get("suggest_move", 0.6),
-                    "manual_review": loaded_data.get("confidence_thresholds", {}).get("manual_review", 0.4)
+                    "auto_organize": loaded_data.get("confidence_thresholds", {}).get("auto_move", 0.85),
+                    "suggest_organization": loaded_data.get("confidence_thresholds", {}).get("suggest_move", 0.65),
+                    "manual_review": loaded_data.get("confidence_thresholds", {}).get("manual_review", 0.45)
                 }
             }
             
-            # Convert classification_rules to our document_types format
+            # Convert v3.0 classification_rules to our document_types format
             classification_rules = loaded_data.get("classification_rules", {})
             for category, rules in classification_rules.items():
+                confidence_weights = rules.get("confidence_weights", {})
+                avg_confidence = sum(confidence_weights.values()) / len(confidence_weights) if confidence_weights else 0.5
+                
                 self.rules["document_types"][category] = {
-                    "keywords": rules.get("keywords", []),
+                    "keywords": [kw.lower() for kw in rules.get("keywords", [])],
+                    "patterns": rules.get("patterns", []),
                     "extensions": rules.get("file_types", []),
-                    "confidence_boost": 0.3,
+                    "confidence_boost": avg_confidence,
+                    "confidence_weights": confidence_weights,
                     "target_folder": self._map_category_to_folder(category)
                 }
             
@@ -100,11 +108,12 @@ class FileClassificationEngine:
                     "target_folder": "audio"
                 }
             
-            if "visual_files" not in self.rules["document_types"]:
+            # Map visual_files to visual_media for backward compatibility
+            if "visual_files" not in self.rules["document_types"] and "visual_media" in self.rules["document_types"]:
                 self.rules["document_types"]["visual_files"] = {
                     "keywords": ["image", "photo", "picture"],
                     "extensions": [".jpg", ".jpeg", ".png", ".gif", ".bmp"],
-                    "confidence_boost": 0.4,
+                    "confidence_boost": 0.3,
                     "target_folder": "visual"
                 }
                 
@@ -160,7 +169,9 @@ class FileClassificationEngine:
             "entertainment_industry": "entertainment",
             "financial_documents": "financial", 
             "creative_projects": "creative",
-            "development_projects": "development"
+            "development_projects": "development",
+            "visual_media": "visual",
+            "reference_documents": "temp"
         }
         return mapping.get(category, "temp")
     
@@ -215,53 +226,193 @@ class FileClassificationEngine:
         return analysis
     
     def calculate_confidence_score(self, analysis: Dict, document_type: str) -> Tuple[float, List[str]]:
-        """Calculate confidence score for classification"""
+        """Enhanced confidence scoring with v3.0 pattern matching"""
         confidence = 0.0
         reasoning = []
         
         doc_rules = self.rules["document_types"].get(document_type, {})
+        filename_lower = analysis["filename"].lower()
         
-        # Base confidence from document type detection
+        # Enhanced keyword matching with confidence weights
         if "keywords" in doc_rules:
             keyword_matches = 0
-            for keyword in doc_rules["keywords"]:
-                if keyword in analysis["filename"].lower():
-                    keyword_matches += 1
-                    reasoning.append(f"Found keyword: {keyword}")
+            confidence_weights = doc_rules.get("confidence_weights", {})
             
-            if keyword_matches > 0:
-                confidence += doc_rules.get("confidence_boost", 0.2) * (keyword_matches / len(doc_rules["keywords"]))
+            for keyword in doc_rules["keywords"]:
+                if keyword.lower() in filename_lower:
+                    keyword_matches += 1
+                    # Use specific confidence weight if available
+                    weight_key = keyword.lower().replace(" ", "_")
+                    specific_weight = confidence_weights.get(weight_key, 0.3)
+                    confidence += specific_weight
+                    reasoning.append(f"Found keyword: {keyword} (weight: {specific_weight:.1%})")
+            
+            # Bonus for multiple keyword matches
+            if keyword_matches > 1:
+                confidence += 0.1
+                reasoning.append(f"Multiple keyword matches ({keyword_matches})")
         
-        # Extension-based confidence
+        # Pattern matching (new in v3.0)
+        if "patterns" in doc_rules:
+            import fnmatch
+            for pattern in doc_rules["patterns"]:
+                if fnmatch.fnmatch(filename_lower, pattern.lower()):
+                    confidence += 0.2
+                    reasoning.append(f"Matches pattern: {pattern}")
+        
+        # Extension-based confidence with enhanced scoring
         if "extensions" in doc_rules:
             if analysis["extension"] in doc_rules["extensions"]:
-                confidence += doc_rules.get("confidence_boost", 0.3)
-                reasoning.append(f"File extension matches: {analysis['extension']}")
+                ext_confidence = 0.4 if analysis["extension"] in [".pdf", ".mov", ".mp4"] else 0.3
+                confidence += ext_confidence
+                reasoning.append(f"File extension matches: {analysis['extension']} (+{ext_confidence:.1%})")
         
-        # People/project associations boost confidence
+        # Enhanced people/project associations
         if analysis["people_mentioned"]:
-            confidence += 0.2
+            confidence += 0.25
             reasoning.append(f"People mentioned: {', '.join(analysis['people_mentioned'])}")
         
         if analysis["projects_mentioned"]:
-            confidence += 0.2  
+            confidence += 0.25  
             reasoning.append(f"Projects mentioned: {', '.join(analysis['projects_mentioned'])}")
         
-        # Date indicators add slight confidence
+        # Date indicators with enhanced scoring
         if analysis["date_indicators"]:
-            confidence += 0.1
+            current_year = str(datetime.now().year)
+            if current_year in analysis["date_indicators"]:
+                confidence += 0.15  # Higher weight for current year
+            else:
+                confidence += 0.05
             reasoning.append(f"Date indicators found: {', '.join(analysis['date_indicators'])}")
         
-        # Content type alignment
+        # Enhanced content type alignment
         if analysis["content_type"]:
-            if document_type == "audio_files" and analysis["content_type"].startswith("audio/"):
-                confidence += 0.3
-                reasoning.append("Content type matches audio classification")
-            elif document_type == "development" and analysis["content_type"].startswith("text/"):
-                confidence += 0.1
-                reasoning.append("Content type supports development classification")
+            content_boost = self._get_content_type_boost(document_type, analysis["content_type"])
+            if content_boost > 0:
+                confidence += content_boost
+                reasoning.append(f"Content type alignment: {analysis['content_type']} (+{content_boost:.1%})")
+        
+        # Special pattern recognition with enhanced logic
+        special_patterns = {
+            "chatgpt image": ("visual_media", 0.4),
+            "screenshot": ("visual_media", 0.4),
+            "demo reel": ("entertainment_industry", 0.4),
+            "bank feed": ("financial_documents", 0.5),
+            "commission": ("financial_documents", 0.4),
+            "residual": ("financial_documents", 0.4),
+            "refinery artist mgmt": ("financial_documents", 0.5),
+            "elevenlabs": ("creative_projects", 0.4),
+            "papers that dream": ("creative_projects", 0.5),
+            "threads": ("development_projects", 0.3),
+            "vhs style": ("visual_media", 0.4),
+            "animation": ("visual_media", 0.3),
+            "blueprint": ("reference_documents", 0.4)
+        }
+        
+        for pattern, (expected_type, boost) in special_patterns.items():
+            if pattern in filename_lower and document_type == expected_type:
+                confidence += boost
+                reasoning.append(f"Special pattern recognition: {pattern} (+{boost:.1%})")
         
         return min(confidence, 1.0), reasoning
+    
+    def _get_content_type_boost(self, document_type: str, content_type: str) -> float:
+        """Get content type confidence boost"""
+        type_mappings = {
+            "creative_projects": ["audio/", "video/"],
+            "visual_media": ["image/", "video/"],
+            "development_projects": ["text/", "application/json"],
+            "entertainment_industry": ["video/", "application/pdf"],
+            "financial_documents": ["application/pdf", "text/csv"]
+        }
+        
+        expected_types = type_mappings.get(document_type, [])
+        for expected in expected_types:
+            if content_type.startswith(expected):
+                return 0.2
+        return 0.0
+    
+    def _apply_category_precedence(self, category_scores: Dict, analysis: Dict) -> Tuple[str, float, List[str]]:
+        """Apply intelligent category precedence for better classification accuracy"""
+        filename_lower = analysis["filename"].lower()
+        
+        # Define precedence rules based on specific patterns
+        precedence_rules = [
+            # Financial documents - highest precedence for business patterns
+            {
+                'category': 'financial_documents',
+                'triggers': ['bank feed', 'commission', 'residual', 'refinery artist mgmt', 'payment report', 'tax return'],
+                'boost': 0.3
+            },
+            # Visual media - high precedence for image/video patterns  
+            {
+                'category': 'visual_media',
+                'triggers': ['chatgpt', 'screenshot', 'vhs', 'animation', 'generated', 'image'],
+                'boost': 0.4
+            },
+            # Creative projects - high precedence for audio/creative content
+            {
+                'category': 'creative_projects', 
+                'triggers': ['papers that dream', 'elevenlabs', 'episode', 'podcast', 'audio production'],
+                'boost': 0.25
+            },
+            # Reference documents - medium precedence
+            {
+                'category': 'reference_documents',
+                'triggers': ['blueprint', 'documentation', 'reference', 'manual', 'api', 'spec'],
+                'boost': 0.3
+            },
+            # Development projects - for code files
+            {
+                'category': 'development_projects',
+                'triggers': ['package.json', 'readme', '.tsx', '.ts', '.py', 'threads'],
+                'boost': 0.15
+            },
+            # Entertainment industry - base precedence
+            {
+                'category': 'entertainment_industry',
+                'triggers': ['finn wolfhard', 'stranger things', 'demo reel', 'netflix'],
+                'boost': 0.1
+            }
+        ]
+        
+        # Apply precedence boosts
+        for rule in precedence_rules:
+            category = rule['category']
+            if category in category_scores:
+                for trigger in rule['triggers']:
+                    if trigger in filename_lower:
+                        category_scores[category]['confidence'] += rule['boost']
+                        category_scores[category]['reasoning'].append(
+                            f"Category precedence: {trigger} (+{rule['boost']:.1%})")
+                        break  # Only one boost per category
+        
+        # Find the best category after applying precedence
+        best_category = None
+        best_confidence = 0.0
+        best_reasoning = []
+        
+        for category, data in category_scores.items():
+            if data['confidence'] > best_confidence:
+                best_confidence = data['confidence']
+                best_category = category
+                best_reasoning = data['reasoning']
+        
+        # Fallback for visual files (backward compatibility)
+        if not best_category or best_confidence < 0.3:
+            # Check if it's a visual file by extension
+            visual_extensions = ['.png', '.jpg', '.jpeg', '.gif', '.mp4', '.mov']
+            if analysis['extension'] in visual_extensions:
+                if 'visual_media' in category_scores:
+                    best_category = 'visual_media'
+                    best_confidence = max(0.4, category_scores['visual_media']['confidence'])
+                    best_reasoning = ['Visual file type detected']
+                else:
+                    best_category = 'visual_files'
+                    best_confidence = 0.4
+                    best_reasoning = ['Visual file extension match']
+        
+        return best_category or "unknown", min(best_confidence, 1.0), best_reasoning
     
     def classify_file(self, file_path: Path) -> ClassificationResult:
         """Classify a file and return detailed results"""
@@ -279,14 +430,19 @@ class FileClassificationEngine:
                 best_classification = custom_result['category']
                 best_reasoning = [f"Custom category match: {custom_result['display_name']}"]
         
-        # Test against each built-in document type
+        # Test against each built-in document type with category precedence
+        category_scores = {}
+        
         for doc_type, rules in self.rules["document_types"].items():
             confidence, reasoning = self.calculate_confidence_score(analysis, doc_type)
-            
-            if confidence > best_confidence:
-                best_confidence = confidence
-                best_classification = doc_type
-                best_reasoning = reasoning
+            category_scores[doc_type] = {
+                'confidence': confidence,
+                'reasoning': reasoning
+            }
+        
+        # Apply category precedence rules for better classification
+        best_classification, best_confidence, best_reasoning = self._apply_category_precedence(
+            category_scores, analysis)
         
         # Determine target folder
         if best_classification and best_classification in self.rules["document_types"]:

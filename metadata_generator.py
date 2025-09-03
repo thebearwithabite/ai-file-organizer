@@ -13,6 +13,7 @@ from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any, Tuple
 import json
+from path_config import paths
 import hashlib
 
 project_dir = Path(__file__).parent
@@ -39,7 +40,7 @@ class MetadataGenerator:
         self.interaction_manager = InteractionModeManager(str(self.base_dir))
         
         # Database for tracking processed files
-        self.db_path = self.metadata_dir / "metadata_tracking.db"
+        self.db_path = paths.get_path('metadata_db')
         self._init_tracking_db()
         
         # File type classifications
@@ -612,7 +613,7 @@ def test_metadata_generation():
     
     # Find some test files - try multiple locations
     test_dirs = [
-        Path("/Users/user/Documents/TEMP_PROCESSING/Downloads_Staging"),
+        paths.get_path('temp_processing') / "Downloads_Staging",
         Path.home() / "Downloads", 
         Path.home() / "Desktop",
         Path.home() / "Documents"

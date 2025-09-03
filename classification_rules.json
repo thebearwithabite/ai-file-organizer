@@ -1,92 +1,308 @@
 {
-  "version": "1.0",
-  "created": "2025-08-13",
+  "version": "3.0",
+  "created": "2025-09-01",
+  "last_updated": "2025-09-01",
+  "description": "Enhanced classification v3.0 - Based on User's actual file patterns, ADHD-optimized with real content analysis",
   "classification_rules": {
     "entertainment_industry": {
       "keywords": [
-        "Client Name Wolfhard", "Stranger Things", "Refinery", "MNT", "SAG-AFTRA", 
-        "Actor Agreement", "Deal Memo", "Casting", "Audition", "Script",
-        "Entertainment", "Artist Management", "Publicity", "Press"
+        "Client Name Wolfhard", "Client Name", "Stranger Things", "TV Show", "Netflix", "Hawkins",
+        "SAG-AFTRA", "Actor Agreement", "Deal Memo", "Casting", "Audition", "Script",
+        "Entertainment", "Publicity", "Press", "Demo Reel", "Union", "ACTRA", 
+        "I-129", "I-797", "Work Visa", "Contract", "Agreement"
       ],
       "patterns": [
-        "*Contract*", "*Agreement*", "*Schedule*", "*I-129*", "*I-797*",
-        "*Casting*", "*Audition*", "*Script*", "*Deal*Memo*"
+        "*finn*", "*Client*", "*stranger*things*", "*TV*Show*", "*netflix*",
+        "*refinery*", "*artist*mgmt*", "*management*", "*sag*aftra*",
+        "*contract*", "*agreement*", "*deal*memo*", "*casting*", "*audition*",
+        "*demo*reel*", "*residual*", "*commission*", "*i-129*", "*i-797*"
       ],
-      "file_types": [".pdf", ".docx", ".pages"],
+      "file_types": [".pdf", ".docx", ".pages", ".mov", ".mp4", ".csv"],
       "confidence_weights": {
-        "finn_wolfhard": 0.9,
-        "stranger_things": 0.9,
-        "refinery": 0.8,
+        "finn_wolfhard": 0.95,
+        "stranger_things": 0.95,
+        "refinery_artist_mgmt": 0.9,
+        "demo_reel": 0.9,
         "sag_aftra": 0.9,
-        "contract": 0.7,
-        "casting": 0.7
+        "netflix": 0.85,
+        "contract": 0.8,
+        "casting": 0.75,
+        "commission": 0.8,
+        "residual": 0.85
       }
     },
     "financial_documents": {
       "keywords": [
-        "Tax Return", "Payroll", "Invoice", "Payment Report", 
-        "Bank Statement", "Receipt", "Financial", "Amex", "Credit Card"
+        "Tax Return", "Payroll", "Invoice", "Payment Report", "Bank Statement", 
+        "Bank Feed", "Receipt", "Financial", "Amex", "Credit Card", "CAD",
+        "Refinery", "Refinery Artist Mgmt", "Artist Management", "MNT", "Management Company",
+        "Refinery Artist Mgmt LLC", "Commission", "Residual Payment", "Residual",
+        "QuickBooks", "Accounting", "Business Expenses", "1099", "W-2"
       ],
       "patterns": [
-        "*Tax*", "*Payroll*", "*Invoice*", "*Receipt*", "*Statement*",
-        "*2024*", "*2025*", "*Q1*", "*Q2*", "*Q3*", "*Q4*"
+        "*bank*feed*", "*payment*report*", "*commission*", "*residual*",
+        "*tax*return*", "*payroll*", "*invoice*", "*receipt*", "*statement*",
+        "*refinery*artist*mgmt*llc*", "*cad*", "*usd*", "*financial*",
+        "*tax*2024*", "*tax*2025*", "*Q1*", "*Q2*", "*Q3*", "*Q4*"
       ],
-      "file_types": [".pdf", ".xlsx", ".numbers", ".csv"],
+      "file_types": [".pdf", ".xlsx", ".numbers", ".csv", ".qbw"],
       "confidence_weights": {
+        "bank_feed": 0.95,
         "tax_return": 0.95,
+        "commission": 0.9,
+        "residual_payment": 0.9,
         "payroll": 0.9,
-        "invoice": 0.8,
-        "receipt": 0.7
+        "invoice": 0.85,
+        "receipt": 0.75,
+        "refinery_llc": 0.85
       }
     },
     "creative_projects": {
       "keywords": [
-        "Papers That Dream", "Episode", "Podcast", "Research", "AI",
-        "Audio", "Music", "Script", "Writing", "Creative"
+        "Papers That Dream", "Episode", "Podcast", "Audio", "Music", "Sound",
+        "ElevenLabs", "TTS", "Voice", "Narration", "Script", "Screenplay",
+        "Creative", "Writing", "Research", "AI Consciousness", "Philosophy",
+        "Audacity", "Logic Pro", "Audio Production", "Drone", "Foundation",
+        "String", "Tone", "Beep", "Warning", "Epidemic Sound"
       ],
       "patterns": [
-        "*Episode*", "*Research*", "*Audio*", "*Music*", "*Script*",
-        "*Papers*Dream*", "*Podcast*"
+        "*papers*dream*", "*episode*", "*podcast*", "*audio*", "*music*",
+        "*elevenlabs*", "*tts*", "*voice*", "*narration*", "*script*",
+        "*drone*", "*foundation*", "*string*", "*tone*", "*beep*",
+        "*epidemic*sound*", "*mp3*", "*wav*", "*aup3*", "*m4a*"
       ],
-      "file_types": [".mp3", ".wav", ".aup3", ".pdf", ".docx", ".pages"],
+      "file_types": [".mp3", ".wav", ".aup3", ".aiff", ".m4a", ".opus", ".pdf", ".docx", ".pages", ".md"],
       "confidence_weights": {
         "papers_that_dream": 0.95,
-        "episode": 0.8,
-        "podcast": 0.8,
-        "audio_file": 0.7
+        "elevenlabs": 0.9,
+        "audio_production": 0.85,
+        "episode": 0.85,
+        "podcast": 0.85,
+        "script": 0.8,
+        "voice_sample": 0.8,
+        "audio_file": 0.75,
+        "epidemic_sound": 0.8
       }
     },
     "development_projects": {
       "keywords": [
-        "package.json", "README.md", "requirements.txt", "Next.js", 
-        "React", "Firebase", "GitHub", "Python", "TypeScript"
+        "package.json", "README.md", "requirements.txt", "Next.js", "React", 
+        "Firebase", "GitHub", "Python", "TypeScript", "JavaScript", "TSX",
+        "Vite", "Tailwind", "components.json", "tsconfig.json", "postcss",
+        "threadsdownloader", "ThreadsExporter", "generate-threads-dataset",
+        "Xcode", "Swift", "iOS", "macOS", "AppleScript", "Node.js"
       ],
       "patterns": [
-        "*.ts", "*.py", "*.js", "*.html", "*.css", "package.json", 
-        "README*", "requirements.txt"
+        "*.ts", "*.tsx", "*.py", "*.js", "*.jsx", "*.html", "*.css", "*.json", "*.md",
+        "package.json", "package-lock.json", "requirements.txt", "README*",
+        "*threads*", "*exporter*", "*dataset*", "*config*", "*tailwind*",
+        "*postcss*", "*vite*", "*components*", "*tsconfig*"
       ],
-      "file_types": [".ts", ".py", ".js", ".html", ".css", ".json", ".md"],
+      "file_types": [".ts", ".tsx", ".py", ".js", ".jsx", ".html", ".css", ".json", ".md", ".swift", ".applescript"],
       "confidence_weights": {
         "package_json": 0.95,
+        "typescript": 0.9,
+        "react_component": 0.85,
+        "threads_related": 0.85,
+        "config_file": 0.8,
         "readme": 0.8,
-        "typescript": 0.7,
-        "python": 0.7
+        "python_script": 0.75,
+        "javascript": 0.75
+      }
+    },
+    "visual_media": {
+      "keywords": [
+        "ChatGPT Image", "Screenshot", "Photo", "Image", "Picture", "Visual",
+        "PNG", "JPG", "JPEG", "GIF", "MP4", "MOV", "Video", "Animation",
+        "VHS Style", "Shot", "Hold", "Fade", "Green Screen", "Generated Image"
+      ],
+      "patterns": [
+        "*chatgpt*image*", "*screenshot*", "*photo*", "*picture*", 
+        "*png*", "*jpg*", "*jpeg*", "*gif*", "*mp4*", "*mov*",
+        "*vhs*style*", "*shot*", "*hold*", "*fade*",
+        "*green*", "*animated*", "*visual*", "*image*"
+      ],
+      "file_types": [".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tiff", ".mp4", ".mov", ".avi", ".mkv"],
+      "confidence_weights": {
+        "chatgpt_image": 0.95,
+        "screenshot": 0.9,
+        "animation": 0.85,
+        "vhs_style": 0.85,
+        "video_file": 0.8,
+        "image_file": 0.8,
+        "generated_image": 0.9
+      }
+    },
+    "reference_documents": {
+      "keywords": [
+        "Blueprint", "Documentation", "Reference", "Manual", "Guide",
+        "Template", "Example", "Sample", "Spec", "Specification",
+        "API", "Documentation", "Help", "Instructions"
+      ],
+      "patterns": [
+        "*blueprint*", "*documentation*", "*reference*", "*manual*",
+        "*guide*", "*template*", "*example*", "*sample*", "*spec*",
+        "*api*", "*help*", "*instructions*"
+      ],
+      "file_types": [".md", ".pdf", ".docx", ".pages", ".txt"],
+      "confidence_weights": {
+        "blueprint": 0.85,
+        "documentation": 0.8,
+        "reference": 0.75,
+        "manual": 0.8,
+        "template": 0.7
       }
     }
   },
+  "archive_lifecycle": {
+    "entertainment_industry": {
+      "active_keywords": ["current", "active", "pending", "2024", "2025", "draft", "negotiation", "in_progress", "season"],
+      "archive_keywords": ["completed", "executed", "final", "2023", "2022", "2021", "closed", "wrapped"],
+      "age_threshold_months": 12,
+      "retention_years": 7,
+      "high_priority_patterns": ["*finn*", "*stranger*things*", "*netflix*", "*demo*reel*"]
+    },
+    "financial_documents": {
+      "active_keywords": ["2024", "2025", "current", "outstanding", "pending", "draft", "quarterly", "recent"],
+      "archive_keywords": ["2023", "2022", "2021", "2020", "paid", "completed", "filed", "reconciled", "processed"],
+      "age_threshold_months": 12,
+      "retention_years": 7,
+      "high_priority_patterns": ["*commission*", "*residual*", "*refinery*", "*bank*feed*"]
+    },
+    "creative_projects": {
+      "active_keywords": ["draft", "recording", "editing", "current", "in_progress", "development", "episode", "new"],
+      "archive_keywords": ["published", "released", "completed", "aired", "final", "archived", "old"],
+      "age_threshold_months": 6,
+      "retention_years": "permanent",
+      "high_priority_patterns": ["*papers*dream*", "*podcast*", "*elevenlabs*", "*episode*"]
+    },
+    "development_projects": {
+      "active_keywords": ["current", "development", "active", "wip", "v2", "new", "updated"],
+      "archive_keywords": ["deprecated", "old", "legacy", "archived", "v1", "backup"],
+      "age_threshold_months": 18,
+      "retention_years": 3,
+      "high_priority_patterns": ["*threads*", "*react*", "*typescript*", "*next*"]
+    },
+    "visual_media": {
+      "active_keywords": ["recent", "current", "new", "2024", "2025", "screenshot"],
+      "archive_keywords": ["old", "backup", "2023", "2022", "archived"],
+      "age_threshold_months": 6,
+      "retention_years": 2,
+      "high_priority_patterns": ["*demo*reel*", "*chatgpt*image*", "*screenshot*"]
+    }
+  },
   "folder_mappings": {
-    "entertainment_industry": "01_ACTIVE_PROJECTS/Entertainment_Industry/",
-    "financial_documents": "01_ACTIVE_PROJECTS/Business_Operations/Financial_Current/",
-    "creative_projects": "01_ACTIVE_PROJECTS/Creative_Content/",
-    "development_projects": "01_ACTIVE_PROJECTS/Development_Projects/",
-    "screenshots": "02_MEDIA_ASSETS/Visual_Assets/Screenshots/",
-    "images": "02_MEDIA_ASSETS/Visual_Assets/Photos_Personal/",
-    "audio": "02_MEDIA_ASSETS/Audio_Library/by_type/",
-    "video": "02_MEDIA_ASSETS/Visual_Assets/Video_Files/"
+    "entertainment_industry_active": "01_ACTIVE_PROJECTS/Entertainment_Industry/Current_Projects/",
+    "entertainment_industry_archive": "02_ARCHIVE_HISTORICAL/Entertainment_Archive/by_year/",
+    "financial_documents_active": "01_ACTIVE_PROJECTS/Business_Operations/Financial_Current/",
+    "financial_documents_archive": "02_ARCHIVE_HISTORICAL/Business_Archive/by_year/",
+    "creative_projects_active": "01_ACTIVE_PROJECTS/Creative_Content/Active_Productions/",
+    "creative_projects_archive": "02_ARCHIVE_HISTORICAL/Creative_Archive/Published/",
+    "development_projects_active": "01_ACTIVE_PROJECTS/Development_Projects/Active_Code/",
+    "development_projects_archive": "02_ARCHIVE_HISTORICAL/Development_Archive/Legacy_Code/",
+    "visual_media_active": "02_MEDIA_ASSETS/Visual_Assets/Recent/",
+    "visual_media_archive": "02_ARCHIVE_HISTORICAL/Visual_Archive/by_year/",
+    "reference_documents": "03_REFERENCE_LIBRARY/Documentation/",
+    "temp_staging": "04_TEMP_PROCESSING/Downloads_Staging/",
+    "screenshots": "02_MEDIA_ASSETS/Visual_Assets/Screenshots/by_date/",
+    "chatgpt_images": "02_MEDIA_ASSETS/Visual_Assets/Generated_Images/ChatGPT/",
+    "demo_reels": "02_MEDIA_ASSETS/Video_Assets/Demo_Reels/",
+    "audio_production": "02_MEDIA_ASSETS/Audio_Library/Production_Audio/",
+    "audio_samples": "02_MEDIA_ASSETS/Audio_Library/Voice_Samples/",
+    "audio_music": "02_MEDIA_ASSETS/Audio_Library/Music_Library/",
+    "threads_projects": "01_ACTIVE_PROJECTS/Development_Projects/Threads_Related/",
+    "xcode_projects": "01_ACTIVE_PROJECTS/Development_Projects/iOS_macOS/"
+  },
+  "adhd_friendly_settings": {
+    "max_questions_per_file": 2,
+    "use_visual_context": true,
+    "binary_choice_questions": true,
+    "immediate_feedback": true,
+    "show_reasoning": true,
+    "emoji_prefixes": {
+      "entertainment": "🎭",
+      "financial": "💰",
+      "creative": "🎨",
+      "development": "💻",
+      "visual_media": "📸",
+      "reference": "📚",
+      "active": "🔴",
+      "archive": "🔵",
+      "temp": "🟡"
+    },
+    "decision_shortcuts": {
+      "finn_documents": "Entertainment_Industry (active if current year)",
+      "refinery_documents": "Business_Operations/Financial",
+      "demo_reel": "Entertainment_Industry/Demo_Reels",
+      "chatgpt_image": "Visual_Assets/Generated_Images", 
+      "papers_dream": "Creative_Content/Podcast",
+      "elevenlabs_audio": "Creative_Content/Voice_Samples",
+      "threads_code": "Development_Projects/Threads_Related",
+      "bank_feed": "Business_Operations/Financial (archive if prior year)",
+      "tax_documents": "Business_Operations/Financial (archive if prior year)",
+      "podcast_content": "Creative_Content (archive if published)",
+      "screenshot": "Visual_Assets/Screenshots (auto-sort by date)"
+    },
+    "smart_patterns": {
+      "date_based_filing": {
+        "financial": "Auto-archive files older than 12 months",
+        "screenshots": "Auto-organize by month/year", 
+        "creative": "Keep current projects active, archive completed"
+      },
+      "person_based_filing": {
+        "finn_priority": "All Client Name-related files get high priority classification",
+        "refinery_business": "Refinery files automatically go to Business_Operations"
+      },
+      "project_based_filing": {
+        "threads_related": "Threads files go to specialized folder",
+        "papers_dream": "Papers That Dream content stays together",
+        "development_projects": "Code projects grouped by technology"
+      }
+    }
+  },
+  "adhd_workflow_optimizations": {
+    "reduce_cognitive_load": {
+      "use_natural_language": true,
+      "provide_context": true,
+      "show_file_preview": true,
+      "highlight_key_matches": true
+    },
+    "decision_support": {
+      "confidence_indicators": true,
+      "reasoning_display": true,
+      "undo_capability": true,
+      "batch_similar_files": true
+    },
+    "interruption_recovery": {
+      "save_progress": true,
+      "resume_where_left_off": true,
+      "remember_decisions": true,
+      "learning_preferences": true
+    },
+    "overwhelm_prevention": {
+      "max_files_per_session": 20,
+      "break_reminders": true,
+      "progress_indicators": true,
+      "celebration_feedback": true
+    }
   },
   "confidence_thresholds": {
-    "auto_move": 0.8,
-    "suggest_move": 0.6,
-    "manual_review": 0.4
+    "auto_move": 0.85,
+    "suggest_move": 0.65,
+    "manual_review": 0.45,
+    "skip_file": 0.30
+  },
+  "priority_processing": {
+    "high_priority_extensions": [".pdf", ".mov", ".mp4", ".csv", ".mp3", ".wav"],
+    "high_priority_keywords": ["finn", "refinery", "papers", "demo", "commission", "tax", "contract"],
+    "skip_extensions": [".ds_store", ".tmp", ".cache", ".log"],
+    "quick_classify_patterns": {
+      "chatgpt_image": "visual_media",
+      "demo_reel": "entertainment_industry", 
+      "bank_feed": "financial_documents",
+      "elevenlabs": "creative_projects",
+      "package_json": "development_projects",
+      "screenshot": "visual_media"
+    }
   }
 }
