@@ -40,8 +40,25 @@ class ContentExtractor:
             '.ts': self._extract_code,
             '.html': self._extract_html,
             '.csv': self._extract_csv,
-            '.json': self._extract_json
+            '.json': self._extract_json,
+            # Vision-based extractors
+            '.png': self._extract_vision,
+            '.jpg': self._extract_vision,
+            '.jpeg': self._extract_vision,
+            '.gif': self._extract_vision,
+            '.bmp': self._extract_vision,
+            '.webp': self._extract_vision,
+            '.tiff': self._extract_vision,
+            '.mp4': self._extract_vision,
+            '.mov': self._extract_vision,
+            '.avi': self._extract_vision,
+            '.mkv': self._extract_vision,
+            '.webm': self._extract_vision,
         }
+        
+        # Initialize vision extractor
+        self.vision_extractor = None
+        self._init_vision_extractor()
     
     def _init_database(self):
         """Initialize content index database"""
@@ -91,6 +108,133 @@ class ContentExtractor:
             return hashlib.md5(content).hexdigest()
         except:
             return ""
+    def _safe_extract_metadata(self, metadata_value) -> str:
+        """Safely convert PyPDF2 metadata objects to JSON-serializable strings"""
+        if metadata_value is None:
+            return ""
+        
+        # Handle PyPDF2 IndirectObject types
+        if hasattr(metadata_value, 'get_object'):
+            try:
+                # Get the actual object value
+                obj = metadata_value.get_object()
+                return str(obj) if obj is not None else ""
+            except:
+                return str(metadata_value)
+        
+        # Handle other types
+        return str(metadata_value) if metadata_value else ""
+    
+    def _init_vision_extractor(self):
+        """Initialize vision extractor if available"""
+        try:
+            from vision_content_extractor import GeminiVisionExtractor
+            self.vision_extractor = GeminiVisionExtractor(str(self.base_dir))
+        except ImportError:
+            # Vision extraction not available
+            pass
+        except Exception as e:
+            print(f"⚠️ Vision extractor initialization failed: {e}")
+    
+    def _extract_vision(self, file_path: Path) -> Dict[str, Any]:
+        """Extract content from images and videos using computer vision"""
+        
+        if not self.vision_extractor:
+            return {
+                'success': False,
+                'text': '',
+                'metadata': {'error': 'Vision analysis not available'},
+                'method': 'vision_unavailable'
+            }
+        
+        # Note: Video duration is now handled by intelligent sampling in vision extractor
+        
+        try:
+            # Determine context based on file location and name
+            context = 'general'
+            filename_lower = file_path.name.lower()
+            path_lower = str(file_path).lower()
+            
+            if any(term in path_lower for term in ['finn', 'wolfhard', 'stranger', 'things', 'netflix', 'sag']):
+                context = 'entertainment'
+            elif any(term in path_lower for term in ['creative', 'podcast', 'papers', 'dream', 'ai', 'consciousness']):
+                context = 'creative'
+            
+            # Perform vision analysis
+            vision_result = self.vision_extractor.analyze_visual_content(file_path, context)
+            
+            if vision_result.success:
+                # Combine description and text content for searchable text
+                searchable_text = vision_result.description
+                if vision_result.text_content:
+                    searchable_text += f"\n\nExtracted Text: {vision_result.text_content}"
+                
+                # Add subjects and context
+                if vision_result.subjects:
+                    searchable_text += f"\n\nSubjects: {', '.join(vision_result.subjects)}"
+                if vision_result.context:
+                    searchable_text += f"\n\nContext: {vision_result.context}"
+                
+                # Prepare metadata
+                metadata = {
+                    'vision_analysis': {
+                        'content_type': vision_result.content_type,
+                        'subjects': vision_result.subjects,
+                        'context': vision_result.context,
+                        'confidence': vision_result.confidence,
+                        'suggested_tags': vision_result.suggested_tags,
+                        'suggested_category': vision_result.suggested_category,
+                        'reasoning': vision_result.reasoning
+                    },
+                    'technical_details': vision_result.technical_details
+                }
+                
+                return {
+                    'success': True,
+                    'text': searchable_text,
+                    'metadata': metadata,
+                    'method': 'gemini_vision'
+                }
+            else:
+                return {
+                    'success': False,
+                    'text': '',
+                    'metadata': {
+                        'error': vision_result.description,
+                        'reasoning': vision_result.reasoning
+                    },
+                    'method': 'vision_failed'
+                }
+                
+        except Exception as e:
+            return {
+                'success': False,
+                'text': '',
+                'metadata': {'error': f'Vision extraction failed: {str(e)}'},
+                'method': 'vision_error'
+            }
+    
+    def _safe_json_dumps(self, data) -> str:
+        """Safely convert data to JSON string, handling non-serializable objects"""
+        if data is None:
+            return "{}"
+        
+        try:
+            return json.dumps(data)
+        except TypeError:
+            # Handle non-serializable objects by converting to strings
+            safe_data = {}
+            if isinstance(data, dict):
+                for key, value in data.items():
+                    try:
+                        json.dumps(value)  # Test if serializable
+                        safe_data[key] = value
+                    except TypeError:
+                        safe_data[key] = str(value)
+            else:
+                safe_data = {"value": str(data)}
+            
+            return json.dumps(safe_data)
     
     def _extract_pdf(self, file_path: Path) -> Dict[str, Any]:
         """Extract text from PDF files"""
@@ -102,13 +246,13 @@ class ContentExtractor:
             with open(file_path, 'rb') as file:
                 reader = PyPDF2.PdfReader(file)
                 
-                # Extract metadata
+                # Extract metadata (safely convert PyPDF2 objects to strings)
                 if reader.metadata:
                     metadata = {
-                        'title': reader.metadata.get('/Title', ''),
-                        'author': reader.metadata.get('/Author', ''),
-                        'subject': reader.metadata.get('/Subject', ''),
-                        'creator': reader.metadata.get('/Creator', ''),
+                        'title': self._safe_extract_metadata(reader.metadata.get('/Title', '')),
+                        'author': self._safe_extract_metadata(reader.metadata.get('/Author', '')),
+                        'subject': self._safe_extract_metadata(reader.metadata.get('/Subject', '')),
+                        'creator': self._safe_extract_metadata(reader.metadata.get('/Creator', '')),
                         'pages': len(reader.pages)
                     }
                 
@@ -489,7 +633,7 @@ class ContentExtractor:
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     str(file_path), file_hash, content_hash, result['text'],
-                    json.dumps(result['metadata']), result['method'],
+                    self._safe_json_dumps(result['metadata']), result['method'],
                     datetime.now(), file_path.stat().st_size if file_path.exists() else 0,
                     len(result['text']), result['success']
                 ))
@@ -499,7 +643,7 @@ class ContentExtractor:
                     conn.execute("""
                         INSERT OR REPLACE INTO content_fts (file_path, extracted_text, metadata)
                         VALUES (?, ?, ?)
-                    """, (str(file_path), result['text'], json.dumps(result['metadata'])))
+                    """, (str(file_path), result['text'], self._safe_json_dumps(result['metadata'])))
                 
         except Exception as e:
             print(f"Error caching content for {file_path}: {e}")
