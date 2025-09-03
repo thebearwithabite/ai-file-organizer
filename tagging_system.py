@@ -115,12 +115,12 @@ class ComprehensiveTaggingSystem:
                 'prefix': 'creative:'
             },
             
-            # Technical Terms
+            # Technical Terms (enhanced patterns)
             'technical': {
                 'patterns': [
-                    r'\b(AI|artificial intelligence|machine learning|neural network|algorithm)\b',
-                    r'\b(code|programming|development|software|API|database)\b',
-                    r'\b(automation|workflow|system|process|integration)\b',
+                    r'\b(AI|artificial intelligence|machine learning|neural network|algorithm|alphago|deepmind)\b',
+                    r'\b(code|programming|development|software|API|database|python|javascript)\b',
+                    r'\b(automation|workflow|system|process|integration|ai system)\b',
                 ],
                 'weight': 0.6,
                 'prefix': 'tech:'
@@ -137,15 +137,28 @@ class ComprehensiveTaggingSystem:
                 'prefix': 'time:'
             },
             
-            # Content Types
+            # Content Types (enhanced patterns)
             'content_type': {
                 'patterns': [
-                    r'\b(meeting|interview|presentation|report|memo|notes)\b',
-                    r'\b(email|correspondence|communication|discussion)\b',
-                    r'\b(research|analysis|summary|review|feedback)\b',
+                    r'\b(meeting|interview|presentation|report|memo|notes|document|paper|article)\b',
+                    r'\b(email|correspondence|communication|discussion|message)\b',
+                    r'\b(research|analysis|summary|review|feedback|study|fable|story)\b',
+                    r'\b(game|play|winner|master|nature|child|board|fear)\b',
                 ],
                 'weight': 0.5,
                 'prefix': 'type:'
+            },
+            
+            # General Topics (catch common themes)
+            'topics': {
+                'patterns': [
+                    r'\b(game|gaming|strategy|competition|winner|mastery)\b',
+                    r'\b(nature|natural|world|environment|science)\b',
+                    r'\b(child|children|learning|education|teaching)\b',
+                    r'\b(fear|courage|brave|challenge|overcome)\b',
+                ],
+                'weight': 0.4,
+                'prefix': 'topic:'
             }
         }
         
