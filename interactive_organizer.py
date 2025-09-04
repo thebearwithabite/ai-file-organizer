@@ -18,6 +18,7 @@ from interactive_classifier import InteractiveClassifier
 from staging_monitor import StagingMonitor
 from enhanced_librarian import EnhancedLibrarianCLI
 from audio_ai_analyzer import AudioAIAnalyzer
+from safe_file_recycling import SafeFileRecycling
 
 class InteractiveOrganizer:
     """
@@ -31,13 +32,19 @@ class InteractiveOrganizer:
         self.staging_monitor = StagingMonitor(str(self.base_dir))
         self.librarian = EnhancedLibrarianCLI(str(self.base_dir))
         self.audio_analyzer = AudioAIAnalyzer(str(self.base_dir))
+        self.recycling = SafeFileRecycling(str(self.base_dir))
+        
+        # ADHD-friendly safety mode (default on)
+        self.use_recycling = True
         
         # Track organization session
         self.session_stats = {
             "files_processed": 0,
             "questions_asked": 0,
             "high_confidence": 0,
-            "learned_preferences": 0
+            "learned_preferences": 0,
+            "files_recycled": 0,
+            "files_organized": 0
         }
     
     def organize_staging_with_questions(self, dry_run: bool = True) -> Dict[str, int]:
@@ -70,6 +77,12 @@ class InteractiveOrganizer:
         print(f"   Questions asked: {self.session_stats['questions_asked']}")
         print(f"   High confidence: {self.session_stats['high_confidence']}")
         print(f"   Learning events: {self.session_stats['learned_preferences']}")
+        
+        if self.use_recycling and self.session_stats['files_recycled'] > 0:
+            print(f"   ♻️  Files recycled safely: {self.session_stats['files_recycled']}")
+            print(f"   💡 Complete organization: python safe_file_recycling.py --list")
+        elif not self.use_recycling and self.session_stats['files_organized'] > 0:
+            print(f"   ✅ Files moved directly: {self.session_stats['files_organized']}")
         
         return self.session_stats
     
@@ -197,10 +210,30 @@ class InteractiveOrganizer:
                 print(f"   🔍 DRY RUN - Would move file")
                 return True
             else:
-                # Actually move the file
-                destination.parent.mkdir(parents=True, exist_ok=True)
-                file_path.rename(destination)
-                print(f"   ✅ File moved successfully")
+                # Move file safely with recycling option
+                if self.use_recycling:
+                    # Move to recycling first for safety
+                    recycled_path = self.recycling.recycle_file(
+                        file_path, 
+                        destination, 
+                        operation_type="organize",
+                        reason=f"Interactive organization: {classification.category} ({classification.confidence:.1f}%)"
+                    )
+                    
+                    if recycled_path:
+                        self.session_stats['files_recycled'] += 1
+                        print(f"   ♻️  File recycled safely (can undo)")
+                        print(f"   💡 Complete organization: python safe_file_recycling.py --complete {recycled_path.name}")
+                        print(f"   ↩️  Or restore: python safe_file_recycling.py --restore {recycled_path.name}")
+                    else:
+                        print(f"   ❌ Failed to recycle file safely")
+                        return False
+                else:
+                    # Direct move (old behavior)
+                    destination.parent.mkdir(parents=True, exist_ok=True)
+                    file_path.rename(destination)
+                    print(f"   ✅ File moved directly")
+                    self.session_stats['files_organized'] += 1
                 
                 # Index in semantic search system
                 try:
@@ -299,6 +332,16 @@ class InteractiveOrganizer:
             self._organize_single_file(file_path, dry_run)
         
         return self.session_stats
+    
+    def enable_direct_moves(self):
+        """Disable recycling for direct file moves (less safe)"""
+        self.use_recycling = False
+        print("⚠️  Direct moves enabled - files will be moved immediately without recycling safety")
+    
+    def enable_recycling(self):
+        """Enable recycling for safe file moves (default)"""
+        self.use_recycling = True
+        print("✅ Recycling enabled - files will be moved to recycling first for safety")
 
 def main():
     """Command line interface for interactive organization"""
@@ -319,6 +362,8 @@ Examples:
     )
     
     parser.add_argument('--base-dir', help='Base directory for file organization')
+    parser.add_argument('--direct-moves', action='store_true', 
+                       help='Move files directly without recycling (less safe)')
     subparsers = parser.add_subparsers(dest='command', help='Available commands')
     
     # Organize staging areas
@@ -342,6 +387,10 @@ Examples:
     
     # Initialize organizer
     organizer = InteractiveOrganizer(args.base_dir)
+    
+    # Handle recycling mode
+    if args.direct_moves:
+        organizer.enable_direct_moves()
     
     # Execute command
     try:
