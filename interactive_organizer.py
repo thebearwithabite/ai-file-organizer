@@ -17,6 +17,7 @@ sys.path.insert(0, str(project_dir))
 from interactive_classifier import InteractiveClassifier
 from staging_monitor import StagingMonitor
 from enhanced_librarian import EnhancedLibrarianCLI
+from safe_file_recycling import SafeFileRecycling
 
 class InteractiveOrganizer:
     """
@@ -29,13 +30,19 @@ class InteractiveOrganizer:
         self.classifier = InteractiveClassifier(str(self.base_dir))
         self.staging_monitor = StagingMonitor(str(self.base_dir))
         self.librarian = EnhancedLibrarianCLI(str(self.base_dir))
+        self.recycling = SafeFileRecycling(str(self.base_dir))
+        
+        # ADHD-friendly safety mode (default on)
+        self.use_recycling = True
         
         # Track organization session
         self.session_stats = {
             "files_processed": 0,
             "questions_asked": 0,
             "high_confidence": 0,
-            "learned_preferences": 0
+            "learned_preferences": 0,
+            "files_recycled": 0,
+            "files_organized": 0
         }
     
     def organize_staging_with_questions(self, dry_run: bool = True) -> Dict[str, int]:
@@ -148,10 +155,29 @@ class InteractiveOrganizer:
                 print(f"   🔍 DRY RUN - Would move file")
                 return True
             else:
-                # Actually move the file
-                destination.parent.mkdir(parents=True, exist_ok=True)
-                file_path.rename(destination)
-                print(f"   ✅ File moved successfully")
+                # Move file safely with recycling option
+                if self.use_recycling:
+                    # Move to recycling first for safety
+                    recycled_path = self.recycling.recycle_file(
+                        file_path, 
+                        destination, 
+                        operation_type="organize",
+                        reason=f"Interactive organization: {classification.category} ({classification.confidence:.1f}%)"
+                    )
+                    
+                    if recycled_path:
+                        self.session_stats['files_recycled'] += 1
+                        print(f"   ♻️  File recycled safely (can undo)")
+                        print(f"   💡 Restore with: python safe_file_recycling.py --restore {recycled_path.name}")
+                    else:
+                        print(f"   ❌ Failed to recycle file safely")
+                        return False
+                else:
+                    # Direct move (old behavior)
+                    destination.parent.mkdir(parents=True, exist_ok=True)
+                    file_path.rename(destination)
+                    print(f"   ✅ File moved directly")
+                    self.session_stats['files_organized'] += 1
                 
                 # Index in semantic search system
                 try:
