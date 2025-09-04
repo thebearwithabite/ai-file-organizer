@@ -18,6 +18,7 @@ Transform your chaotic file collections into intelligently organized, searchable
 🤔 **Interactive Classification** - Asks smart questions when uncertain  
 📚 **Learning System** - Remembers your decisions and improves over time  
 ⚡ **ADHD-Friendly** - Reduces cognitive load with smart defaults  
+♻️ **Safe File Recycling** - All file moves can be easily undone within 7 days  
 🔄 **Auto-Updates** - Vector database stays current automatically  
 📧 **Email Integration** - Searches across documents AND emails  
 🏷️ **Smart Naming** - Generates meaningful filenames automatically  
@@ -27,7 +28,7 @@ Transform your chaotic file collections into intelligently organized, searchable
 ## 🎯 Perfect For
 
 ### **Professionals with ADHD**
-*"Finally, a system that works WITH my brain, not against it. No more decision paralysis - just ask and find."*
+*"Finally, a system that works WITH my brain, not against it. No more decision paralysis - just ask and find. And if I change my mind about where something should go, I can undo it in seconds!"*
 
 ### **Creative Professionals** 
 *"Finds contracts, scripts, and emails instantly. The semantic search understands 'find payment terms' without exact keywords."*
@@ -239,6 +240,7 @@ python batch_test.py --dry-run
 - Reduce filing anxiety with smart defaults  
 - Stop losing important documents in chaos
 - Build searchable knowledge base effortlessly
+- **No "oops" moments** - All file moves can be undone for 7 days
 
 ---
 
