@@ -21,8 +21,8 @@
 
 ## 🎯 **Why This System Exists**
 
-User has ADHD and managing file organization is genuinely difficult. This system creates an **intelligent librarian** that:
-- Knows User and his work intimately
+RT has ADHD and managing file organization is genuinely difficult. This system creates an **intelligent librarian** that:
+- Knows RT and his work intimately
 - Finds things quickly without perfect organization
 - Helps connect related documents and ideas
 - Works intuitively within macOS
@@ -104,7 +104,7 @@ graph TB
 </td>
 <td width="50%">
 
-**🎨 For Creative Professionals**
+**🎨 For Artistic Rersuits**
 - 🎙️ Podcast production and content management
 - 📚 Research organization and documentation
 - 🎵 Professional audio analysis and transcription
@@ -574,7 +574,7 @@ Include your:
 
 ## 📜 License
 
-MIT License - Built with ❤️ for business professionals, creative producers, and anyone managing complex content workflows with ADHD.
+MIT License - Built with ❤️ for creative minds and producer plus anyone managing complex content workflows with ADHD.
 
 ---
 
