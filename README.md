@@ -33,77 +33,80 @@ User has ADHD and managing file organization is genuinely difficult. This system
 ## 👤 **About the User**
 
 **Professional Roles:**
-- Entertainment Manager
+- Project Manager
 - Creative Producer (AI consciousness content)
 - Business Owner
 - Developer (building AI tools)
 
 **Types of Content:**
-- Entertainment contracts and agreements (SAG-AFTRA, management deals)
+- Professional contracts and agreements
 - Creative scripts and AI research papers
 - Business documents (invoices, tax records, commissions)
 - Email communications
 - Creative project files (audio, video, documents)
 
 **Current Projects:**
-- Entertainment client management
+- Professional client management
 - AI consciousness podcast production
-- Various creative writing and film projects
+- Various creative writing and media projects
 
 ---
 
 ## 🌟 What Makes This Revolutionary
 
-This isn't just file organization - it's a **professional entertainment management ecosystem** that learns, adapts, and evolves with complex creative workflows while maintaining ADHD-friendly simplicity.
+This isn't just file organization - it's a **professional content management ecosystem** that learns, adapts, and evolves with complex creative workflows while maintaining ADHD-friendly simplicity.
 
 ```mermaid
 graph TB
-    A[🗂️ Chaotic Entertainment Files] --> B[🤖 AI File Organizer v3.0]
+    A[🗂️ Chaotic Professional Files] --> B[🤖 AI File Organizer v3.0]
     B --> C[🧠 Semantic Understanding]
-    B --> D[🎬 Computer Vision (Gemini 2.5 Flash)]
+    B --> D[🎬 Computer Vision Gemini 2.5 Flash]
     B --> E[🎵 Professional Audio Analysis]
     B --> F[📚 Video Project Trainer]
-    B --> G[☁️ Google Drive Integration (2TB)]
+    B --> G[☁️ Google Drive Integration 2TB]
     B --> H[🏷️ Comprehensive Tagging System]
     B --> I[🤔 5 Interaction Modes]
+    B --> J[🔄 Revolutionary Proactive System]
     
-    C --> J[📚 Entertainment Intelligence]
-    D --> K[🖼️ Visual Content Understanding]
-    E --> L[🎙️ Audio Transcription & Analysis]
-    F --> M[🎯 Project-Specific Learning]
-    G --> N[📦 Emergency Space Recovery]
-    H --> O[🔍 Multi-Source Auto-Discovery]
-    I --> P[♿ ADHD Accessibility]
+    C --> K[📚 Professional Intelligence]
+    D --> L[🖼️ Visual Content Understanding]
+    E --> M[🎙️ Audio Transcription Analysis]
+    F --> N[🎯 Project-Specific Learning]
+    G --> O[📦 Emergency Space Recovery]
+    H --> P[🔍 Multi-Source Auto-Discovery]
+    I --> Q[♿ ADHD Accessibility]
+    J --> R[⚡ Continuous Background Processing]
     
-    J --> Q[✨ Professional Entertainment Management]
-    K --> Q
-    L --> Q
-    M --> Q
-    N --> Q
-    O --> Q
-    P --> Q
+    K --> S[✨ Professional Content Management]
+    L --> S
+    M --> S
+    N --> S
+    O --> S
+    P --> S
+    Q --> S
+    R --> S
 ```
 
-### 🎬 **Entertainment Industry Specialization**
+### 🎯 **Professional Workflow Specialization**
 
 <table>
 <tr>
 <td width="50%">
 
-**🎭 For Entertainment Professionals**
-- 📄 Contract management (SAG-AFTRA, management deals)
-- 🎬 Client career tracking and project management
+**💼 For Business Professionals**
+- 📄 Contract and agreement management
+- 🎯 Client project tracking and management
 - 💰 Commission and payment tracking
-- 📧 Email integration with industry contacts
+- 📧 Email integration with professional contacts
 - 🎯 Project-specific learning and recognition
-- 🔍 Semantic search: "Find client exclusivity terms"
+- 🔍 Semantic search: "Find client contract terms"
 
 </td>
 <td width="50%">
 
-**🎨 For Creative Producers**
+**🎨 For Creative Professionals**
 - 🎙️ Podcast production and content management
-- 📚 AI consciousness research organization
+- 📚 Research organization and documentation
 - 🎵 Professional audio analysis and transcription
 - 🎬 Video content analysis with Gemini 2.5 Flash
 - 📝 Script and creative document management
@@ -124,7 +127,7 @@ graph TB
 
 ### Installation
 ```bash
-git clone https://github.com/ryan/ai-file-organizer
+git clone https://github.com/thebearwithabite/ai-file-organizer
 cd ai-file-organizer
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
@@ -166,6 +169,54 @@ python audio_cli.py search "consciousness" --type interview
 
 ---
 
+## 🔄 Revolutionary Proactive Solution
+
+### **The World's First Truly Proactive File Management System**
+
+Unlike traditional file organizers that wait for you to act, AI File Organizer v3.0 **works while you sleep** - continuously learning, organizing, and optimizing your content ecosystem.
+
+**🤖 Proactive Intelligence:**
+```bash
+# System works automatically in background
+python background_monitor.py start    # Monitors all file changes 24/7
+python staging_monitor.py             # Processes files after 7-day ADHD window
+python gdrive_cli.py emergency --auto  # Triggers automatically when storage < 5GB
+```
+
+**What Makes This Revolutionary:**
+- 🔍 **Real-Time Duplicate Detection**: Catches duplicates the moment they're created
+- 🧠 **Proactive Learning**: Studies your patterns and improves classification without asking
+- 📦 **Emergency Space Recovery**: Automatically frees space before you run out
+- 🏷️ **Background Tagging**: Tags and indexes new content as it appears
+- 📧 **Email Sync**: Continuously monitors macOS Mail for new messages
+- ⚡ **Instant Search Updates**: Vector database updates in real-time
+
+**ADHD-Friendly Proactive Design:**
+- **7-Day Grace Period**: Won't touch active Desktop/Downloads files for a week
+- **Confidence-Based Action**: Only acts when 85%+ certain, otherwise waits for guidance
+- **Non-Intrusive Processing**: Works during idle time, never interrupts workflow
+- **Smart Batching**: Processes files in small groups to prevent overwhelm
+
+### **Proactive vs Reactive Comparison**
+
+| Traditional File Managers | AI File Organizer v3.0 Proactive |
+|---------------------------|-----------------------------------|
+| ❌ Wait for manual action | ✅ Continuous background processing |
+| ❌ Manual duplicate cleanup | ✅ Real-time duplicate prevention |
+| ❌ Storage crises surprise you | ✅ Automatic space management |
+| ❌ Manual email filing | ✅ Automatic email indexing |
+| ❌ Static organization | ✅ Learning and evolving system |
+| ❌ Interrupts workflow | ✅ ADHD-friendly background operation |
+
+**Real Proactive Examples:**
+- 📧 **New email arrives** → Automatically indexed and made searchable within minutes
+- 🖼️ **Screenshot saved** → Computer vision analysis and smart categorization happen instantly  
+- 📄 **Contract downloaded** → Duplicate check, tagging, and filing suggestion ready immediately
+- 💾 **Storage getting low** → Emergency cleanup triggered before you notice
+- 🎵 **Audio file added** → Transcription and content analysis begin automatically
+
+---
+
 ## 🧠 Advanced AI Pipeline
 
 ### **🎬 Computer Vision with Gemini 2.5 Flash**
@@ -182,7 +233,7 @@ python video_project_trainer.py train --project "Papers That Dream"
 ```
 
 **Computer Vision Contexts:**
-- **Entertainment**: Optimized for contracts, industry documents, client materials
+- **Professional**: Optimized for contracts, business documents, client materials
 - **Creative**: Focused on creative projects, AI research, podcast content
 - **General**: Standard image/video analysis for all other content
 
@@ -280,24 +331,24 @@ python tagging_cli.py analyze "contract.pdf"  # See detected tags
 ```
 
 **Auto-Detected Tag Categories:**
-- **People**: `client`, `industry-contact`, `collaborator`
+- **People**: `client`, `professional-contact`, `collaborator`
 - **Projects**: `podcast-production`, `creative-project`, `research-content`
 - **Document Types**: `contract`, `script`, `audio`, `financial`, `creative`
 - **Status**: `active`, `completed`, `draft`, `archive`
-- **Industry**: `entertainment`, `sag-aftra`, `management`, `commission`
+- **Industry**: `professional`, `business`, `management`, `commission`
 
 ### **Advanced Search Capabilities**
 ```bash
-# Entertainment industry semantic search
-python enhanced_librarian.py search "client exclusivity clauses" --mode semantic
-python enhanced_librarian.py search "SAG-AFTRA payment terms" --mode hybrid
+# Professional semantic search
+python enhanced_librarian.py search "client contract clauses" --mode semantic
+python enhanced_librarian.py search "payment terms agreements" --mode hybrid
 
 # Creative content discovery
 python enhanced_librarian.py search "AI consciousness episodes" --mode auto
 python enhanced_librarian.py search "creative research projects" --context creative
 
 # Cross-reference emails and documents
-python enhanced_librarian.py search "industry meeting notes" --include-emails
+python enhanced_librarian.py search "project meeting notes" --include-emails
 ```
 
 ---
@@ -315,7 +366,7 @@ python gdrive_cli.py emergency --live     # Immediate cleanup and upload
 python gdrive_cli.py organize --live      # Organize and sync to cloud
 
 # Search across local + cloud
-python gdrive_cli.py search --query "entertainment client contract"
+python gdrive_cli.py search --query "professional client contract"
 ```
 
 **Emergency Recovery Features:**
@@ -387,13 +438,13 @@ python gdrive_cli.py search --query "entertainment client contract"
 
 ### **🔍 Search & Discovery**
 ```bash
-# Semantic search with entertainment context
-python enhanced_librarian.py search "client exclusivity terms" --mode semantic
+# Semantic search with professional context
+python enhanced_librarian.py search "client contract terms" --mode semantic
 python enhanced_librarian.py search "consciousness podcast episodes" --mode auto
 
 # Tag-based search
-python tagging_cli.py search "project:entertainment,client" --match-all
-python tagging_cli.py search "contract,active" --context entertainment
+python tagging_cli.py search "project:professional,client" --match-all
+python tagging_cli.py search "contract,active" --context professional
 
 # Audio content search
 python audio_cli.py search "consciousness discussion" --type interview
@@ -419,7 +470,7 @@ python quick_learning_mode.py --status    # Check current mode
 ### **🎬 Computer Vision & Media Analysis**
 ```bash
 # Computer vision with context
-python vision_cli.py analyze screenshot.png --context entertainment
+python vision_cli.py analyze screenshot.png --context professional
 python vision_cli.py directory ~/Downloads --limit 5 --context creative
 
 # Video project training
@@ -439,7 +490,7 @@ python gdrive_cli.py emergency --live     # Emergency space recovery
 python gdrive_cli.py organize --live      # Organize and sync
 
 # Cloud search
-python gdrive_cli.py search --query "entertainment contract"
+python gdrive_cli.py search --query "professional contract"
 python gdrive_cli.py folders              # List organized structure
 ```
 
@@ -458,15 +509,15 @@ python metadata_cli.py search "entertainment" --detailed
 
 ## 💡 Real Usage Examples
 
-### **Typical Entertainment Industry Searches:**
-- `"Client exclusivity terms in current contracts"`
-- `"SAG-AFTRA payment schedules from last quarter"`
-- `"Industry meeting notes about current projects"`
-- `"Commission reports for entertainment clients"`
+### **Typical Professional Searches:**
+- `"Client contract terms in current agreements"`
+- `"Payment schedules from last quarter"`
+- `"Meeting notes about current projects"`
+- `"Commission reports for professional clients"`
 - `"Podcast episodes about AI consciousness"`
 
 ### **What Makes This Different:**
-- **Industry Context**: Understands entertainment industry terminology and workflows
+- **Professional Context**: Understands industry terminology and workflows
 - **Project Learning**: Recognizes specific creative projects and client relationships
 - **Semantic Understanding**: Finds "payment terms" when document says "compensation structure"
 - **Cross-Reference Intelligence**: Links contracts to email discussions to creative projects
@@ -523,7 +574,7 @@ Include your:
 
 ## 📜 License
 
-MIT License - Built with ❤️ for entertainment professionals, creative producers, and anyone managing complex content workflows with ADHD.
+MIT License - Built with ❤️ for business professionals, creative producers, and anyone managing complex content workflows with ADHD.
 
 ---
 
@@ -532,9 +583,11 @@ MIT License - Built with ❤️ for entertainment professionals, creative produc
 If AI File Organizer v3.0 transformed your professional workflow, **please star this repository!** ⭐
 
 **Questions? Success stories? Feature requests?**
-- [Open an issue](https://github.com/ryan/ai-file-organizer/issues)
+- [Open an issue](https://github.com/thebearwithabite/ai-file-organizer/issues)
 - Email: [rt@papersthatdream.com](mailto:rt@papersthatdream.com)
+
+**Created by:** RT Max
 
 ---
 
-*From entertainment industry chaos to AI-powered professional organization. The intelligent librarian that knows your work as well as you do.*
+*From professional workflow chaos to AI-powered intelligent organization. The intelligent librarian that knows your work as well as you do.*
