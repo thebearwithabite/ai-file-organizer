@@ -30,18 +30,21 @@ graph TB
     B --> E[🛡️ Bulletproof Duplicate Detection]
     B --> F[🎯 85% Confidence Threshold]
     B --> G[⚡ Emergency Storage Recovery]
+    B --> H[👁️ Computer Vision & OCR]
     
-    C --> H[📚 Intelligent Library]
-    D --> I[🛡️ Zero "Oops!" Moments]
-    E --> J[💾 Automatic Storage Optimization]
-    F --> K[❓ Smart Questions Only]
-    G --> L[🚨 Crisis Management]
+    C --> I[📚 Intelligent Library]
+    D --> J[🛡️ Zero "Oops!" Moments]
+    E --> K[💾 Automatic Storage Optimization]
+    F --> L[❓ Smart Questions Only]
+    G --> M[🚨 Crisis Management]
+    H --> N[🖼️ Visual Content Intelligence]
     
-    H --> M[✨ Perfect Organization]
-    I --> M
-    J --> M
-    K --> M
-    L --> M
+    I --> O[✨ Perfect Organization]
+    J --> O
+    K --> O
+    L --> O
+    M --> O
+    N --> O
 ```
 
 ### 🎯 **Perfect For**
@@ -73,6 +76,7 @@ graph TB
 **🎨 Creative Professionals**
 - 🧠 Semantic content understanding
 - 📧 Email integration for unified search
+- 👁️ Computer vision & OCR for images
 - 🏷️ Smart naming protocols
 - ⚡ Automatic storage optimization
 - 🔍 Background monitoring
@@ -368,6 +372,7 @@ python interactive_organizer.py file "/path/to/file.pdf" --live
 ├── 🧠 Vector Database (ChromaDB)         # Semantic search engine
 ├── 📧 Email Integration (.emlx files)    # macOS Mail integration  
 ├── 📄 Document Processing               # PDFs, DOCX, scripts
+├── 👁️ Computer Vision & OCR             # Image processing and text extraction
 ├── 🔍 Smart Search Interface           # Natural language queries
 ├── 🍎 AppleScript GUI                  # Native macOS integration
 ├── 🤔 Interactive Classification       # Asks questions until 85% confident
@@ -671,6 +676,67 @@ Examples:
 - Maintains version numbering automatically
 - Handles special characters and length limits
 - Preserves important original information
+
+---
+
+### **👁️ Computer Vision & Image Processing (`classification_engine.py`, `query_interface.py`)**
+
+**Image Recognition Capabilities:**
+- `analyze_image_content(image_path)` - OCR text extraction from images
+- `classify_image_type(image_path)` - Determines image category (photo, document scan, screenshot, etc.)
+- `extract_metadata(image_path)` - EXIF data, dimensions, creation date
+- `detect_document_images(image_path)` - Identifies scanned documents vs photos
+- `process_screenshot_text(image_path)` - Extracts text from screenshots
+
+**Supported Image Formats:**
+```python
+supported_formats = [
+    '.jpg', '.jpeg',  # Standard photos
+    '.png',          # Screenshots, graphics
+    '.gif',          # Animated images
+    '.bmp',          # Bitmap images
+    '.tiff'          # High-quality scans
+]
+```
+
+**Smart Image Classification:**
+- **Document Scans**: Automatically routes to appropriate document categories
+- **Screenshots**: Extracts UI text and categorizes by application context
+- **Photos**: Organizes by date and detected content
+- **Generated Images**: Recognizes AI-generated content (ChatGPT images, etc.)
+- **Creative Assets**: Identifies graphics, logos, design files
+
+**OCR Integration:**
+```python
+def extract_text_from_image(image_path):
+    """
+    Optical Character Recognition for:
+    - Scanned contracts and documents
+    - Screenshots with important text
+    - Handwritten notes (limited support)
+    - Business cards and forms
+    - Receipt and invoice images
+    """
+```
+
+**Computer Vision Search:**
+```bash
+# Search images by contained text
+python enhanced_librarian.py search "contract signature" --include-images
+
+# Find screenshots containing specific UI elements
+python query_interface.py search "menu bar screenshot"
+
+# Locate document scans by content
+python enhanced_librarian.py search "tax documents" --mode semantic --images
+```
+
+**Visual Content Organization:**
+- Automatic routing of scanned documents to appropriate business categories
+- Screenshot organization by application and content context
+- Photo organization by date and detected subjects
+- Creative asset cataloging with project association
+- Duplicate image detection using visual similarity hashing
 
 ---
 
