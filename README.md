@@ -21,8 +21,8 @@
 
 ## 🎯 **Why This System Exists**
 
-RT has ADHD and managing file organization is genuinely difficult. This system creates an **intelligent librarian** that:
-- Knows RT and his work intimately
+ADHD makes managing file organization genuinely difficult. This system creates an **intelligent librarian** that:
+- Knows the user and their work intimately
 - Finds things quickly without perfect organization
 - Helps connect related documents and ideas
 - Works intuitively within macOS
@@ -73,7 +73,7 @@ graph TB
 <tr>
 <td width="50%">
 
-**💼 Business Professionals**
+**💼 Business Use Cases**
 - 📄 Contract and agreement management
 - 🎯 Client project tracking and management
 - 💰 Commission and payment tracking
