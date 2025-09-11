@@ -1,0 +1,611 @@
+{
+  "investigation_date": "2025-09-08T17:22:23.148169",
+  "summary": {
+    "case_status": "UNDER_INVESTIGATION",
+    "evidence_strength": "STRONG",
+    "system_existed": true,
+    "probable_cause": "ACCIDENTAL_DELETION_OR_CLEANUP"
+  },
+  "evidence": {
+    "compiled_file": {
+      "exists": true,
+      "path": "/Users/ryanthomson/Github/ai-file-organizer/__pycache__/gdrive_librarian.cpython-312.pyc",
+      "modified_time": "2025-09-02T22:17:01.211495",
+      "size_bytes": 58337,
+      "magic_number": "cb0d0d0a"
+    },
+    "database_logs": {
+      "exists": true,
+      "operations": [
+        {
+          "rollback_id": 1,
+          "timestamp": "2025-09-01T06:10:38.051402",
+          "original_path": "/Users/ryanthomson/Downloads/grok doc.pdf",
+          "original_filename": "grok doc.pdf",
+          "new_filename": "TPTD - Episode Draft - 2025-09-01.pdf",
+          "gdrive_folder": "Episodes",
+          "gdrive_file_id": "1H8cFwN2JmyZ-83efYrEBKuQWJNYZj9gF",
+          "category": "document",
+          "confidence": 70.0,
+          "rollback_status": "executed",
+          "notes": "Auto-renamed: 'grok doc.pdf' \u2192 'TPTD - Episode Draft - 2025-09-01.pdf' | Folder: Episodes | ROLLBACK EXECUTED: 2025-09-01T06:10:47.475193"
+        },
+        {
+          "rollback_id": 2,
+          "timestamp": "2025-09-01T06:11:26.175019",
+          "original_path": "/Users/ryanthomson/Downloads/Mastering_the_game_of_Go_with_deep_neural_networks.pdf",
+          "original_filename": "Mastering_the_game_of_Go_with_deep_neural_networks.pdf",
+          "new_filename": "AlphaGo - Research Paper - DeepMind.pdf",
+          "gdrive_folder": "Industry_Templates",
+          "gdrive_file_id": "15xm6b5rnClLP6U_aJp8_R_bkKXtSCLaS",
+          "category": "document",
+          "confidence": 70.0,
+          "rollback_status": "active",
+          "notes": "Auto-renamed: 'Mastering_the_game_of_Go_with_deep_neural_networks.pdf' \u2192 'AlphaGo - Research Paper - DeepMind.pdf' | Folder: Industry_Templates"
+        }
+      ],
+      "total_operations": 2,
+      "date_range": {
+        "first": "2025-09-01T06:10:38.051402",
+        "last": "2025-09-01T06:11:26.175019"
+      }
+    },
+    "gdrive_evidence": {
+      "api_files": [
+        "/Users/ryanthomson/Github/ai-file-organizer/google_drive_auth.py",
+        "/Users/ryanthomson/Github/ai-file-organizer/gdrive_integration.py"
+      ],
+      "config_files": [],
+      "credentials": [],
+      "integration_patterns": [
+        {
+          "file": "/Users/ryanthomson/Github/ai-file-organizer/smart_cloud_storage.py",
+          "has_google_api": true
+        },
+        {
+          "file": "/Users/ryanthomson/Github/ai-file-organizer/investigate_missing_system.py",
+          "has_google_api": true
+        },
+        {
+          "file": "/Users/ryanthomson/Github/ai-file-organizer/google_drive_auth.py",
+          "has_google_api": true
+        }
+      ]
+    },
+    "git_history": {
+      "git_available": true,
+      "recent_commits": [
+        "b3b83dd \ud83d\udcca Add comprehensive implementation status analysis vs v2.0 specifications",
+        "f88fd60 \ud83d\udee0\ufe0f FIX CRITICAL ADHD ACCESSIBILITY BUGS: Interactive Classifier + ADHD-Friendly Organizer",
+        "eac769a Revise README for clarity and user focus",
+        "0c4d9fe Revise README for clarity and remove user details",
+        "d03e78b \ud83d\udd27 Add Revolutionary Technical Architecture: Chunking System + Bulletproof SHA-256 Deduplication + 2-Minute Video Limit",
+        "15d116d Revise README for clarity and audience focus",
+        "7b4edd0 \ud83d\udd04 Update README: Generic professional focus + correct repo links + RT Max attribution",
+        "50b6bd2 \ud83c\udfac Complete README rewrite: AI File Organizer v3.0 Professional Entertainment Platform",
+        "95d4e64 \ud83d\udc41\ufe0f Add comprehensive Computer Vision & Image Processing documentation",
+        "1af18e5 \ud83d\udcda Complete README overhaul with comprehensive system documentation"
+      ],
+      "file_history": [
+        "commit 890cb6c5800db275c59ab9ba401eeb04ee2f9b27",
+        "Author: RT Max <thebearwithabite@gmail.com>",
+        "Date:   Tue Sep 2 23:35:02 2025 -0700",
+        "",
+        "    feat(core): Add proactive learning, archival, and Gemini context",
+        "    ",
+        "    This commit marks a major feature expansion, introducing several new systems and enhancements.",
+        "    ",
+        "    ### \u2728 New Systems & Features",
+        "    - **Proactive Learning Engine**: Adds `proactive_learning_engine.py` and `proactive_cli.py` to automatically discover organizational patterns and suggest improvements.",
+        "    - **Archive & Staging**: Implements `archive_lifecycle_manager.py` for long-term storage rules and `emergency_staging.py` for rapid file handling.",
+        "    - **Google Drive Migration**: Includes `google_drive_migration.py` to assist with cloud setup.",
+        "    - **Gemini Assistant Context**: Adds `GEMINI.md` to provide project-specific context and guidelines for the Gemini assistant.",
+        "    ",
+        "    ### \u2699\ufe0f Enhancements & Security",
+        "    - **Credential Management**: Replaces `gdrive_credentials.json` with `gdrive_credentials.template.json` to avoid committing secrets.",
+        "    - **Expanded Testing**: Adds a comprehensive suite of new tests for all new features to ensure stability.",
+        "    - **Agent Definitions**: Includes new agent definitions for the Claude assistant in the `.claude/` directory.",
+        "    - **Code Updates**: Modifies core scripts like `classification_engine.py` and `gdrive_librarian.py` to integrate the new functionalities.",
+        "",
+        "commit 02cd8106c12f3f54c666c90ca245c99872c5bf8b",
+        "Author: RT Max <thebearwithabite@gmail.com>",
+        "Date:   Sun Aug 31 09:52:24 2025 -0700",
+        "",
+        "    \ud83d\udd12 Critical Safety Fixes: Database & Auto-Delete Protection",
+        "    ",
+        "    ## Critical Fixes Implemented:",
+        "    ",
+        "    ### 1. Database Migration Safety (metadata_generator.py)",
+        "    - \u2705 Atomic transactions with BEGIN EXCLUSIVE TRANSACTION",
+        "    - \u2705 Automatic backup creation before schema changes",
+        "    - \u2705 Complete rollback and restore on migration failure",
+        "    - \u2705 Backup cleanup on successful migration",
+        "    - \u2705 Zero data loss risk from database migrations",
+        "    ",
+        "    ### 2. Auto-Delete Error Recovery (gdrive_librarian.py)",
+        "    - \u2705 Auto-delete only after upload AND metadata logging success",
+        "    - \u2705 Enhanced _log_metadata_operation() with boolean verification",
+        "    - \u2705 File preservation on any metadata logging failure",
+        "    - \u2705 Comprehensive error handling and user feedback",
+        "    - \u2705 Zero file loss risk from auto-delete operations",
+        "    ",
+        "    ## Additional Updates:",
+        "    ",
+        "    ### Agent Coordination System",
+        "    - \u2705 Added comprehensive agent documentation (agents.md)",
+        "    - \u2705 Updated CLAUDE.md with proactive agent integration",
+        "    - \u2705 Enhanced README.md with agent system overview",
+        "    - \u2705 Integrated agent coordination into development workflows",
+        "    ",
+        "    ### Ultra Diff Review Documentation",
+        "    - \u2705 Complete multi-agent code review analysis",
+        "    - \u2705 Detailed implementation plan for all identified issues",
+        "    - \u2705 Production-ready deployment recommendations",
+        "    ",
+        "    ## Testing & Validation:",
+        "    - \u2705 Comprehensive test suite created and executed",
+        "    - \u2705 Database integrity preservation validated",
+        "    - \u2705 Auto-delete safety mechanisms confirmed",
+        "    - \u2705 Error scenarios and recovery tested",
+        "    - \u2705 ADHD-friendly principles maintained",
+        "    - \u2705 Production deployment approved by test-runner agent",
+        "    ",
+        "    ## Impact:",
+        "    - \ud83d\udd12 Enterprise-grade data safety for ADHD users",
+        "    - \ud83d\udd12 Robust protection against database corruption",
+        "    - \ud83d\udd12 Complete prevention of accidental file deletion",
+        "    - \ud83d\udcc8 Enhanced system reliability and user confidence",
+        "    - \ud83e\udd16 Automated quality assurance through agent coordination",
+        "    ",
+        "    \ud83e\udd16 Generated with [Claude Code](https://claude.ai/code)",
+        "    ",
+        "    Co-Authored-By: Claude <noreply@anthropic.com>",
+        "",
+        "commit 20a833ad3a71d0efb69552727ef370ff0a9b7380",
+        "Author: RT Max <thebearwithabite@gmail.com>",
+        "Date:   Thu Aug 28 19:33:14 2025 -0700",
+        "",
+        "    Complete AI File Organizer with AudioAI Integration and macOS Admin UI",
+        "    ",
+        "    \ud83c\udf89 MAJOR RELEASE: Full-featured AI file management ecosystem",
+        "    ",
+        "    \ud83c\udfb5 AudioAI Integration:",
+        "    \u2022 Complete librosa integration for professional audio analysis",
+        "    \u2022 Content type detection (interview, music, speech, ambient)",
+        "    \u2022 Technical analysis (quality, noise, dynamic range, tempo, key)",
+        "    \u2022 Speech transcription and voice activity detection",
+        "    \u2022 Music feature extraction (BPM, energy, danceability)",
+        "    \u2022 Integrated into main organizer workflow",
+        "    ",
+        "    \ud83c\udfad Creative AI Ecosystem:",
+        "    \u2022 Story universe knowledge graph with NetworkX",
+        "    \u2022 Character recognition and relationship mapping",
+        "    \u2022 Creative idea generation based on content patterns",
+        "    \u2022 Project context detection and cross-referencing",
+        "    \u2022 Theme analysis and story cluster detection",
+        "    ",
+        "    \ud83c\udff7\ufe0f Comprehensive Tagging System:",
+        "    \u2022 Auto-tagging with pattern matching",
+        "    \u2022 Tag relationship tracking and co-occurrence",
+        "    \u2022 Project and content type detection",
+        "    \u2022 Search integration with tag-based discovery",
+        "    ",
+        "    \ud83c\udf4e macOS Native Admin Interface:",
+        "    \u2022 AppleScript-based admin panel for full system management",
+        "    \u2022 Quick access menu bar helper for common functions",
+        "    \u2022 Native macOS UI elements and workflows",
+        "    \u2022 Integrated with all system components",
+        "    ",
+        "    \ud83d\udcca Enhanced Documentation:",
+        "    \u2022 Comprehensive README with all features documented",
+        "    \u2022 Updated CLAUDE.md with complete system context",
+        "    \u2022 Usage examples for all major workflows",
+        "    \u2022 Technical architecture documentation",
+        "    ",
+        "    \ud83d\udd27 System Integration:",
+        "    \u2022 All components work together seamlessly",
+        "    \u2022 Unified CLI interfaces for all functions",
+        "    \u2022 Cross-system data sharing and analysis",
+        "    \u2022 ADHD-optimized design throughout",
+        "    ",
+        "    This represents the completion of a comprehensive AI-powered file management",
+        "    ecosystem specifically designed for creative professionals with ADHD.",
+        "    ",
+        "    \ud83e\udd16 Generated with [Claude Code](https://claude.ai/code)",
+        "    ",
+        "    Co-Authored-By: Claude <noreply@anthropic.com>"
+      ],
+      "deleted_files": [
+        ""
+      ]
+    },
+    "file_timestamps": {
+      "recent_modifications": [
+        {
+          "file": "investigate_missing_system.py",
+          "modified": "2025-09-08T17:22:19.650780",
+          "size": 15502
+        },
+        {
+          "file": "local_metadata_store.py",
+          "modified": "2025-09-07T23:55:52.533725",
+          "size": 42397
+        },
+        {
+          "file": "google_drive_auth.py",
+          "modified": "2025-09-07T23:53:41.646265",
+          "size": 15972
+        },
+        {
+          "file": "smart_cloud_storage.py",
+          "modified": "2025-09-07T23:26:49.418775",
+          "size": 20172
+        },
+        {
+          "file": "gdrive_integration.py",
+          "modified": "2025-09-07T18:41:08.529767",
+          "size": 14481
+        },
+        {
+          "file": "organize_adhd_friendly.py",
+          "modified": "2025-09-07T05:05:26.993976",
+          "size": 9695
+        },
+        {
+          "file": "interactive_classifier_fixed.py",
+          "modified": "2025-09-07T05:05:26.993776",
+          "size": 17226
+        },
+        {
+          "file": "video_project_trainer.py",
+          "modified": "2025-09-06T17:18:50.734625",
+          "size": 12250
+        },
+        {
+          "file": "bulletproof_deduplication.py",
+          "modified": "2025-09-06T17:18:50.734283",
+          "size": 12548
+        },
+        {
+          "file": "interactive_organizer.py",
+          "modified": "2025-09-04T02:54:46.417039",
+          "size": 14938
+        },
+        {
+          "file": "safe_file_recycling.py",
+          "modified": "2025-09-04T02:54:20.717509",
+          "size": 6247
+        },
+        {
+          "file": "interactive_classifier.py",
+          "modified": "2025-09-04T02:53:46.239727",
+          "size": 19671
+        },
+        {
+          "file": "content_extractor.py",
+          "modified": "2025-09-04T02:53:46.239531",
+          "size": 23692
+        },
+        {
+          "file": "classification_engine.py",
+          "modified": "2025-09-04T02:53:46.238692",
+          "size": 18866
+        },
+        {
+          "file": "background_monitor.py",
+          "modified": "2025-09-04T02:53:46.238373",
+          "size": 27973
+        },
+        {
+          "file": "batch_test.py",
+          "modified": "2025-08-21T11:05:40.021372",
+          "size": 4192
+        },
+        {
+          "file": "test_integration.py",
+          "modified": "2025-08-21T11:05:40.017865",
+          "size": 6668
+        },
+        {
+          "file": "monitor_control.py",
+          "modified": "2025-08-21T11:05:40.016844",
+          "size": 6878
+        },
+        {
+          "file": "file_naming_protocol.py",
+          "modified": "2025-08-21T11:05:40.015926",
+          "size": 16042
+        },
+        {
+          "file": "enhanced_librarian.py",
+          "modified": "2025-08-21T11:05:40.014071",
+          "size": 10109
+        },
+        {
+          "file": "scrub_personal_info.py",
+          "modified": "2025-08-21T11:05:40.012786",
+          "size": 3403
+        },
+        {
+          "file": "interactive_with_preview.py",
+          "modified": "2025-08-21T11:05:40.012318",
+          "size": 11242
+        },
+        {
+          "file": "hybrid_librarian.py",
+          "modified": "2025-08-21T11:05:40.010869",
+          "size": 19624
+        },
+        {
+          "file": "test_indexing.py",
+          "modified": "2025-08-21T11:05:40.008774",
+          "size": 3037
+        },
+        {
+          "file": "query_interface.py",
+          "modified": "2025-08-21T11:05:40.008049",
+          "size": 20220
+        },
+        {
+          "file": "test_single_file.py",
+          "modified": "2025-08-21T11:05:40.003902",
+          "size": 2866
+        },
+        {
+          "file": "librarian.py",
+          "modified": "2025-08-21T11:05:39.997787",
+          "size": 12145
+        },
+        {
+          "file": "test_email_integration.py",
+          "modified": "2025-08-21T11:05:39.996330",
+          "size": 4282
+        },
+        {
+          "file": "integrated_organizer.py",
+          "modified": "2025-08-21T11:05:39.994116",
+          "size": 12869
+        },
+        {
+          "file": "demo_interactive.py",
+          "modified": "2025-08-21T11:05:39.991452",
+          "size": 5251
+        },
+        {
+          "file": "test_7day_rule.py",
+          "modified": "2025-08-21T11:05:39.990517",
+          "size": 4579
+        },
+        {
+          "file": "show_questions.py",
+          "modified": "2025-08-21T11:05:39.988874",
+          "size": 5798
+        },
+        {
+          "file": "vector_librarian.py",
+          "modified": "2025-08-21T00:20:15.168666",
+          "size": 32022
+        },
+        {
+          "file": "email_extractor.py",
+          "modified": "2025-08-20T15:18:28.440539",
+          "size": 10363
+        },
+        {
+          "file": "staging_monitor.py",
+          "modified": "2025-08-18T11:36:11.906156",
+          "size": 13123
+        }
+      ],
+      "suspicious_timestamps": []
+    },
+    "dependencies": {
+      "import_references": [
+        {
+          "file": "/Users/ryanthomson/Github/ai-file-organizer/investigate_missing_system.py",
+          "references": 12
+        }
+      ],
+      "potential_callers": []
+    }
+  },
+  "timeline": [
+    {
+      "time": "2025-08-18T11:36:11.906156",
+      "event": "FILE_MODIFIED",
+      "details": "Modified staging_monitor.py"
+    },
+    {
+      "time": "2025-08-20T15:18:28.440539",
+      "event": "FILE_MODIFIED",
+      "details": "Modified email_extractor.py"
+    },
+    {
+      "time": "2025-08-21T00:20:15.168666",
+      "event": "FILE_MODIFIED",
+      "details": "Modified vector_librarian.py"
+    },
+    {
+      "time": "2025-08-21T11:05:39.988874",
+      "event": "FILE_MODIFIED",
+      "details": "Modified show_questions.py"
+    },
+    {
+      "time": "2025-08-21T11:05:39.990517",
+      "event": "FILE_MODIFIED",
+      "details": "Modified test_7day_rule.py"
+    },
+    {
+      "time": "2025-08-21T11:05:39.991452",
+      "event": "FILE_MODIFIED",
+      "details": "Modified demo_interactive.py"
+    },
+    {
+      "time": "2025-08-21T11:05:39.994116",
+      "event": "FILE_MODIFIED",
+      "details": "Modified integrated_organizer.py"
+    },
+    {
+      "time": "2025-08-21T11:05:39.996330",
+      "event": "FILE_MODIFIED",
+      "details": "Modified test_email_integration.py"
+    },
+    {
+      "time": "2025-08-21T11:05:39.997787",
+      "event": "FILE_MODIFIED",
+      "details": "Modified librarian.py"
+    },
+    {
+      "time": "2025-08-21T11:05:40.003902",
+      "event": "FILE_MODIFIED",
+      "details": "Modified test_single_file.py"
+    },
+    {
+      "time": "2025-08-21T11:05:40.008049",
+      "event": "FILE_MODIFIED",
+      "details": "Modified query_interface.py"
+    },
+    {
+      "time": "2025-08-21T11:05:40.008774",
+      "event": "FILE_MODIFIED",
+      "details": "Modified test_indexing.py"
+    },
+    {
+      "time": "2025-08-21T11:05:40.010869",
+      "event": "FILE_MODIFIED",
+      "details": "Modified hybrid_librarian.py"
+    },
+    {
+      "time": "2025-08-21T11:05:40.012318",
+      "event": "FILE_MODIFIED",
+      "details": "Modified interactive_with_preview.py"
+    },
+    {
+      "time": "2025-08-21T11:05:40.012786",
+      "event": "FILE_MODIFIED",
+      "details": "Modified scrub_personal_info.py"
+    },
+    {
+      "time": "2025-08-21T11:05:40.014071",
+      "event": "FILE_MODIFIED",
+      "details": "Modified enhanced_librarian.py"
+    },
+    {
+      "time": "2025-08-21T11:05:40.015926",
+      "event": "FILE_MODIFIED",
+      "details": "Modified file_naming_protocol.py"
+    },
+    {
+      "time": "2025-08-21T11:05:40.016844",
+      "event": "FILE_MODIFIED",
+      "details": "Modified monitor_control.py"
+    },
+    {
+      "time": "2025-08-21T11:05:40.017865",
+      "event": "FILE_MODIFIED",
+      "details": "Modified test_integration.py"
+    },
+    {
+      "time": "2025-08-21T11:05:40.021372",
+      "event": "FILE_MODIFIED",
+      "details": "Modified batch_test.py"
+    },
+    {
+      "time": "2025-09-01T06:10:38.051402",
+      "event": "FILE_OPERATION",
+      "details": "Renamed 'grok doc.pdf' to 'TPTD - Episode Draft - 2025-09-01.pdf' (confidence: 70.0%)"
+    },
+    {
+      "time": "2025-09-01T06:11:26.175019",
+      "event": "FILE_OPERATION",
+      "details": "Renamed 'Mastering_the_game_of_Go_with_deep_neural_networks.pdf' to 'AlphaGo - Research Paper - DeepMind.pdf' (confidence: 70.0%)"
+    },
+    {
+      "time": "2025-09-04T02:53:46.238373",
+      "event": "FILE_MODIFIED",
+      "details": "Modified background_monitor.py"
+    },
+    {
+      "time": "2025-09-04T02:53:46.238692",
+      "event": "FILE_MODIFIED",
+      "details": "Modified classification_engine.py"
+    },
+    {
+      "time": "2025-09-04T02:53:46.239531",
+      "event": "FILE_MODIFIED",
+      "details": "Modified content_extractor.py"
+    },
+    {
+      "time": "2025-09-04T02:53:46.239727",
+      "event": "FILE_MODIFIED",
+      "details": "Modified interactive_classifier.py"
+    },
+    {
+      "time": "2025-09-04T02:54:20.717509",
+      "event": "FILE_MODIFIED",
+      "details": "Modified safe_file_recycling.py"
+    },
+    {
+      "time": "2025-09-04T02:54:46.417039",
+      "event": "FILE_MODIFIED",
+      "details": "Modified interactive_organizer.py"
+    },
+    {
+      "time": "2025-09-06T17:18:50.734283",
+      "event": "FILE_MODIFIED",
+      "details": "Modified bulletproof_deduplication.py"
+    },
+    {
+      "time": "2025-09-06T17:18:50.734625",
+      "event": "FILE_MODIFIED",
+      "details": "Modified video_project_trainer.py"
+    },
+    {
+      "time": "2025-09-07T05:05:26.993776",
+      "event": "FILE_MODIFIED",
+      "details": "Modified interactive_classifier_fixed.py"
+    },
+    {
+      "time": "2025-09-07T05:05:26.993976",
+      "event": "FILE_MODIFIED",
+      "details": "Modified organize_adhd_friendly.py"
+    },
+    {
+      "time": "2025-09-07T18:41:08.529767",
+      "event": "FILE_MODIFIED",
+      "details": "Modified gdrive_integration.py"
+    },
+    {
+      "time": "2025-09-07T23:26:49.418775",
+      "event": "FILE_MODIFIED",
+      "details": "Modified smart_cloud_storage.py"
+    },
+    {
+      "time": "2025-09-07T23:53:41.646265",
+      "event": "FILE_MODIFIED",
+      "details": "Modified google_drive_auth.py"
+    },
+    {
+      "time": "2025-09-07T23:55:52.533725",
+      "event": "FILE_MODIFIED",
+      "details": "Modified local_metadata_store.py"
+    },
+    {
+      "time": "2025-09-08T17:22:19.650780",
+      "event": "FILE_MODIFIED",
+      "details": "Modified investigate_missing_system.py"
+    }
+  ],
+  "conclusions": [
+    "System definitely existed - compiled bytecode found",
+    "System was actively used - operation logs found",
+    "Google Drive integration exists in other systems"
+  ],
+  "recommendations": [
+    "Implement mandatory change logging to prevent future mysteries",
+    "Create automated backups before any system modifications",
+    "Require user notification before removing active systems",
+    "Establish rollback procedures for all file operations",
+    "Audit Google Drive for files needing rollback"
+  ]
+}

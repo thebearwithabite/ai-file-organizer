@@ -1,0 +1,45 @@
+# AI File Organizer v3.0 - Complete Hybrid Architecture Requirements
+# Google Drive integration, local metadata, streaming, and background sync
+
+# Google Drive API and Authentication
+google-api-python-client>=2.100.0
+google-auth-httplib2>=0.1.1
+google-auth-oauthlib>=1.0.0
+
+# Database and storage
+# sqlite3  # Usually included with Python
+numpy>=1.24.0
+
+# HTTP and networking for streaming
+requests>=2.31.0
+aiohttp>=3.8.0
+
+# Content processing
+python-dateutil>=2.8.2
+# pathlib  # Usually included with Python
+
+# For semantic search capabilities (recommended)
+sentence-transformers>=2.2.0
+chromadb>=0.4.0
+
+# File processing and content extraction
+python-magic>=0.4.27
+PyPDF2>=3.0.0
+python-docx>=0.8.11
+
+# For progress indicators and ADHD-friendly features
+tqdm>=4.65.0
+colorama>=0.4.6
+
+
+# Encryption for secure credential storage
+cryptography>=41.0.0
+
+# Development and testing
+pytest>=7.0.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.0.0
+
+# Optional but recommended for production
+psutil>=5.9.0  # For system resource monitoring
+watchdog>=3.0.0  # For file system monitoring

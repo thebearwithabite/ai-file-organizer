@@ -23,6 +23,7 @@ except ImportError:
 from query_interface import QueryProcessor, QueryResult
 from content_extractor import ContentExtractor
 from classification_engine import FileClassificationEngine
+from gdrive_integration import get_ai_organizer_root
 
 @dataclass
 class EnhancedQueryResult:
@@ -49,7 +50,8 @@ class HybridLibrarian:
     """
     
     def __init__(self, base_dir: str = None):
-        self.base_dir = Path(base_dir) if base_dir else Path.home() / "Documents"
+        # Use Google Drive integration as primary storage root
+        self.base_dir = Path(base_dir) if base_dir else get_ai_organizer_root()
         
         # Initialize your existing components
         self.query_processor = QueryProcessor(str(self.base_dir))

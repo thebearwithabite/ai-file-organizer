@@ -98,6 +98,52 @@ graph TB
 
 ---
 
+## 🛡️ Easy Rollback System - Your Safety Net
+
+**CRITICAL FEATURE: Never fear AI file operations again!**
+
+The Easy Rollback System solves the trust problem with AI file management by providing **one-click undo** for any operation that went wrong. No more mysterious file renames or lost documents.
+
+### **Why This System Exists**
+After discovering that an AI system had automatically renamed files in Google Drive with random names, creating "a real mess," we built the **most comprehensive rollback system** in any file organizer. This restores user trust by making every AI operation safely undoable.
+
+### **Key Trust Features:**
+- ✅ **Visual Before/After Preview** - See exactly what changed
+- ✅ **One-Click Undo** - Rollback any operation instantly  
+- ✅ **Complete Operation History** - Every file change is tracked
+- ✅ **ADHD-Friendly Design** - Simple, clear, no confusing menus
+- ✅ **Works with Google Drive** - Undo cloud operations too
+- ✅ **Search & Filter** - Find specific operations quickly
+
+### **Instant Rollback Commands:**
+```bash
+# See what the AI did recently
+python easy_rollback_system.py --list
+
+# Undo a specific operation (shows ID in list)
+python easy_rollback_system.py --undo 123
+
+# Emergency: Undo ALL today's operations
+python easy_rollback_system.py --undo-today
+
+# Find specific file operations
+python easy_rollback_system.py --search "contract"
+```
+
+### **Real Protection Examples:**
+```
+🔴 [123] 14:32:15
+    📁 Original: 'Client_Contract_2024_Final.pdf'
+    ➡️  Renamed: 'random_filename_abc123.pdf'  ← OOPS!
+    📍 Location: Google Drive/Business
+    🔴 Confidence: 45.2% (Low confidence = likely wrong)
+    🔧 Rollback: python easy_rollback_system.py --undo 123
+```
+
+**The rollback system makes AI file operations safe by ensuring you can always undo what went wrong.**
+
+---
+
 ## 🚀 Quick Start
 
 ### Requirements
@@ -115,36 +161,35 @@ pip install -r requirements.txt
 
 ### First Run - Complete Setup
 ```bash
-# 1. Set up Google Drive integration (2TB storage)
-python gdrive_cli.py auth --credentials gdrive_credentials.json
+# 1. Verify Google Drive integration (hybrid architecture)
+python gdrive_integration.py  # Check Google Drive status and create directory structure
 
-# 2. Enable aggressive learning mode for rapid training
-python quick_learning_mode.py --learning
+# 2. Test hybrid architecture integration
+python test_hybrid_architecture.py --quick
 
-# 3. Start with computer vision analysis
-python vision_cli.py directory ~/Downloads --context entertainment
+# 3. Initialize semantic search with cloud storage
+python enhanced_librarian.py index --semantic
 
-# 4. Organize with professional workflows
+# 4. Organize with professional workflows (now uses Google Drive as primary storage)
 python interactive_organizer.py organize --live
 
-# 5. Index everything with semantic search
-python enhanced_librarian.py index --semantic
+# 5. Verify rollback system is working
+python easy_rollback_system.py --today
 ```
 
 ### Core Daily Workflows
 ```bash
-# Quick search with natural language
+# Quick search with natural language (hybrid cloud + local)
 python enhanced_librarian.py search "client payment terms" --mode semantic
 
-# Organize with AI assistance
+# Organize with AI assistance (using Google Drive as primary storage)
 python interactive_organizer.py organize --live
 
-# Check Google Drive status and emergency cleanup
-python gdrive_cli.py status
-python gdrive_cli.py emergency --live  # If storage is low
+# Check Google Drive integration status
+python gdrive_integration.py
 
-# Audio analysis for podcast content
-python audio_cli.py search "consciousness" --type interview
+# Always verify AI operations with rollback system
+python easy_rollback_system.py --today
 ```
 
 ---
@@ -430,27 +475,26 @@ python enhanced_librarian.py search "project meeting notes" --include-emails
 
 ---
 
-## ☁️ Google Drive Integration & Emergency Recovery
+## ☁️ Google Drive Hybrid Architecture
 
-### **2TB Cloud Storage Management**
+### **Complete Cloud Integration (2TB Storage)**
 ```bash
-# Check storage status
-python gdrive_cli.py status
-python gdrive_cli.py folders  # See organized structure
+# Check Google Drive integration status
+python gdrive_integration.py  # Shows drive status and creates directory structure
 
-# Emergency space recovery (when local drive is full)
-python gdrive_cli.py emergency --live     # Immediate cleanup and upload
-python gdrive_cli.py organize --live      # Organize and sync to cloud
+# Test hybrid architecture
+python test_hybrid_architecture.py --quick
 
-# Search across local + cloud
-python gdrive_cli.py search --query "professional client contract"
+# Search across Google Drive + local files
+python enhanced_librarian.py search "professional client contract" --mode hybrid
 ```
 
-**Emergency Recovery Features:**
-- **Automatic Detection**: Monitors local storage and triggers when < 5GB free
-- **Smart Prioritization**: Uploads older/larger files first
-- **Metadata Preservation**: Maintains all tags and organization in cloud
-- **Seamless Search**: Find files whether stored locally or in Google Drive
+**Hybrid Architecture Features:**
+- **Primary Storage**: Google Drive serves as the main storage root for all AI operations
+- **Intelligent Caching**: On-demand file streaming with local metadata store
+- **Background Sync**: Continuous synchronization between local and cloud
+- **Unified Search**: Single search interface across local files and Google Drive
+- **Emergency Staging**: 99_STAGING_EMERGENCY folder for space management
 
 ---
 
@@ -479,69 +523,66 @@ python gdrive_cli.py search --query "professional client contract"
 ## 📊 System Architecture
 
 ```
-🗂️  AI File Organizer v3.0 - Professional Entertainment Platform/
+🗂️  AI File Organizer v3.0 - Hybrid Cloud Architecture/
 ├── 🧠 Vector Database (ChromaDB)         # Semantic search engine
 ├── 📧 Email Integration (.emlx files)    # macOS Mail integration  
 ├── 📄 Document Processing               # PDFs, DOCX, scripts
+├── ☁️ Google Drive Hybrid Integration    # Primary storage with local caching
+├── 🌊 File Streaming Service            # On-demand cloud file access
+├── 🔄 Background Sync Service           # Continuous synchronization
 ├── 🎬 Computer Vision (Gemini 2.5 Flash) # Images and video analysis
 ├── 🎵 Audio AI Analysis               # Professional audio processing
 ├── 📚 Video Project Trainer           # Learns user's projects
-├── 🔍 Smart Search Interface           # Natural language queries
+├── 🔍 Smart Search Interface           # Natural language queries (unified)
 ├── 🍎 AppleScript GUI                  # Native macOS integration
 ├── 🤔 Interactive Classification       # 5 interaction modes with learning
 ├── 🏷️ Comprehensive Tagging System     # Multi-source auto-tagging
-├── ☁️ Google Drive Integration         # 2TB cloud storage
+├── 🛡️ Easy Rollback System             # Complete file operation safety net
 └── 🗂️ Intelligent Organization         # Auto-categorization with learning
 ```
 
 ### **Core Components:**
-- **`enhanced_librarian.py`** - Advanced semantic search with hybrid modes
-- **`interactive_organizer.py`** - Main organization workflow with questioning
-- **`vision_content_extractor.py`** - Computer vision analysis (Gemini 2.5 Flash)
-- **`video_project_trainer.py`** - Learns user's specific projects
+- **`enhanced_librarian.py`** - Advanced semantic search with hybrid cloud/local capability
+- **`interactive_organizer.py`** - Main organization workflow with questioning (cloud-integrated)
+- **`gdrive_integration.py`** - Google Drive hybrid architecture (primary storage)
+- **`easy_rollback_system.py`** - Complete rollback safety net for all file operations
+- **`gdrive_streamer.py`** - On-demand file streaming from Google Drive
+- **`background_sync_service.py`** - Continuous local/cloud synchronization
+- **`vector_librarian.py`** - Vector database operations with cloud support
 - **`interactive_classifier.py`** - 5 interaction modes (SMART, MINIMAL, LEARNING, ALWAYS, NEVER)
-- **`quick_learning_mode.py`** - Easy mode switching for training
-- **`tagging_cli.py`** - Comprehensive auto-tagging system
-- **`gdrive_cli.py`** - Google Drive integration with emergency space recovery
-- **`audio_cli.py`** - Professional audio analysis and transcription
-- **`batch_cli.py`** - ADHD-friendly batch processing
+- **`content_extractor.py`** - Document processing with hybrid storage
 - **`email_extractor.py`** - macOS Mail integration
-- **`vector_librarian.py`** - Vector database operations
 - **`Enhanced_Search_GUI.applescript`** - Native Mac search interface
 
 ---
 
 ## 📖 Complete Command Reference
 
-### **🔍 Search & Discovery**
+### **🔍 Search & Discovery (Hybrid Cloud + Local)**
 ```bash
-# Semantic search with professional context
+# Unified search across Google Drive and local files
 python enhanced_librarian.py search "client contract terms" --mode semantic
-python enhanced_librarian.py search "consciousness podcast episodes" --mode auto
+python enhanced_librarian.py search "consciousness podcast episodes" --mode hybrid
 
-# Tag-based search
-python tagging_cli.py search "project:professional,client" --match-all
-python tagging_cli.py search "contract,active" --context professional
+# Check Google Drive integration status
+python gdrive_integration.py
 
-# Audio content search
-python audio_cli.py search "consciousness discussion" --type interview
-python audio_cli.py search "creative collaboration" --transcribe
+# Test hybrid architecture
+python test_hybrid_architecture.py --quick
 ```
 
-### **🗂️ Organization & Processing**
+### **🗂️ Organization & Processing (Cloud-Integrated)**
 ```bash
-# Main organization workflow
+# Main organization workflow (now uses Google Drive as primary storage)
 python interactive_organizer.py organize --live     # Full organization
 python interactive_organizer.py quick ~/Downloads --live  # Specific folder
 
-# Batch processing (ADHD-friendly)
-python batch_cli.py directory ~/Downloads --batch-size 20 --dry-run
-python batch_cli.py directory ~/Documents --live --mode smart
+# Always check rollback system after operations
+python easy_rollback_system.py --today    # Check recent operations
+python easy_rollback_system.py --list     # Show all recent operations
 
-# Learning mode control
-python quick_learning_mode.py --learning  # Enable aggressive learning
-python quick_learning_mode.py --smart     # Balanced operation
-python quick_learning_mode.py --status    # Check current mode
+# Emergency rollback if operations went wrong
+python easy_rollback_system.py --undo-today    # Undo all today's operations
 ```
 
 ### **🎬 Computer Vision & Media Analysis**
@@ -559,16 +600,16 @@ python audio_cli.py analyze podcast_episode.mp3 --transcribe
 python multimedia_cli.py directory ~/Audio --context creative
 ```
 
-### **☁️ Google Drive Management**
+### **☁️ Google Drive Hybrid Management**
 ```bash
-# Storage management
-python gdrive_cli.py status               # Check storage usage
-python gdrive_cli.py emergency --live     # Emergency space recovery
-python gdrive_cli.py organize --live      # Organize and sync
+# Check Google Drive integration and create directory structure
+python gdrive_integration.py
 
-# Cloud search
-python gdrive_cli.py search --query "professional contract"
-python gdrive_cli.py folders              # List organized structure
+# Test hybrid architecture components
+python test_hybrid_architecture.py --quick
+
+# All search commands now work with hybrid architecture automatically
+python enhanced_librarian.py search "professional contract" --mode hybrid
 ```
 
 ### **🏷️ Tagging & Metadata**
