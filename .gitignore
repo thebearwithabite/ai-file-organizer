@@ -16,6 +16,7 @@ content_cache/
 
 # Configuration files with sensitive data
 *config*.json
+gdrive_credentials.json
 
 # macOS
 .DS_Store
