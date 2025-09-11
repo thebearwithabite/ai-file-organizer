@@ -19,7 +19,7 @@ Ryan has ADHD and managing file organization is genuinely difficult. This system
 - Business Owner (Management Company)
 - Developer (building AI tools)
 
-**Types of Content:**
+**Types of Content:.**
 - Entertainment contracts and agreements (SAG-AFTRA, management deals)
 - Creative scripts and AI research papers
 - Business documents (invoices, tax records, commissions)
