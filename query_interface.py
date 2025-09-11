@@ -15,6 +15,7 @@ from collections import defaultdict
 from content_extractor import ContentExtractor
 from classification_engine import FileClassificationEngine
 from staging_monitor import StagingMonitor
+from gdrive_integration import get_ai_organizer_root
 
 @dataclass
 class QueryResult:
@@ -36,7 +37,8 @@ class QueryProcessor:
     """
     
     def __init__(self, base_dir: str = None):
-        self.base_dir = Path(base_dir) if base_dir else Path.home() / "Documents"
+        # Use Google Drive integration as primary storage root
+        self.base_dir = Path(base_dir) if base_dir else get_ai_organizer_root()
         
         # Initialize components
         self.content_extractor = ContentExtractor(base_dir)
@@ -434,7 +436,8 @@ class LocalLibrarian:
     """
     
     def __init__(self, base_dir: str = None):
-        self.base_dir = Path(base_dir) if base_dir else Path.home() / "Documents"
+        # Use Google Drive integration as primary storage root
+        self.base_dir = Path(base_dir) if base_dir else get_ai_organizer_root()
         self.query_processor = QueryProcessor(base_dir)
         
     def search(self, query: str, limit: int = 10) -> List[QueryResult]:

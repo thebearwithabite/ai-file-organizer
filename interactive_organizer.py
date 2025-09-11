@@ -18,6 +18,7 @@ from interactive_classifier import InteractiveClassifier
 from staging_monitor import StagingMonitor
 from enhanced_librarian import EnhancedLibrarianCLI
 from safe_file_recycling import SafeFileRecycling
+from gdrive_integration import get_ai_organizer_root
 
 class InteractiveOrganizer:
     """
@@ -26,7 +27,8 @@ class InteractiveOrganizer:
     """
     
     def __init__(self, base_dir: str = None):
-        self.base_dir = Path(base_dir) if base_dir else Path.home() / "Documents"
+        # Use Google Drive integration as primary storage root
+        self.base_dir = Path(base_dir) if base_dir else get_ai_organizer_root()
         self.classifier = InteractiveClassifier(str(self.base_dir))
         self.staging_monitor = StagingMonitor(str(self.base_dir))
         self.librarian = EnhancedLibrarianCLI(str(self.base_dir))
