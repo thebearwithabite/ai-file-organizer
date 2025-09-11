@@ -12,6 +12,7 @@ from typing import List, Dict, Any
 
 from hybrid_librarian import HybridLibrarian
 from librarian import LibrarianCLI
+from gdrive_integration import get_ai_organizer_root
 
 class EnhancedLibrarianCLI(LibrarianCLI):
     """
@@ -19,6 +20,9 @@ class EnhancedLibrarianCLI(LibrarianCLI):
     """
     
     def __init__(self, base_dir: str = None):
+        # Use Google Drive integration as primary storage if no base_dir specified
+        if base_dir is None:
+            base_dir = str(get_ai_organizer_root())
         super().__init__(base_dir)
         self.hybrid_librarian = HybridLibrarian(str(self.base_dir))
         print(f"🧠 Enhanced Librarian initialized with semantic search")

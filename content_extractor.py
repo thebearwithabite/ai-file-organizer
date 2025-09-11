@@ -12,6 +12,7 @@ from typing import Dict, List, Optional, Any
 from datetime import datetime
 import hashlib
 import mimetypes
+from gdrive_integration import get_ai_organizer_root
 
 class ContentExtractor:
     """
@@ -20,7 +21,8 @@ class ContentExtractor:
     """
     
     def __init__(self, base_dir: str = None):
-        self.base_dir = Path(base_dir) if base_dir else Path.home() / "Documents"
+        # Use Google Drive integration as primary storage root
+        self.base_dir = Path(base_dir) if base_dir else get_ai_organizer_root()
         self.db_path = self.base_dir / "04_METADATA_SYSTEM" / "content_index.db"
         self.cache_dir = self.base_dir / "04_METADATA_SYSTEM" / "content_cache"
         

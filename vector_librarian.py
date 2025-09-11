@@ -31,6 +31,7 @@ from hybrid_librarian import HybridLibrarian, EnhancedQueryResult
 from content_extractor import ContentExtractor
 from classification_engine import FileClassificationEngine
 from email_extractor import EmailExtractor
+from gdrive_integration import get_ai_organizer_root
 
 @dataclass
 class DocumentChunk:
@@ -359,7 +360,8 @@ class VectorLibrarian:
     """
     
     def __init__(self, base_dir: str = None):
-        self.base_dir = Path(base_dir) if base_dir else Path.home() / "Documents"
+        # Use Google Drive integration as primary storage root
+        self.base_dir = Path(base_dir) if base_dir else get_ai_organizer_root()
         
         # Initialize existing components
         self.content_extractor = ContentExtractor(str(self.base_dir))
