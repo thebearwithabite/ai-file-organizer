@@ -556,6 +556,74 @@ python enhanced_librarian.py search "professional client contract" --mode hybrid
 
 ---
 
+## 🚀 V3 API Server
+
+The AI File Organizer V3 includes a **RESTful API server** that provides programmatic access to all core functionality. This enables integration with web applications, mobile apps, automation scripts, and custom workflows while maintaining the same ADHD-friendly design principles.
+
+### Quick Start API Server
+
+```bash
+# Install API dependencies
+pip install -r requirements_v3.txt
+
+# Start the development server
+python main.py
+
+# Server runs at http://localhost:8000
+# Interactive docs: http://localhost:8000/docs
+```
+
+### Key API Endpoints
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/health` | GET | Health check for monitoring |
+| `/api/system/status` | GET | Real-time system status from GoogleDriveLibrarian |
+| `/api/search?q={query}` | GET | Semantic search with natural language queries |
+| `/api/triage/files_to_review` | GET | Files requiring manual review (low confidence) |
+| `/api/triage/classify` | POST | Confirm file categorization after review |
+
+### Example API Usage
+
+```bash
+# Check system health
+curl http://localhost:8000/health
+
+# Get real system status
+curl http://localhost:8000/api/system/status
+
+# Search with natural language
+curl "http://localhost:8000/api/search?q=client%20contract%20terms"
+
+# Get files needing review
+curl http://localhost:8000/api/triage/files_to_review
+
+# Classify file after review
+curl -X POST http://localhost:8000/api/triage/classify \
+  -H "Content-Type: application/json" \
+  -d '{"file_path": "/path/to/file.pdf", "confirmed_category": "contracts"}'
+```
+
+### API Integration Benefits
+
+✅ **Web Applications** - Build custom dashboards and file management interfaces  
+✅ **Mobile Apps** - Search and organize files from iOS/Android applications  
+✅ **Automation Scripts** - Integrate with CI/CD pipelines and workflow automation  
+✅ **Team Tools** - Create Slack bots or team-shared search interfaces  
+✅ **ADHD-Friendly Design** - Same cognitive load reduction principles as CLI tools  
+
+### Complete API Documentation
+
+For detailed endpoint specifications, request/response formats, error handling, and integration examples, see the comprehensive **[API Documentation](API_DOCUMENTATION.md)**.
+
+The API maintains the same ADHD-friendly design principles:
+- **Natural language search** that understands context and domain terminology
+- **Confidence-based triage** that only presents files genuinely needing review
+- **Consistent error handling** with clear, actionable error messages
+- **Performance optimization** with shared instances and efficient caching
+
+---
+
 ## 📖 Complete Command Reference
 
 ### **🔍 Search & Discovery (Hybrid Cloud + Local)**

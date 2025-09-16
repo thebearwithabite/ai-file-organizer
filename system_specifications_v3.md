@@ -20,7 +20,7 @@ The core components are a **FastAPI Backend** and a **Web-Based UI**.
 graph TD
     subgraph User Interaction
         A[Web Browser UI]
-        B[AppleScript (Optional)]
+        B[AppleScript]
     end
 
     subgraph FastAPI Backend (Local Server)
