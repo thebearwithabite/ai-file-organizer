@@ -28,3 +28,6 @@ env/
 # IDE
 .vscode/
 .idea/
+
+# AI Organizer local config
+.ai_organizer_config/
