@@ -1,9 +1,9 @@
-# 🤖 AI File Organizer v3.0
-## Professional Entertainment Management Platform with Advanced AI
+# 🌐 AI File Organizer v3.0
+## Modern Web Interface for Intelligent File Management
 
 <div align="center">
 
-![AI File Organizer Banner](https://img.shields.io/badge/AI%20File%20Organizer%20v3.0-Professional%20Entertainment%20Platform-blue?style=for-the-badge&logo=robot)
+![AI File Organizer Banner](https://img.shields.io/badge/AI%20File%20Organizer%20v3.0-Modern%20Web%20Interface-blue?style=for-the-badge&logo=globe)
 
 [![Python](https://img.shields.io/badge/python-3.11+-brightgreen.svg?style=flat-square&logo=python)](https://www.python.org/)
 [![macOS](https://img.shields.io/badge/platform-macOS-lightgrey.svg?style=flat-square&logo=apple)](https://www.apple.com/macos/)
@@ -11,9 +11,9 @@
 [![License](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)](LICENSE)
 [![ADHD Friendly](https://img.shields.io/badge/ADHD-Friendly%20Design-purple.svg?style=flat-square&logo=accessibility)](https://github.com/thebearwithabite/ai-file-organizer)
 
-**Transform chaotic entertainment industry workflows into intelligently organized, AI-powered content management with professional-grade search, computer vision, and ADHD-friendly design.**
+**Transform chaotic file management into an elegant, AI-powered web experience. Search your files with natural language, review AI classifications with confidence scores, and organize everything with beautiful, ADHD-friendly design.**
 
-[🚀 Quick Start](#-quick-start) • [🎬 Entertainment Features](#-entertainment-industry-specialization) • [🧠 AI Capabilities](#-advanced-ai-pipeline) • [📖 Complete Commands](#-complete-command-reference) • [🎯 ADHD Design](#-adhd-optimized-design)
+[🚀 Quick Start](#-quick-start) • [🌐 Web Interface](#-web-interface-features) • [🛡️ Rollback Safety](#️-easy-rollback-system---your-safety-net) • [🧠 AI Capabilities](#-advanced-ai-pipeline) • [🎯 ADHD Design](#-adhd-optimized-design)
 
 </div>
 
@@ -146,51 +146,37 @@ python easy_rollback_system.py --search "contract"
 
 ## 🚀 Quick Start
 
-### Requirements
-- Python 3.11+
-- macOS with AppleScript support
-- Node.js (for optional UI wrappers)
+**Get started with the AI File Organizer in just 3 simple steps:**
 
-### Installation
+### 1. Install Dependencies
 ```bash
 git clone https://github.com/thebearwithabite/ai-file-organizer
 cd ai-file-organizer
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements_v3.txt
 ```
 
-### First Run - Complete Setup
+### 2. Start the Web Server
 ```bash
-# 1. Verify Google Drive integration (hybrid architecture)
-python gdrive_integration.py  # Check Google Drive status and create directory structure
-
-# 2. Test hybrid architecture integration
-python test_hybrid_architecture.py --quick
-
-# 3. Initialize semantic search with cloud storage
-python enhanced_librarian.py index --semantic
-
-# 4. Organize with professional workflows (now uses Google Drive as primary storage)
-python interactive_organizer.py organize --live
-
-# 5. Verify rollback system is working
-python easy_rollback_system.py --today
+python main.py
 ```
 
-### Core Daily Workflows
-```bash
-# Quick search with natural language (hybrid cloud + local)
-python enhanced_librarian.py search "client payment terms" --mode semantic
+### 3. Open Your Browser
+Navigate to **http://localhost:8000** and start organizing!
 
-# Organize with AI assistance (using Google Drive as primary storage)
-python interactive_organizer.py organize --live
+---
 
-# Check Google Drive integration status
-python gdrive_integration.py
+## 🌐 Web Interface Features
 
-# Always verify AI operations with rollback system
-python easy_rollback_system.py --today
-```
+The V3 web interface provides a beautiful, ADHD-friendly experience with:
+
+- **🔍 Smart Search Interface** - Natural language search with instant results
+- **📋 Triage Center** - Review AI classifications with confidence scores
+- **📂 One-Click File Opening** - Click any result to open files directly
+- **🎨 Glassmorphism Design** - Modern, calming visual design
+- **🧠 Real-Time Status** - Live system stats and file counts
+- **♿ ADHD Optimization** - Reduced cognitive load, clear navigation
+
+**No complex commands to remember - just search, click, and organize!**
 
 ---
 
@@ -556,21 +542,25 @@ python enhanced_librarian.py search "professional client contract" --mode hybrid
 
 ---
 
-## 🚀 V3 API Server
+## 🌐 How It Works
 
-The AI File Organizer V3 includes a **RESTful API server** that provides programmatic access to all core functionality. This enables integration with web applications, mobile apps, automation scripts, and custom workflows while maintaining the same ADHD-friendly design principles.
+The AI File Organizer V3 is built around a **modern FastAPI web server** that powers both the web interface and provides API access for automation. The web interface is the primary way to interact with the system, designed to be intuitive and ADHD-friendly.
 
-### Quick Start API Server
+### Web Interface First
 
+The V3 system prioritizes the web experience:
+- **Beautiful UI** - Glassmorphism design with calming visuals
+- **Natural Language Search** - Type what you're looking for in plain English
+- **Confidence-Based Triage** - Review only files the AI isn't sure about
+- **One-Click Actions** - Open files, confirm classifications, organize content
+- **Real-Time Updates** - Live system status and file counts
+
+### API Access Available
+
+For power users and automation, the same backend provides full API access:
 ```bash
-# Install API dependencies
-pip install -r requirements_v3.txt
-
-# Start the development server
-python main.py
-
-# Server runs at http://localhost:8000
-# Interactive docs: http://localhost:8000/docs
+# Interactive API docs available at:
+# http://localhost:8000/docs
 ```
 
 ### Key API Endpoints
@@ -624,72 +614,41 @@ The API maintains the same ADHD-friendly design principles:
 
 ---
 
-## 📖 Complete Command Reference
+## Requirements & Advanced Setup
 
-### **🔍 Search & Discovery (Hybrid Cloud + Local)**
+### System Requirements
+- **Python 3.11+** (for the backend API)
+- **macOS** (for AppleScript integration and file handling)
+- **Web Browser** (Chrome, Firefox, Safari, etc.)
+
+### Optional Advanced Dependencies
+- **Google Drive Account** (for cloud storage integration)
+- **Gemini API Key** (for advanced AI features)
+
+---
+
+<details>
+<summary><strong>🔧 Advanced CLI Usage (Power Users)</strong></summary>
+
+For users who prefer command-line interfaces or need automation, the full CLI functionality remains available.
+
+**📖 Complete documentation:** [LEGACY_COMMANDS.md](LEGACY_COMMANDS.md)
+
+### Quick CLI Examples
 ```bash
-# Unified search across Google Drive and local files
+# Search files
 python enhanced_librarian.py search "client contract terms" --mode semantic
-python enhanced_librarian.py search "consciousness podcast episodes" --mode hybrid
 
-# Check Google Drive integration status
-python gdrive_integration.py
+# Organize files  
+python interactive_organizer.py organize --live
 
-# Test hybrid architecture
-python test_hybrid_architecture.py --quick
+# Safety rollback
+python easy_rollback_system.py --today
 ```
 
-### **🗂️ Organization & Processing (Cloud-Integrated)**
-```bash
-# Main organization workflow (now uses Google Drive as primary storage)
-python interactive_organizer.py organize --live     # Full organization
-python interactive_organizer.py quick ~/Downloads --live  # Specific folder
+The web interface provides all this functionality with a better user experience, but CLI tools remain for power users and automation.
 
-# Always check rollback system after operations
-python easy_rollback_system.py --today    # Check recent operations
-python easy_rollback_system.py --list     # Show all recent operations
-
-# Emergency rollback if operations went wrong
-python easy_rollback_system.py --undo-today    # Undo all today's operations
-```
-
-### **🎬 Computer Vision & Media Analysis**
-```bash
-# Computer vision with context
-python vision_cli.py analyze screenshot.png --context professional
-python vision_cli.py directory ~/Downloads --limit 5 --context creative
-
-# Video project training
-python video_project_trainer.py analyze ~/Videos --project "creative-content"
-python video_project_trainer.py train --project "podcast-production"
-
-# Audio analysis
-python audio_cli.py analyze podcast_episode.mp3 --transcribe
-python multimedia_cli.py directory ~/Audio --context creative
-```
-
-### **☁️ Google Drive Hybrid Management**
-```bash
-# Check Google Drive integration and create directory structure
-python gdrive_integration.py
-
-# Test hybrid architecture components
-python test_hybrid_architecture.py --quick
-
-# All search commands now work with hybrid architecture automatically
-python enhanced_librarian.py search "professional contract" --mode hybrid
-```
-
-### **🏷️ Tagging & Metadata**
-```bash
-# Auto-tagging
-python tagging_cli.py directory ~/Documents --auto-tag
-python tagging_cli.py analyze contract.pdf  # See detected tags
-
-# Metadata analysis
-python metadata_cli.py analyze ~/Documents  # Extract comprehensive metadata
-python metadata_cli.py search "entertainment" --detailed
-```
+</details>
 
 ---
 
