@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="AI File Organizer V3 - Professional ADHD-friendly file management">
+    <title>AI File Organizer V3</title>
+
+    <!-- Google Fonts: Inter for modern, readable typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Main stylesheet -->
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="main-header">
+            <h1>AI File Organizer V3</h1>
+            <p class="subtitle">Professional ADHD-friendly file management</p>
+        </header>
+
+        <main class="main-content">
+            <!-- Navigation Section -->
+            <section class="nav-section">
+                <div class="nav-container">
+                    <button class="nav-btn active" id="searchNavBtn">🔍 Search Files</button>
+                    <button class="nav-btn" id="triageNavBtn">📋 Review Files</button>
+                </div>
+            </section>
+
+            <!-- Search Section -->
+            <section class="search-section">
+                <div class="search-container">
+                    <div class="search-input-wrapper">
+                        <input 
+                            type="text" 
+                            id="searchInput" 
+                            class="search-input" 
+                            placeholder="Search your files... (e.g., 'Client Name contracts', 'Creative Project episodes')"
+                            autocomplete="off"
+                            spellcheck="false"
+                        >
+                        <div class="search-loading" id="searchLoading" style="display: none;">
+                            <div class="loading-spinner"></div>
+                        </div>
+                    </div>
+                    <div class="search-modes">
+                        <button class="mode-btn active" data-mode="auto">Auto</button>
+                        <button class="mode-btn" data-mode="semantic">Semantic</button>
+                        <button class="mode-btn" data-mode="fast">Fast</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Search Results Section -->
+            <section class="results-section" id="resultsSection" style="display: none;">
+                <div class="results-header">
+                    <h2 class="results-title" id="resultsTitle">Search Results</h2>
+                    <div class="results-count" id="resultsCount"></div>
+                </div>
+                <div class="results-container" id="resultsContainer">
+                    <!-- Search results will be dynamically populated here -->
+                </div>
+            </section>
+
+            <!-- Triage Center Section -->
+            <section class="triage-section" id="triageSection" style="display: none;">
+                <div class="triage-header">
+                    <h2 class="triage-title">File Triage Center</h2>
+                    <p class="triage-subtitle">Review files that need manual classification (confidence &lt; 85%)</p>
+                    <div class="triage-count" id="triageCount">Loading...</div>
+                </div>
+                
+                <div class="triage-container" id="triageContainer">
+                    <!-- Triage cards will be dynamically populated here -->
+                </div>
+                
+                <div class="triage-empty" id="triageEmpty" style="display: none;">
+                    <div class="triage-empty-content">
+                        <div class="triage-empty-icon">✅</div>
+                        <h3>All files reviewed!</h3>
+                        <p>Great job! There are no files requiring manual review at the moment.</p>
+                        <button class="btn btn-secondary" id="refreshTriageBtn">🔄 Check for New Files</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Empty State -->
+            <section class="empty-state" id="emptyState">
+                <div class="empty-state-content">
+                    <div class="empty-state-icon">🔍</div>
+                    <h3>Start searching your files</h3>
+                    <p>Use natural language to find what you're looking for. The AI understands context and relationships between your documents.</p>
+                    <div class="example-searches">
+                        <h4>Try searching for:</h4>
+                        <ul>
+                            <li>"Client Name payment terms"</li>
+                            <li>"Creative Project AI consciousness"</li>
+                            <li>"SAG-AFTRA exclusivity clauses"</li>
+                            <li>"Recent meeting notes"</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer class="main-footer">
+            <p>&copy; 2025 AI File Organizer V3 - Built with Claude Code</p>
+        </footer>
+    </div>
+
+    <!-- JavaScript for search functionality -->
+    <script src="/static/app.js"></script>
+</body>
+</html>
