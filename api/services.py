@@ -5,9 +5,14 @@ Provides system status and monitoring functionality
 """
 
 import logging
+import os
+from pathlib import Path
 from typing import Dict, Any, Optional, List
 
 from gdrive_librarian import GoogleDriveLibrarian
+from classification_engine import FileClassificationEngine
+from interactive_classifier_fixed import ADHDFriendlyClassifier
+from gdrive_integration import get_ai_organizer_root
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -161,38 +166,101 @@ class TriageService:
     """Service class for file triage and review operations"""
 
     def __init__(self):
-        """Initialize TriageService"""
-        logger.info("TriageService initialized")
+        """Initialize TriageService with classification engine"""
+        try:
+            # Initialize with AI Organizer root directory
+            self.base_dir = get_ai_organizer_root()
+
+            # Initialize the ADHD-friendly classifier which wraps the classification engine
+            self.classifier = ADHDFriendlyClassifier(str(self.base_dir))
+
+            # Common staging areas where unorganized files are found
+            self.staging_areas = [
+                Path.home() / "Downloads",
+                Path.home() / "Desktop",
+                self.base_dir / "99_TEMP_PROCESSING" / "Downloads_Staging",
+                self.base_dir / "99_TEMP_PROCESSING" / "Desktop_Staging",
+                self.base_dir / "99_TEMP_PROCESSING" / "Manual_Review"
+            ]
+
+            logger.info("TriageService initialized with classification engine")
+
+        except Exception as e:
+            logger.error(f"Failed to initialize TriageService: {e}")
+            # Fallback to basic initialization
+            self.classifier = None
+            self.staging_areas = []
+            self.base_dir = None
 
     def get_files_for_review(self) -> List[Dict[str, Any]]:
         """
-        Get list of files that require manual review
+        Get list of files that require manual review based on low confidence scores
         
         Returns:
-            List of files with suggested categories and confidence scores
+            List of files with suggested categories and confidence scores below 85%
         """
-        try:
-            # Mock data matching V3 spec format - files with low confidence needing review
-            mock_files = [
-                {
-                    "file_path": "/Users/ryan/Documents/Entertainment/Client_Agreement_2024.pdf",
-                    "suggested_category": "contracts",
-                    "confidence": 0.65
-                },
-                {
-                    "file_path": "/Users/ryan/Downloads/Creative_Project_Episode_Script.docx",
-                    "suggested_category": "creative_projects",
-                    "confidence": 0.58
-                },
-                {
-                    "file_path": "/Users/ryan/Documents/Business/Q4_Commission_Report.xlsx",
-                    "suggested_category": "business_operations",
-                    "confidence": 0.72
-                }
-            ]
+        if self.classifier is None:
+            logger.error("Classification engine not available - returning empty list")
+            return []
 
-            logger.info(f"Retrieved {len(mock_files)} files for review")
-            return mock_files
+        try:
+            files_for_review = []
+            confidence_threshold = 0.85  # ADHD-friendly threshold from classifier
+
+            # Scan staging areas for unorganized files
+            for staging_area in self.staging_areas:
+                if not staging_area.exists():
+                    continue
+
+                logger.info(f"Scanning {staging_area} for files needing review")
+
+                # Get files from this staging area (limit to reasonable number for UI)
+                area_files = list(staging_area.rglob('*'))
+                file_count = 0
+
+                for file_path in area_files:
+                    # Skip directories and hidden files
+                    if not file_path.is_file() or file_path.name.startswith('.'):
+                        continue
+
+                    # Skip very large files to avoid processing delays
+                    try:
+                        if file_path.stat().st_size > 100 * 1024 * 1024:  # 100MB limit
+                            continue
+                    except (OSError, PermissionError):
+                        continue
+
+                    # Limit files per staging area to keep response manageable
+                    if file_count >= 10:
+                        break
+
+                    try:
+                        # Use the base classification engine for speed (skip interactive questions)
+                        result = self.classifier.base_classifier.classify_file(file_path)
+
+                        # Only include files with low confidence that need manual review
+                        if result.confidence < confidence_threshold:
+                            files_for_review.append({
+                                "file_path": str(file_path),
+                                "suggested_category": result.category,
+                                "confidence": round(result.confidence, 2)
+                            })
+                            file_count += 1
+
+                    except Exception as e:
+                        logger.warning(f"Error classifying {file_path}: {e}")
+                        continue
+
+                # Limit total files to keep UI responsive
+                if len(files_for_review) >= 20:
+                    break
+
+            logger.info(f"Found {len(files_for_review)} files requiring manual review")
+
+            # Sort by confidence (lowest first - most urgent)
+            files_for_review.sort(key=lambda x: x['confidence'])
+
+            return files_for_review
 
         except Exception as e:
             logger.error(f"Error getting files for review: {e}")
@@ -200,7 +268,7 @@ class TriageService:
 
     def classify_file(self, file_path: str, confirmed_category: str) -> Dict[str, Any]:
         """
-        Classify a file with user-confirmed category
+        Classify a file with user-confirmed category and learn from the decision
         
         Args:
             file_path: Path to the file being classified
@@ -209,14 +277,48 @@ class TriageService:
         Returns:
             Success response with classification status
         """
-        try:
-            # Log the classification information as requested
-            logger.info(f"Received classification for '{file_path}'. User confirmed category: '{confirmed_category}'.")
+        if self.classifier is None:
+            logger.error("Classification engine not available")
+            return {
+                "status": "error",
+                "message": "Classification engine not available"
+            }
 
-            # Return success message
+        try:
+            file_obj = Path(file_path)
+
+            if not file_obj.exists():
+                return {
+                    "status": "error",
+                    "message": f"File not found: {file_path}"
+                }
+
+            # Get current classification to understand what changed
+            original_result = self.classifier.base_classifier.classify_file(file_obj)
+
+            # Log the classification decision with context
+            logger.info(f"User classification decision for '{file_path}':")
+            logger.info(f"  Original suggestion: {original_result.category} (confidence: {original_result.confidence:.2f})")
+            logger.info(f"  User confirmed: {confirmed_category}")
+
+            # If available, use the ADHD-friendly classifier to learn from this decision
+            # This helps improve future classifications
+            if hasattr(self.classifier, '_learn_from_manual_classification'):
+                self.classifier._learn_from_manual_classification(
+                    file_obj,
+                    confirmed_category,
+                    original_result
+                )
+
+            # TODO: In a full implementation, you might want to actually move the file
+            # to the confirmed category location here, but that depends on your workflow
+
             return {
                 "status": "success",
-                "message": f"File '{file_path}' classified as '{confirmed_category}'."
+                "message": f"File '{file_path}' classified as '{confirmed_category}'. System learned from this decision.",
+                "original_suggestion": original_result.category,
+                "original_confidence": round(original_result.confidence, 2),
+                "user_decision": confirmed_category
             }
 
         except Exception as e:

@@ -2,14 +2,13 @@
 
 ## Overview
 
-The AI File Organizer V3 API provides a modern REST interface to the
-powerful AI file management system. Built with FastAPI, this API
-maintains the same ADHD-friendly design principles as the CLI tools
-while enabling web applications, mobile apps, and automation workflows.
+The AI File Organizer V3 is a **web-first** application built with FastAPI that provides both a beautiful web interface and a comprehensive REST API. The primary way to use the system is through the web interface at `http://localhost:8000`, which offers an intuitive, ADHD-friendly experience for file search and organization.
 
-**Base URL:** `http://localhost:8000`
-**Interactive Docs:** `http://localhost:8000/docs`
-**Alternative Docs:** `http://localhost:8000/redoc`
+**Web Interface:** `http://localhost:8000` (Primary interface)  
+**API Documentation:** `http://localhost:8000/docs` (For developers and automation)  
+**Alternative API Docs:** `http://localhost:8000/redoc`
+
+The API enables integration with custom tools, automation scripts, and third-party applications while maintaining the same design principles as the web interface.
 
 ## Design Philosophy
 
@@ -42,14 +41,10 @@ required for local development.
 ### Basic Endpoints
 
 #### `GET /`
-Simple health check endpoint.
+Serves the main web interface.
 
 **Response:**
-```json
-{
-  "message": "Hello World"
-}
-```
+Returns the HTML file for the AI File Organizer web interface. Open your browser to http://localhost:8000 to access the full web experience.
 
 #### `GET /health`
 
@@ -267,6 +262,47 @@ curl -X POST "http://localhost:8000/api/triage/classify" \
   -d '{
     "file_path": "/Users/ryan/Documents/Entertainment/Client_Agreement_2024.pdf",
     "confirmed_category": "contracts"
+  }'
+```
+
+### File Operations
+
+#### `POST /api/open-file`
+
+Open a file using the operating system's default application.
+
+**Request Body:**
+```json
+{
+  "path": "/Users/ryan/Documents/Entertainment/Client_Agreement_2024.pdf"
+}
+```
+
+**Request Fields:**
+- `path` (string, required): Full path to the file to open
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Successfully opened file: Client_Agreement_2024.pdf",
+  "path": "/Users/ryan/Documents/Entertainment/Client_Agreement_2024.pdf"
+}
+```
+
+**Error Response:**
+```json
+{
+  "detail": "Failed to open file: No such file or directory"
+}
+```
+
+**`curl` Example:**
+```bash
+curl -X POST "http://localhost:8000/api/open-file" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "path": "/Users/ryan/Documents/Entertainment/Client_Agreement_2024.pdf"
   }'
 ```
 
