@@ -56,7 +56,7 @@ def scrub_file(file_path: Path):
             
             # File paths with personal information
             r'/Users/user/': '/Users/user/',
-            r'/Users/User/': '/Users/user/',
+            r'/Users/user/': '/Users/user/',
             r'GoogleDrive-thebearwithabite@gmail\.com': 'user@example.com',
             
             # Address patterns (more specific to avoid false positives)
