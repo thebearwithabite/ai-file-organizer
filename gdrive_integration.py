@@ -29,7 +29,7 @@ class DriveStatus:
 
 class GoogleDriveIntegration:
     """
-    Google Drive Integration for AI File Organizer v3.[REDACTED_ADDRESS] as the 
+    Google Drive Integration for AI File Organizer v3.0 as the 
     PRIMARY storage root instead of local Documents folder.
     
     Key Features:
