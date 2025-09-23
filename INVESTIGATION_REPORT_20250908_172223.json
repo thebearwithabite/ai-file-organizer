@@ -159,7 +159,7 @@
         "    ",
         "    \ud83e\udd16 Generated with [Claude Code](https://claude.ai/code)",
         "    ",
-        "    Co-Authored-By: Claude <noreply@anthropic.com>",
+        "    Co-Authored-By: Claude <user@example.com>",
         "",
         "commit 20a833ad3a71d0efb69552727ef370ff0a9b7380",
         "Author: RT Max <user@example.com>",
@@ -213,7 +213,7 @@
         "    ",
         "    \ud83e\udd16 Generated with [Claude Code](https://claude.ai/code)",
         "    ",
-        "    Co-Authored-By: Claude <noreply@anthropic.com>"
+        "    Co-Authored-By: Claude <user@example.com>"
       ],
       "deleted_files": [
         ""

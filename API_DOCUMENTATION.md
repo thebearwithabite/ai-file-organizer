@@ -72,7 +72,7 @@ GoogleDriveLibrarian.
   "files_in_staging": 12,
   "last_run": "2025-09-10T18:00:00Z",
   "authentication_status": "authenticated",
-  "google_drive_user": "ryan@example.com",
+  "google_drive_user": "user@example.com",
   "cache_size_mb": 1024.5,
   "sync_service_status": "active"
 }

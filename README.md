@@ -281,7 +281,7 @@ if quick_hash in known_hashes:
 # Tier 2: Cryptographic SHA-256 Verification (Bulletproof)  
 secure_hash = hashlib.sha256(file_content).hexdigest() # ~2ms per file
 if secure_hash_matches_exactly():
-    confirmed_duplicate = True    # 99.999999999% certainty
+    confirmed_duplicate = True    # 99.XXXXXXXXX% certainty
 ```
 
 **Bulletproof Features:**
@@ -729,7 +729,7 @@ If AI File Organizer v3.0 transformed your professional workflow, **please star 
 
 **Questions? Success stories? Feature requests?**
 - [Open an issue](https://github.com/thebearwithabite/ai-file-organizer/issues)
-- Email: [rt@papersthatdream.com](mailto:rt@papersthatdream.com)
+- Email: [user@example.com](mailto:user@example.com)
 
 **Created by:** RT Max
 
