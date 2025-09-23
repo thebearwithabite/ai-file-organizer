@@ -2,8 +2,8 @@
 
 ## 🎯 **Why This System Exists**
 
-Ryan has ADHD and managing file organization is genuinely difficult. This system creates an **intelligent librarian** that:
-- Knows Ryan and his work intimately
+User has ADHD and managing file organization is genuinely difficult. This system creates an **intelligent librarian** that:
+- Knows User and his work intimately
 - Finds things quickly without perfect organization
 - Helps connect related documents and ideas
 - Works intuitively within macOS
@@ -31,7 +31,7 @@ Ryan has ADHD and managing file organization is genuinely difficult. This system
 - "The Creative Project" podcast about AI consciousness
 - Various creative writing and film projects
 
-## 🧠 **How Ryan Uses This System**
+## 🧠 **How User Uses This System**
 
 ### Daily Workflows:
 1. **"Where's that contract?"** - Semantic search across PDFs and emails
@@ -104,7 +104,7 @@ python interactive_organizer.py organize --live     # Actually move files
 python interactive_organizer.py organize --dry-run  # Preview only
 
 # Quick organize specific folder
-python interactive_organizer.py quick /Users/ryan/Downloads --live
+python interactive_organizer.py quick /Users/user/Downloads --live
 
 # Test single file
 python interactive_organizer.py file "/path/to/document.pdf" --live
@@ -138,7 +138,7 @@ python easy_rollback_system.py --today
 
 ## 💡 **Real Examples**
 
-### Typical Searches Ryan Makes:
+### Typical Searches User Makes:
 - `"TV Show contract exclusivity"`
 - `"Creative Project episode about attention mechanisms"`
 - `"emails about creative collaboration"`
@@ -148,7 +148,7 @@ python easy_rollback_system.py --today
 ### What Makes This Different:
 - **Understands context**: Knows "Finn" means Client Name
 - **Connects ideas**: Links creative projects to business documents
-- **Learns patterns**: Recognizes Ryan's work style and priorities
+- **Learns patterns**: Recognizes User's work style and priorities
 - **Reduces friction**: No manual tagging or complex folder structures
 
 ## 🔧 **Technical Details**
@@ -201,7 +201,7 @@ python easy_rollback_system.py --today
 
 ### When Adding Features:
 - Prioritize reducing cognitive load over adding complexity
-- Test with Ryan's actual files and workflows
+- Test with User's actual files and workflows
 - Maintain the "conversation with a librarian" feel
 - Keep the Apple Script GUI simple and fast
 
@@ -215,7 +215,7 @@ python easy_rollback_system.py --today
 
 When working on this system:
 
-1. **Ryan has ADHD** - organization systems must be low-friction and intuitive
+1. **User has ADHD** - organization systems must be low-friction and intuitive
 2. **Entertainment industry focus** - understand contracts, talent management, creative projects
 3. **Hybrid architecture** - primary storage is now Google Drive, test with actual documents from cloud and local sources
 4. **macOS integration essential** - must work seamlessly within existing workflow

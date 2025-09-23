@@ -23,7 +23,7 @@ from gdrive_integration import get_ai_organizer_root
 class InteractiveOrganizer:
     """
     File organizer that asks questions for uncertain classifications
-    Integrates with Ryan's existing workflow
+    Integrates with User's existing workflow
     """
     
     def __init__(self, base_dir: str = None):
@@ -290,7 +290,7 @@ Examples:
   python interactive_organizer.py organize --live
   
   # Quick organize a specific folder
-  python interactive_organizer.py quick /Users/ryan/Downloads --dry-run
+  python interactive_organizer.py quick /Users/user/Downloads --dry-run
   
   # Test with a single file
   python interactive_organizer.py file "/path/to/document.pdf" --live

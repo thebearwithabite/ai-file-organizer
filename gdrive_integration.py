@@ -29,9 +29,7 @@ class DriveStatus:
 
 class GoogleDriveIntegration:
     """
-    Google Drive Integration for AI File Organizer v3.0
-    
-    This class provides the core functionality to use Google Drive as the 
+    Google Drive Integration for AI File Organizer v3.[REDACTED_ADDRESS] as the 
     PRIMARY storage root instead of local Documents folder.
     
     Key Features:
@@ -43,7 +41,7 @@ class GoogleDriveIntegration:
     """
     
     def __init__(self):
-        self.user_email = "thebearwithabite@gmail.com"
+        self.user_email = "user@example.com"
         self.base_drive_paths = [
             Path(f"/Users/{os.getenv('USER', 'user')}/Library/CloudStorage/GoogleDrive-{self.user_email}/My Drive"),
             Path(f"/Users/{os.getenv('USER', 'user')}/Library/CloudStorage/GoogleDrive-{self.user_email.replace('@', '-').replace('.', '-')}/My Drive"),

@@ -12,7 +12,7 @@ sys.path.insert(0, str(project_dir))
 from interactive_classifier import InteractiveClassifier
 
 def test_single_file():
-    """Test with one of Ryan's actual files"""
+    """Test with one of User's actual files"""
     
     # Test with a file from Downloads staging
     test_files = [

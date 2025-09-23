@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Test script to demonstrate the vector librarian with smart chunking
-Indexes a few sample files from Ryan's collection
+Indexes a few sample files from User's collection
 """
 import os
 import sys
@@ -14,7 +14,7 @@ sys.path.insert(0, str(project_dir))
 from vector_librarian import VectorLibrarian
 
 def test_with_real_files():
-    """Test the vector librarian with Ryan's actual files"""
+    """Test the vector librarian with User's actual files"""
     print("🧪 Testing Vector Librarian with Real Files")
     print("=" * 60)
     
@@ -25,7 +25,7 @@ def test_with_real_files():
         print("❌ Vector database not available")
         return
     
-    # Test files from Ryan's collection
+    # Test files from User's collection
     test_files = [
         "/Users/user/Documents/SAMPLE_AGREEMENT_2018.pdf",
         "/Users/user/Documents/1408 Client Name - Record.pdf",
@@ -50,7 +50,7 @@ def test_with_real_files():
     
     print(f"\n📊 Indexing Complete: {indexed_count} files indexed")
     
-    # Test queries specific to Ryan's work
+    # Test queries specific to User's work
     test_queries = [
         "Client Name management agreement terms",
         "AI consciousness research papers", 

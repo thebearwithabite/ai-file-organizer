@@ -34,7 +34,7 @@ class UserResponse:
 class InteractiveClassifier:
     """
     Classification system that asks questions until confident
-    Maintains learning history for Ryan's preferences
+    Maintains learning history for User's preferences
     """
     
     def __init__(self, base_dir: str = None):
@@ -54,7 +54,7 @@ class InteractiveClassifier:
         self._init_question_templates()
     
     def _load_user_preferences(self) -> Dict:
-        """Load Ryan's classification preferences from previous decisions"""
+        """Load User's classification preferences from previous decisions"""
         if self.learning_file.exists():
             try:
                 with open(self.learning_file, 'r') as f:

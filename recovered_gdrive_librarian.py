@@ -655,7 +655,7 @@ class GoogleDriveLibrarian:
         return mapping.get(category, "Reference Material")
     
     def _generate_standardized_filename(self, file_path: Path, category: str, analysis: Dict) -> str:
-        """Generate standardized filename based on Ryan's professional naming conventions"""
+        """Generate standardized filename based on User's professional naming conventions"""
         
         original_name = file_path.stem.lower()
         file_extension = file_path.suffix

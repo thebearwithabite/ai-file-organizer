@@ -23,7 +23,7 @@ class FileNamingComponents:
 
 class FileNamingProtocol:
     """
-    Handles intelligent file renaming using Ryan's naming protocol
+    Handles intelligent file renaming using User's naming protocol
     Format: YYYY-MM-DD_PROJECT_CLIENT_CONTENT-TYPE_vN.ext
     """
     
@@ -118,7 +118,7 @@ class FileNamingProtocol:
     
     def generate_enhanced_filename(self, original_path: Path, classification_result: Dict, extraction_result: Dict = None) -> str:
         """
-        Generate enhanced filename using Ryan's protocol
+        Generate enhanced filename using User's protocol
         
         Args:
             original_path: Original file path
@@ -382,7 +382,7 @@ def test_naming_protocol():
     
     protocol = FileNamingProtocol()
     
-    # Test cases based on Ryan's actual files
+    # Test cases based on User's actual files
     test_cases = [
         {
             'filename': 'SAMPLE_AGREEMENT_2016.pdf',
