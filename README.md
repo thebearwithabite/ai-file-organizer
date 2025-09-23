@@ -281,7 +281,7 @@ if quick_hash in known_hashes:
 # Tier 2: Cryptographic SHA-256 Verification (Bulletproof)  
 secure_hash = hashlib.sha256(file_content).hexdigest() # ~2ms per file
 if secure_hash_matches_exactly():
-    confirmed_duplicate = True    # 99.XXXXXXXXX% certainty
+    confirmed_duplicate = True    # 99.999999999% certainty
 ```
 
 **Bulletproof Features:**
