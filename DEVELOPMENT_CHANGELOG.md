@@ -127,7 +127,7 @@
 - `interactive_classifier.py` - Google Drive root for user preferences
 
 **Testing**: 
-- ✅ **VERIFIED** Google Drive detection: `/Users/user/Library/CloudStorage/GoogleDrive-user@example.com/My Drive`
+- ✅ **VERIFIED** Google Drive detection: `/Users/user/Library/CloudStorage/user@example.com/My Drive`
 - ✅ **CONFIRMED** 228.3GB total space, 12.4GB free space
 - ✅ **TESTED** Enhanced Librarian search functionality with cloud storage
 - ✅ **TESTED** Interactive Organizer initialization with Google Drive paths
