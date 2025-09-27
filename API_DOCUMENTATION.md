@@ -72,7 +72,7 @@ GoogleDriveLibrarian.
   "files_in_staging": 12,
   "last_run": "2025-09-10T18:00:00Z",
   "authentication_status": "authenticated",
-  "google_drive_user": "ryan@example.com",
+  "google_drive_user": "user@example.com",
   "cache_size_mb": 1024.5,
   "sync_service_status": "active"
 }
@@ -131,7 +131,7 @@ curl "http://localhost:8000/api/search?q=client%20contract%20terms"
       "file_category": "contracts",
       "file_size": 2048576,
       "last_modified": "2024-09-01T10:30:00Z",
-      "local_path": "/Users/ryan/Documents/Entertainment/Client_Agreement_2024.pdf",
+      "local_path": "/Users/user/Documents/Entertainment/Client_Agreement_2024.pdf",
       "drive_path": "/01_ACTIVE_PROJECTS/Entertainment_Industry/Client_Agreement_2024.pdf",
       "availability": "local_and_cloud",
       "can_stream": true,
@@ -193,12 +193,12 @@ Get files that require manual review due to low confidence categorization.
 {
   "files": [
     {
-      "file_path": "/Users/ryan/Documents/Entertainment/Client_Agreement_2024.pdf",
+      "file_path": "/Users/user/Documents/Entertainment/Client_Agreement_2024.pdf",
       "suggested_category": "contracts",
       "confidence": 0.65
     },
     {
-      "file_path": "/Users/ryan/Downloads/Creative_Project_Episode_Script.docx",
+      "file_path": "/Users/user/Downloads/Creative_Project_Episode_Script.docx",
       "suggested_category": "creative_projects",
       "confidence": 0.58
     }
@@ -230,7 +230,7 @@ Classify a file with user-confirmed category.
 **Request Body:**
 ```json
 {
-  "file_path": "/Users/ryan/Documents/Entertainment/Client_Agreement_2024.pdf",
+  "file_path": "/Users/user/Documents/Entertainment/Client_Agreement_2024.pdf",
   "confirmed_category": "contracts"
 }
 ```
@@ -243,7 +243,7 @@ Classify a file with user-confirmed category.
 ```json
 {
   "status": "success",
-  "message": "File '/Users/ryan/Documents/Entertainment/Client_Agreement_2024.pdf' classified as 'contracts'."
+  "message": "File '/Users/user/Documents/Entertainment/Client_Agreement_2024.pdf' classified as 'contracts'."
 }
 ```
 
@@ -260,7 +260,7 @@ Classify a file with user-confirmed category.
 curl -X POST "http://localhost:8000/api/triage/classify" \
   -H "Content-Type: application/json" \
   -d '{
-    "file_path": "/Users/ryan/Documents/Entertainment/Client_Agreement_2024.pdf",
+    "file_path": "/Users/user/Documents/Entertainment/Client_Agreement_2024.pdf",
     "confirmed_category": "contracts"
   }'
 ```
@@ -274,7 +274,7 @@ Open a file using the operating system's default application.
 **Request Body:**
 ```json
 {
-  "path": "/Users/ryan/Documents/Entertainment/Client_Agreement_2024.pdf"
+  "path": "/Users/user/Documents/Entertainment/Client_Agreement_2024.pdf"
 }
 ```
 
@@ -286,7 +286,7 @@ Open a file using the operating system's default application.
 {
   "success": true,
   "message": "Successfully opened file: Client_Agreement_2024.pdf",
-  "path": "/Users/ryan/Documents/Entertainment/Client_Agreement_2024.pdf"
+  "path": "/Users/user/Documents/Entertainment/Client_Agreement_2024.pdf"
 }
 ```
 
@@ -302,7 +302,7 @@ Open a file using the operating system's default application.
 curl -X POST "http://localhost:8000/api/open-file" \
   -H "Content-Type: application/json" \
   -d '{
-    "path": "/Users/ryan/Documents/Entertainment/Client_Agreement_2024.pdf"
+    "path": "/Users/user/Documents/Entertainment/Client_Agreement_2024.pdf"
   }'
 ```
 

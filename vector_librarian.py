@@ -392,7 +392,7 @@ class VectorLibrarian:
             # Get or create collection for file chunks
             self.collection = self.chroma_client.get_or_create_collection(
                 name="file_chunks",
-                metadata={"description": "Ryan's intelligent file organization system"}
+                metadata={"description": "User's intelligent file organization system"}
             )
             
             print("✅ Vector database initialized")
