@@ -29,9 +29,7 @@ class DriveStatus:
 
 class GoogleDriveIntegration:
     """
-    Google Drive Integration for AI File Organizer v3.0
-    
-    This class provides the core functionality to use Google Drive as the 
+    Google Drive Integration for AI File Organizer v3.0 as the 
     PRIMARY storage root instead of local Documents folder.
     
     Key Features:
