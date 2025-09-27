@@ -729,7 +729,7 @@ If AI File Organizer v3.0 transformed your professional workflow, **please star 
 
 **Questions? Success stories? Feature requests?**
 - [Open an issue](https://github.com/thebearwithabite/ai-file-organizer/issues)
-- Email: [rt@papersthatdream.com](mailto:rt@papersthatdream.com)
+- Email: [user@example.com](mailto:user@example.com)
 
 **Created by:** RT Max
 
