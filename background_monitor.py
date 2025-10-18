@@ -78,7 +78,7 @@ class EnhancedBackgroundMonitor:
         return {
             # High priority - check frequently
             'staging': {
-                'path': Path("/Users/user/Documents/TEMP_PROCESSING/Downloads_Staging"),
+                'path': Path.home() / "Documents" / "TEMP_PROCESSING" / "Downloads_Staging",
                 'priority': 'high',
                 'auto_organize': True
             },

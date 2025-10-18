@@ -1,2 +1,10 @@
 fastapi
 uvicorn[standard]
+PyPDF2
+python-docx
+librosa
+openai
+pandas
+openpyxl
+numpy
+mutagen
