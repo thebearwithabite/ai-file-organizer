@@ -10,8 +10,7 @@ from pathlib import Path
 from typing import Dict, Any, Optional, List
 
 from gdrive_librarian import GoogleDriveLibrarian
-from classification_engine import FileClassificationEngine
-from interactive_classifier_fixed import ADHDFriendlyClassifier
+from unified_classifier import UnifiedClassificationService
 from gdrive_integration import get_ai_organizer_root
 
 # Configure logging
@@ -171,8 +170,8 @@ class TriageService:
             # Initialize with AI Organizer root directory
             self.base_dir = get_ai_organizer_root()
 
-            # Initialize the ADHD-friendly classifier which wraps the classification engine
-            self.classifier = ADHDFriendlyClassifier(str(self.base_dir))
+            # Initialize the unified classification service with AI-powered content analysis
+            self.classifier = UnifiedClassificationService()
 
             # Common staging areas where unorganized files are found
             self.staging_areas = [
@@ -235,15 +234,23 @@ class TriageService:
                         break
 
                     try:
-                        # Use the base classification engine for speed (skip interactive questions)
-                        result = self.classifier.base_classifier.classify_file(file_path)
+                        # Use the unified classification service for intelligent content analysis
+                        result = self.classifier.classify_file(file_path)
 
                         # Only include files with low confidence that need manual review
-                        if result.confidence < confidence_threshold:
+                        # Handle both dict and object result formats
+                        confidence = result.get('confidence', 0.0) if isinstance(result, dict) else getattr(result, 'confidence', 0.0)
+                        category = result.get('category', 'unknown') if isinstance(result, dict) else getattr(result, 'category', 'unknown')
+                        reasoning = result.get('reasoning', []) if isinstance(result, dict) else getattr(result, 'reasoning', [])
+                        source = result.get('source', 'Unknown') if isinstance(result, dict) else getattr(result, 'source', 'Unknown')
+
+                        if confidence < confidence_threshold:
                             files_for_review.append({
                                 "file_path": str(file_path),
-                                "suggested_category": result.category,
-                                "confidence": round(result.confidence, 2)
+                                "suggested_category": category,
+                                "confidence": round(confidence, 2),
+                                "reasoning": reasoning,
+                                "source": source
                             })
                             file_count += 1
 
@@ -266,19 +273,44 @@ class TriageService:
             logger.error(f"Error getting files for review: {e}")
             return []
 
+    def trigger_scan(self) -> Dict[str, Any]:
+        """
+        Triggers a new scan for files needing review and returns them.
+        
+        Returns:
+            A dictionary containing the files found for review.
+        """
+        logger.info("Manual scan for triage files triggered via API.")
+        try:
+            files = self.get_files_for_review()
+            return {
+                "status": "success",
+                "message": f"Scan complete. Found {len(files)} files for triage.",
+                "files_found": len(files),
+                "files": files
+            }
+        except Exception as e:
+            logger.error(f"Error during triggered scan: {e}")
+            return {
+                "status": "error",
+                "message": "An error occurred during the scan.",
+                "error": str(e)
+            }
+
     def classify_file(self, file_path: str, confirmed_category: str) -> Dict[str, Any]:
         """
-        Classify a file with user-confirmed category and learn from the decision
+        Classify a file with user-confirmed category, learn from the decision, and move the file
+        with an intelligent new name.
         
         Args:
             file_path: Path to the file being classified
             confirmed_category: Category confirmed by the user
             
         Returns:
-            Success response with classification status
+            Success response with classification status and new file path.
         """
-        if self.classifier is None:
-            logger.error("Classification engine not available")
+        if self.classifier is None or self.base_dir is None:
+            logger.error("Classification engine or base directory not available")
             return {
                 "status": "error",
                 "message": "Classification engine not available"
@@ -293,37 +325,68 @@ class TriageService:
                     "message": f"File not found: {file_path}"
                 }
 
-            # Get current classification to understand what changed
-            original_result = self.classifier.base_classifier.classify_file(file_obj)
+            # --- Get the intelligent classification result from UnifiedClassificationService ---
+            classification_result = self.classifier.classify_file(file_obj)
+            
+            # Handle both dict and object result formats
+            original_category = classification_result.get('category', 'unknown') if isinstance(classification_result, dict) else getattr(classification_result, 'category', 'unknown')
+            original_confidence = classification_result.get('confidence', 0.0) if isinstance(classification_result, dict) else getattr(classification_result, 'confidence', 0.0)
+            suggested_filename = classification_result.get('suggested_filename', file_obj.name) if isinstance(classification_result, dict) else getattr(classification_result, 'suggested_filename', file_obj.name)
+            
+            # --- Learning Step (Future Implementation) ---
+            logger.info(f"User classification for '{file_path}':")
+            logger.info(f"  AI Analysis: {original_category} ({original_confidence:.2f}) -> User Confirmed: {confirmed_category}")
+            # TODO: Implement learning from user corrections in future updates
+            
+            # --- Intelligent File Organization ---
+            # Create destination directory based on confirmed category
+            category_mapping = {
+                'entertainment': '01_ACTIVE_PROJECTS/Entertainment_Industry',
+                'financial': '01_ACTIVE_PROJECTS/Business_Operations/Financial_Records',
+                'creative': '01_ACTIVE_PROJECTS/Creative_Projects',
+                'development': '01_ACTIVE_PROJECTS/Development_Projects',
+                'audio': '01_ACTIVE_PROJECTS/Creative_Projects/Audio_Content',
+                'image': '01_ACTIVE_PROJECTS/Creative_Projects/Visual_Content',
+                'text_document': '02_REFERENCE/Documents',
+                'unknown': '99_TEMP_PROCESSING/Manual_Review'
+            }
+            
+            relative_dest_path = category_mapping.get(confirmed_category.lower(), '99_TEMP_PROCESSING/Manual_Review')
+            destination_dir = self.base_dir / relative_dest_path
 
-            # Log the classification decision with context
-            logger.info(f"User classification decision for '{file_path}':")
-            logger.info(f"  Original suggestion: {original_result.category} (confidence: {original_result.confidence:.2f})")
-            logger.info(f"  User confirmed: {confirmed_category}")
+            # Create the directory if it doesn't exist
+            destination_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Use intelligent filename suggestion or keep original name
+            if suggested_filename and suggested_filename != file_obj.name:
+                new_file_path = destination_dir / suggested_filename
+            else:
+                new_file_path = destination_dir / file_obj.name
+            
+            # Handle filename conflicts
+            counter = 1
+            original_new_path = new_file_path
+            while new_file_path.exists():
+                stem = original_new_path.stem
+                suffix = original_new_path.suffix
+                new_file_path = destination_dir / f"{stem}_{counter}{suffix}"
+                counter += 1
 
-            # If available, use the ADHD-friendly classifier to learn from this decision
-            # This helps improve future classifications
-            if hasattr(self.classifier, '_learn_from_manual_classification'):
-                self.classifier._learn_from_manual_classification(
-                    file_obj,
-                    confirmed_category,
-                    original_result
-                )
-
-            # TODO: In a full implementation, you might want to actually move the file
-            # to the confirmed category location here, but that depends on your workflow
+            # Move the file to its new intelligent location
+            file_obj.rename(new_file_path)
+            
+            logger.info(f"Successfully moved and renamed file to: {new_file_path}")
 
             return {
                 "status": "success",
-                "message": f"File '{file_path}' classified as '{confirmed_category}'. System learned from this decision.",
-                "original_suggestion": original_result.category,
-                "original_confidence": round(original_result.confidence, 2),
+                "message": f"File '{file_obj.name}' classified and moved successfully.",
+                "new_path": str(new_file_path),
                 "user_decision": confirmed_category
             }
 
         except Exception as e:
-            logger.error(f"Error classifying file '{file_path}': {e}")
+            logger.error(f"Error classifying and moving file '{file_path}': {e}", exc_info=True)
             return {
                 "status": "error",
-                "message": f"Failed to classify file '{file_path}': {str(e)}"
+                "message": f"Failed to process file '{file_path}': {str(e)}"
             }
