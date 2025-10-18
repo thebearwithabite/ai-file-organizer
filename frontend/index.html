@@ -25,8 +25,8 @@
             <!-- Navigation Section -->
             <section class="nav-section">
                 <div class="nav-container">
-                    <button class="nav-btn active" id="searchNavBtn">🔍 Search Files</button>
-                    <button class="nav-btn" id="triageNavBtn">📋 Review Files</button>
+                    <button class="nav-btn active" id="searchNavBtn"> Search Files</button>
+                    <button class="nav-btn" id="triageNavBtn"> Review Files</button>
                 </div>
             </section>
 
@@ -69,20 +69,20 @@
             <section class="triage-section" id="triageSection" style="display: none;">
                 <div class="triage-header">
                     <h2 class="triage-title">File Triage Center</h2>
-                    <p class="triage-subtitle">Review files that need manual classification (confidence &lt; 85%)</p>
+                    <p class="triage-subtitle">Review files that need manual classification (confidence < 85%)</p>
                     <div class="triage-count" id="triageCount">Loading...</div>
                 </div>
-                
+
                 <div class="triage-container" id="triageContainer">
                     <!-- Triage cards will be dynamically populated here -->
                 </div>
-                
+
                 <div class="triage-empty" id="triageEmpty" style="display: none;">
                     <div class="triage-empty-content">
                         <div class="triage-empty-icon">✅</div>
                         <h3>All files reviewed!</h3>
                         <p>Great job! There are no files requiring manual review at the moment.</p>
-                        <button class="btn btn-secondary" id="refreshTriageBtn">🔄 Check for New Files</button>
+                        <button class="btn btn-secondary" id="refreshTriageBtn"> Check for New Files</button>
                     </div>
                 </div>
             </section>
@@ -90,9 +90,10 @@
             <!-- Empty State -->
             <section class="empty-state" id="emptyState">
                 <div class="empty-state-content">
-                    <div class="empty-state-icon">🔍</div>
+                    <div class="empty-state-icon"></div>
                     <h3>Start searching your files</h3>
-                    <p>Use natural language to find what you're looking for. The AI understands context and relationships between your documents.</p>
+                    <p>Use natural language to find what you're looking for. The AI understands context and relationships between
+your documents.</p>
                     <div class="example-searches">
                         <h4>Try searching for:</h4>
                         <ul>
@@ -105,6 +106,43 @@
                 </div>
             </section>
         </main>
+
+        <!-- Re-classify Modal -->
+        <div class="modal-overlay" id="reclassifyModal" style="display: none;">
+            <div class="modal-container">
+                <div class="modal-header">
+                    <h3 class="modal-title">Re-classify File</h3>
+                    <button class="modal-close" id="modalCloseBtn" aria-label="Close modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="modal-file-info">
+                        <div class="modal-filename" id="modalFilename">filename.pdf</div>
+                        <div class="modal-current-category">
+                            <span class="label">Current suggestion:</span>
+                            <span class="value" id="modalCurrentCategory">Business Operations</span>
+                        </div>
+                    </div>
+                    <div class="modal-form">
+                        <label for="newCategoryInput" class="form-label">New Category</label>
+                        <input 
+                            type="text" 
+                            id="newCategoryInput" 
+                            class="form-input" 
+                            placeholder="Enter new category (e.g., Entertainment Industry, Creative Projects)" 
+                            autocomplete="off"
+                            spellcheck="false"
+                        >
+                        <div class="form-hint">
+                            Enter a descriptive category that best represents this file's content and purpose.
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" id="modalCancelBtn">Cancel</button>
+                    <button class="btn btn-primary" id="modalSubmitBtn" disabled>Re-classify File</button>
+                </div>
+            </div>
+        </div>
 
         <footer class="main-footer">
             <p>&copy; 2025 AI File Organizer V3 - Built with Claude Code</p>

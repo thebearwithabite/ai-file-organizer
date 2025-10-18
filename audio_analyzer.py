@@ -1,0 +1,557 @@
+"""
+AudioAnalyzer - Refactored from AdaptiveAudioOrganizer
+A self-contained audio analysis and classification module for intelligent file organization.
+
+This module provides core audio analysis functionality extracted from the AI-Audio-Organizer
+with all external dependencies removed for integration with the unified classification system.
+"""
+
+import os
+import json
+import pickle
+from pathlib import Path
+from datetime import datetime
+from collections import defaultdict
+from typing import Dict, List, Optional, Tuple, Any
+
+try:
+    import mutagen
+    MUTAGEN_AVAILABLE = True
+except ImportError:
+    MUTAGEN_AVAILABLE = False
+    print("Warning: mutagen not available. Audio metadata extraction will be limited.")
+
+try:
+    from openai import OpenAI
+    OPENAI_AVAILABLE = True
+except ImportError:
+    OPENAI_AVAILABLE = False
+    print("Warning: OpenAI not available. AI classification will be disabled.")
+
+
+class AudioAnalyzer:
+    """
+    Self-contained audio analysis and classification system.
+    
+    Provides intelligent audio file analysis with adaptive learning capabilities,
+    extracting semantic information from audio files and generating appropriate
+    classifications and folder structures.
+    """
+    
+    def __init__(self, 
+                 base_dir: str,
+                 confidence_threshold: float = 0.7,
+                 openai_api_key: Optional[str] = None,
+                 learning_data_path: Optional[str] = None,
+                 categories_data_path: Optional[str] = None):
+        """
+        Initialize the AudioAnalyzer with necessary parameters.
+        
+        Args:
+            base_dir: Base directory for file operations
+            confidence_threshold: Minimum confidence for classifications (0.0-1.0)
+            openai_api_key: Optional OpenAI API key for AI classification
+            learning_data_path: Path to learning data file (optional)
+            categories_data_path: Path to discovered categories file (optional)
+        """
+        self.base_dir = Path(base_dir)
+        self.confidence_threshold = confidence_threshold
+        
+        # OpenAI client setup
+        self.client = None
+        if openai_api_key and OPENAI_AVAILABLE:
+            self.client = OpenAI(api_key=openai_api_key)
+        
+        # Learning system files
+        metadata_dir = self.base_dir / "04_METADATA_SYSTEM"
+        self.learning_data_file = Path(learning_data_path) if learning_data_path else metadata_dir / "learning_data.pkl"
+        self.discovered_categories_file = Path(categories_data_path) if categories_data_path else metadata_dir / "discovered_categories.json"
+        
+        # Load existing learning data
+        self.learning_data = self.load_learning_data()
+        self.discovered_categories = self.load_discovered_categories()
+        
+        # Base categories that can expand
+        self.base_categories = {
+            "music_ambient": ["contemplative", "tension_building", "wonder_discovery", "melancholic", "mysterious"],
+            "sfx_consciousness": ["subtle_background", "narrative_support", "dramatic_punctuation"],
+            "sfx_human": ["subtle_background", "narrative_support", "dramatic_punctuation"],
+            "sfx_environmental": ["subtle_background", "narrative_support", "dramatic_punctuation"],
+            "sfx_technology": ["subtle_background", "narrative_support", "dramatic_punctuation"],
+            "voice_element": ["contemplative", "melancholic", "mysterious", "dramatic_punctuation"],
+        }
+        
+        # Dynamic folder mapping that grows over time
+        self.folder_map = self.build_dynamic_folder_map()
+        self.audio_extensions = {'.mp3', '.wav', '.aiff', '.m4a', '.flac', '.ogg', '.wma'}
+    
+    def load_learning_data(self) -> Dict[str, Any]:
+        """Load historical classification data"""
+        if self.learning_data_file.exists():
+            try:
+                with open(self.learning_data_file, 'rb') as f:
+                    return pickle.load(f)
+            except Exception as e:
+                print(f"Warning: Could not load learning data: {e}")
+        
+        return {
+            'classifications': [],
+            'user_corrections': [],
+            'patterns': defaultdict(list),
+            'filename_patterns': defaultdict(list)
+        }
+    
+    def save_learning_data(self) -> None:
+        """Save learning data for future use"""
+        try:
+            self.learning_data_file.parent.mkdir(parents=True, exist_ok=True)
+            with open(self.learning_data_file, 'wb') as f:
+                pickle.dump(self.learning_data, f)
+        except Exception as e:
+            print(f"Warning: Could not save learning data: {e}")
+    
+    def load_discovered_categories(self) -> Dict[str, Any]:
+        """Load dynamically discovered categories"""
+        if self.discovered_categories_file.exists():
+            try:
+                with open(self.discovered_categories_file, 'r') as f:
+                    return json.load(f)
+            except Exception as e:
+                print(f"Warning: Could not load discovered categories: {e}")
+        
+        return {
+            'new_moods': [],
+            'new_categories': [],
+            'new_themes': [],
+            'frequency_counts': defaultdict(int)
+        }
+    
+    def save_discovered_categories(self) -> None:
+        """Save discovered categories"""
+        try:
+            self.discovered_categories_file.parent.mkdir(parents=True, exist_ok=True)
+            with open(self.discovered_categories_file, 'w') as f:
+                json.dump(self.discovered_categories, f, indent=2)
+        except Exception as e:
+            print(f"Warning: Could not save discovered categories: {e}")
+    
+    def build_dynamic_folder_map(self) -> Dict[str, str]:
+        """Build folder mapping that includes discovered categories"""
+        base_map = {
+            "music_ambient + contemplative": "01_UNIVERSAL_ASSETS/MUSIC_LIBRARY/by_mood/contemplative/",
+            "music_ambient + tension_building": "01_UNIVERSAL_ASSETS/MUSIC_LIBRARY/by_mood/tension_building/",
+            "music_ambient + wonder_discovery": "01_UNIVERSAL_ASSETS/MUSIC_LIBRARY/by_mood/wonder_discovery/",
+            "music_ambient + melancholic": "01_UNIVERSAL_ASSETS/MUSIC_LIBRARY/by_mood/melancholic/",
+            "music_ambient + mysterious": "01_UNIVERSAL_ASSETS/MUSIC_LIBRARY/by_mood/mysterious/",
+            "sfx_consciousness + subtle_background": "01_UNIVERSAL_ASSETS/SFX_LIBRARY/by_category/consciousness/thought_processing/",
+            "sfx_consciousness + narrative_support": "01_UNIVERSAL_ASSETS/SFX_LIBRARY/by_category/consciousness/awakening_emergence/",
+            "sfx_consciousness + dramatic_punctuation": "01_UNIVERSAL_ASSETS/SFX_LIBRARY/by_category/consciousness/memory_formation/",
+            "sfx_human + subtle_background": "01_UNIVERSAL_ASSETS/SFX_LIBRARY/by_category/human_elements/breathing_heartbeat/",
+            "sfx_human + narrative_support": "01_UNIVERSAL_ASSETS/SFX_LIBRARY/by_category/human_elements/emotional_responses/",
+            "sfx_human + dramatic_punctuation": "01_UNIVERSAL_ASSETS/SFX_LIBRARY/by_category/human_elements/environmental_human/",
+            "sfx_environmental + subtle_background": "01_UNIVERSAL_ASSETS/SFX_LIBRARY/by_category/abstract_conceptual/time_space/",
+            "sfx_environmental + narrative_support": "01_UNIVERSAL_ASSETS/SFX_LIBRARY/by_category/abstract_conceptual/transformation/",
+            "sfx_environmental + dramatic_punctuation": "01_UNIVERSAL_ASSETS/SFX_LIBRARY/by_category/abstract_conceptual/connection_bridging/",
+            "voice_element + contemplative": "01_UNIVERSAL_ASSETS/VOICE_ELEMENTS/narrator_banks/",
+            "voice_element + melancholic": "01_UNIVERSAL_ASSETS/VOICE_ELEMENTS/processed_vocals/",
+            "voice_element + mysterious": "01_UNIVERSAL_ASSETS/VOICE_ELEMENTS/vocal_textures/",
+            "voice_element + dramatic_punctuation": "01_UNIVERSAL_ASSETS/VOICE_ELEMENTS/character_voices/",
+            "default": "01_UNIVERSAL_ASSETS/UNSORTED/"
+        }
+        
+        # Add discovered categories
+        for category in self.discovered_categories.get('new_categories', []):
+            for mood in self.discovered_categories.get('new_moods', []):
+                key = f"{category} + {mood}"
+                if key not in base_map:
+                    # Create new folder path based on category type
+                    if category.startswith('music_'):
+                        base_map[key] = f"01_UNIVERSAL_ASSETS/MUSIC_LIBRARY/by_mood/{mood}/"
+                    elif category.startswith('sfx_'):
+                        sfx_type = category.replace('sfx_', '')
+                        base_map[key] = f"01_UNIVERSAL_ASSETS/SFX_LIBRARY/by_category/{sfx_type}/{mood}/"
+                    elif category.startswith('voice_'):
+                        base_map[key] = f"01_UNIVERSAL_ASSETS/VOICE_ELEMENTS/{mood}/"
+                    else:
+                        base_map[key] = f"01_UNIVERSAL_ASSETS/EXPERIMENTAL/{category}/{mood}/"
+        
+        return base_map
+    
+    def get_audio_metadata(self, file_path: Path) -> Dict[str, str]:
+        """Extract audio metadata using mutagen"""
+        if not MUTAGEN_AVAILABLE:
+            return {'duration': 'Unknown', 'bitrate': 'Unknown', 'sample_rate': 'Unknown'}
+        
+        try:
+            audio_file = mutagen.File(file_path)
+            if audio_file is not None:
+                duration = audio_file.info.length
+                return {
+                    'duration': f"{int(duration // 60)}:{int(duration % 60):02d}",
+                    'bitrate': getattr(audio_file.info, 'bitrate', 'Unknown'),
+                    'sample_rate': getattr(audio_file.info, 'sample_rate', 'Unknown')
+                }
+        except Exception as e:
+            print(f"Could not read metadata for {file_path}: {e}")
+        
+        return {'duration': 'Unknown', 'bitrate': 'Unknown', 'sample_rate': 'Unknown'}
+    
+    def analyze_filename_patterns(self, filename: str) -> List[str]:
+        """Extract patterns from filename that might indicate content type"""
+        patterns = []
+        filename_lower = filename.lower()
+        
+        # Common audio descriptors
+        descriptors = {
+            'ambient': ['ambient', 'atmosphere', 'atmos', 'background', 'bg'],
+            'percussion': ['drum', 'beat', 'perc', 'rhythm', 'kick', 'snare'],
+            'vocal': ['vocal', 'voice', 'speech', 'talk', 'narr', 'dialogue'],
+            'nature': ['nature', 'wind', 'rain', 'water', 'forest', 'bird'],
+            'mechanical': ['mech', 'robot', 'machine', 'tech', 'digital', 'synth'],
+            'emotional': ['sad', 'happy', 'dark', 'bright', 'calm', 'tense'],
+            'temporal': ['intro', 'outro', 'loop', 'oneshot', 'sustained']
+        }
+        
+        for category, keywords in descriptors.items():
+            if any(keyword in filename_lower for keyword in keywords):
+                patterns.append(category)
+        
+        return patterns
+    
+    def find_similar_files(self, filename: str) -> List[Dict[str, Any]]:
+        """Find similar files in learning data"""
+        similar = []
+        for entry in self.learning_data['classifications']:
+            similarity = self.filename_similarity(filename, entry['filename'])
+            if similarity > 0.3:
+                entry_with_similarity = entry.copy()
+                entry_with_similarity['similarity'] = similarity
+                similar.append(entry_with_similarity)
+        
+        # Sort by similarity and return top 5
+        similar.sort(key=lambda x: x.get('similarity', 0), reverse=True)
+        return similar[:5]
+    
+    def filename_similarity(self, filename1: str, filename2: str) -> float:
+        """Calculate similarity between filenames"""
+        # Simple word-based similarity
+        words1 = set(filename1.lower().replace('_', ' ').replace('-', ' ').split())
+        words2 = set(filename2.lower().replace('_', ' ').replace('-', ' ').split())
+        
+        if not words1 or not words2:
+            return 0.0
+        
+        intersection = words1.intersection(words2)
+        union = words1.union(words2)
+        
+        return len(intersection) / len(union) if union else 0.0
+    
+    def build_adaptive_prompt(self, file_path: Path, metadata: Dict[str, str]) -> str:
+        """Build a prompt that learns from previous classifications"""
+        
+        # Analyze filename patterns
+        filename_patterns = self.analyze_filename_patterns(file_path.name)
+        
+        # Get historical context
+        similar_files = self.find_similar_files(file_path.name)
+        
+        # Build dynamic categories list
+        all_categories = list(self.base_categories.keys()) + self.discovered_categories.get('new_categories', [])
+        all_moods = []
+        for cat_moods in self.base_categories.values():
+            all_moods.extend(cat_moods)
+        all_moods.extend(self.discovered_categories.get('new_moods', []))
+        all_moods = list(set(all_moods))  # Remove duplicates
+        
+        try:
+            file_stats = os.stat(file_path)
+            file_size_mb = file_stats.st_size / (1024 * 1024)
+        except Exception:
+            file_size_mb = 0
+        
+        context = ""
+        if similar_files:
+            context = f"\nCONTEXT from similar files:\n"
+            for similar in similar_files[:3]:
+                classification = similar.get('classification', {})
+                context += f"- {similar['filename']}: {classification.get('category', 'unknown')} + {classification.get('mood', 'unknown')}\n"
+        
+        if filename_patterns:
+            context += f"\nFILENAME PATTERNS detected: {', '.join(filename_patterns)}\n"
+        
+        prompt = f"""You are an expert audio librarian with adaptive learning capabilities. Analyze this audio file and classify it, considering both standard categories and potentially discovering new ones.
+
+AUDIO DETAILS:
+- Filename: {file_path.name}
+- Duration: {metadata['duration']}
+- File size: {file_size_mb:.2f} MB
+- File type: {file_path.suffix}
+{context}
+
+CLASSIFICATION FRAMEWORK:
+
+CONTENT CATEGORIES (choose existing or suggest new):
+Existing: {', '.join(all_categories)}
+- If this doesn't fit existing categories, suggest a new category in format: category_newname
+
+PRIMARY MOODS (choose existing or suggest new):
+Existing: {', '.join(all_moods)}
+- If this doesn't fit existing moods, suggest a new mood
+
+INTENSITY LEVELS:
+- subtle_background: Unobtrusive, atmospheric support
+- narrative_support: Clear presence but supports story
+- dramatic_punctuation: Bold, attention-grabbing moments
+
+LEARNING INSTRUCTIONS:
+- Be creative and specific in your classifications
+- If you detect patterns that don't fit existing categories, suggest new ones
+- Consider the creative context of AI consciousness storytelling
+- Use filename patterns as clues but don't be limited by them
+
+Return response as JSON:
+{{
+  "category": "existing_category_or_new_category",
+  "mood": "existing_mood_or_new_mood",
+  "intensity": "subtle_background|narrative_support|dramatic_punctuation",
+  "energy_level": 1-10,
+  "tags": ["tag1", "tag2", "tag3"],
+  "thematic_notes": "How this could enhance AI consciousness storytelling",
+  "suggested_filename": "descriptive_filename",
+  "confidence": 0.0-1.0,
+  "reasoning": "Why you chose these classifications",
+  "discovered_elements": ["any new patterns or categories you noticed"]
+}}"""
+        
+        return prompt
+    
+    def learn_from_classification(self, file_path: Path, classification: Dict[str, Any]) -> None:
+        """Learn from each classification to improve future ones"""
+        
+        # Store classification
+        learning_entry = {
+            'filename': file_path.name,
+            'classification': classification,
+            'timestamp': datetime.now().isoformat(),
+            'file_path': str(file_path)
+        }
+        
+        self.learning_data['classifications'].append(learning_entry)
+        
+        # Track new categories/moods
+        category = classification.get('category', '')
+        mood = classification.get('mood', '')
+        
+        # Check for new categories
+        if category not in [cat for cats in self.base_categories.keys() for cat in cats]:
+            if category not in self.discovered_categories['new_categories']:
+                self.discovered_categories['new_categories'].append(category)
+                print(f"🆕 Discovered new category: {category}")
+        
+        # Check for new moods
+        all_base_moods = [mood for moods in self.base_categories.values() for mood in moods]
+        if mood not in all_base_moods:
+            if mood not in self.discovered_categories['new_moods']:
+                self.discovered_categories['new_moods'].append(mood)
+                print(f"🆕 Discovered new mood: {mood}")
+        
+        # Update frequency counts
+        self.discovered_categories['frequency_counts'][f"{category}+{mood}"] += 1
+        
+        # Learn filename patterns
+        filename_patterns = self.analyze_filename_patterns(file_path.name)
+        for pattern in filename_patterns:
+            self.learning_data['filename_patterns'][pattern].append({
+                'category': category,
+                'mood': mood,
+                'filename': file_path.name
+            })
+        
+        # Save learning data
+        self.save_learning_data()
+        self.save_discovered_categories()
+        
+        # Rebuild folder map with new discoveries
+        self.folder_map = self.build_dynamic_folder_map()
+    
+    def classify_audio_file(self, file_path: Path, user_description: str = "") -> Optional[Dict[str, Any]]:
+        """Classify audio file with adaptive learning"""
+        
+        if not self.client:
+            print("Warning: OpenAI client not available. Cannot perform AI classification.")
+            return None
+        
+        metadata = self.get_audio_metadata(file_path)
+        prompt = self.build_adaptive_prompt(file_path, metadata)
+        
+        try:
+            response = self.client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.4  # Slightly higher for more creativity
+            )
+            
+            raw_response = response.choices[0].message.content.strip()
+            
+            # Handle markdown-wrapped JSON
+            if raw_response.startswith('```json'):
+                raw_response = raw_response.replace('```json', '').replace('```', '').strip()
+            
+            classification = json.loads(raw_response)
+            
+            # Learn from this classification
+            self.learn_from_classification(file_path, classification)
+            
+            return classification
+            
+        except Exception as e:
+            print(f"Classification failed: {e}")
+            return None
+    
+    def determine_target_folder(self, classification: Optional[Dict[str, Any]]) -> str:
+        """Determine target folder, creating new ones if needed"""
+        if not classification:
+            return self.folder_map["default"]
+        
+        category = classification.get('category', '')
+        mood = classification.get('mood', '')
+        intensity = classification.get('intensity', '')
+        
+        # Try exact match first
+        key = f"{category} + {mood}"
+        if key in self.folder_map:
+            return self.folder_map[key]
+        
+        # Try with intensity
+        key = f"{category} + {intensity}"
+        if key in self.folder_map:
+            return self.folder_map[key]
+        
+        # Create new folder path for discovered categories
+        if category.startswith('music_'):
+            new_path = f"01_UNIVERSAL_ASSETS/MUSIC_LIBRARY/by_mood/{mood}/"
+        elif category.startswith('sfx_'):
+            sfx_type = category.replace('sfx_', '')
+            new_path = f"01_UNIVERSAL_ASSETS/SFX_LIBRARY/by_category/{sfx_type}/{mood}/"
+        elif category.startswith('voice_'):
+            new_path = f"01_UNIVERSAL_ASSETS/VOICE_ELEMENTS/{mood}/"
+        else:
+            new_path = f"01_UNIVERSAL_ASSETS/EXPERIMENTAL/{category}/{mood}/"
+        
+        # Add to folder map
+        self.folder_map[key] = new_path
+        print(f"🆕 Created new folder mapping: {key} → {new_path}")
+        
+        return new_path
+    
+    def process_file(self, file_path: Path, user_description: str = "", dry_run: bool = True) -> Optional[Dict[str, Any]]:
+        """Process file with adaptive learning and return classification results"""
+        print(f"\n🔍 Processing: {file_path.name}")
+        
+        # Check if file is an audio file
+        if file_path.suffix.lower() not in self.audio_extensions:
+            print(f"  ⚠️  Not an audio file: {file_path.suffix}")
+            return None
+        
+        classification = self.classify_audio_file(file_path, user_description)
+        
+        if classification:
+            target_folder = self.determine_target_folder(classification)
+            
+            print(f"  📂 Category: {classification.get('category', 'unknown')}")
+            print(f"  🎭 Mood: {classification.get('mood', 'unknown')}")
+            print(f"  ⚡ Intensity: {classification.get('intensity', 'unknown')}")
+            print(f"  🔥 Energy: {classification.get('energy_level', 0)}/10")
+            print(f"  🎯 Confidence: {classification.get('confidence', 0):.1%}")
+            print(f"  📍 Target: {target_folder}")
+            print(f"  🏷️ Tags: {', '.join(classification.get('tags', []))}")
+            
+            if classification.get('discovered_elements'):
+                print(f"  🆕 Discovered: {', '.join(classification.get('discovered_elements', []))}")
+            
+            # Add target folder to classification result
+            classification['target_folder'] = target_folder
+            classification['original_path'] = str(file_path)
+            
+            if not dry_run:
+                print(f"  ✅ Would move to: {target_folder}")
+            else:
+                print(f"  🔄 [DRY RUN] Would move to: {target_folder}")
+            
+            return classification
+        else:
+            print(f"  ❌ Classification failed")
+            return None
+    
+    def show_learning_stats(self) -> None:
+        """Display learning statistics"""
+        print(f"\n📊 AUDIO ANALYZER LEARNING STATISTICS")
+        print(f"=" * 50)
+        
+        total_files = len(self.learning_data['classifications'])
+        print(f"Total files processed: {total_files}")
+        
+        print(f"\n🆕 DISCOVERED CATEGORIES:")
+        for category in self.discovered_categories.get('new_categories', []):
+            print(f"  - {category}")
+        
+        print(f"\n🆕 DISCOVERED MOODS:")
+        for mood in self.discovered_categories.get('new_moods', []):
+            print(f"  - {mood}")
+        
+        print(f"\n📈 MOST COMMON COMBINATIONS:")
+        freq_counts = self.discovered_categories.get('frequency_counts', {})
+        for combo, count in sorted(freq_counts.items(), key=lambda x: x[1], reverse=True)[:10]:
+            print(f"  - {combo}: {count} files")
+        
+        print(f"\n🔍 FILENAME PATTERNS LEARNED:")
+        for pattern, examples in list(self.learning_data['filename_patterns'].items())[:5]:
+            print(f"  - {pattern}: {len(examples)} examples")
+    
+    def is_audio_file(self, file_path: Path) -> bool:
+        """Check if file is an audio file based on extension"""
+        return file_path.suffix.lower() in self.audio_extensions
+    
+    def get_classification_summary(self, classification: Dict[str, Any]) -> str:
+        """Generate a human-readable summary of classification results"""
+        if not classification:
+            return "No classification available"
+        
+        category = classification.get('category', 'unknown')
+        mood = classification.get('mood', 'unknown')
+        confidence = classification.get('confidence', 0)
+        energy = classification.get('energy_level', 0)
+        
+        return f"{category} ({mood}) - Confidence: {confidence:.1%}, Energy: {energy}/10"
+
+
+if __name__ == "__main__":
+    # Basic usage example
+    import sys
+    
+    if len(sys.argv) < 2:
+        print("Usage: python audio_analyzer.py <audio_file_path> [openai_api_key]")
+        sys.exit(1)
+    
+    file_path = Path(sys.argv[1])
+    api_key = sys.argv[2] if len(sys.argv) > 2 else None
+    
+    if not file_path.exists():
+        print(f"Error: File {file_path} not found")
+        sys.exit(1)
+    
+    # Initialize analyzer
+    analyzer = AudioAnalyzer(
+        base_dir=str(file_path.parent),
+        confidence_threshold=0.7,
+        openai_api_key=api_key
+    )
+    
+    # Process the file
+    result = analyzer.process_file(file_path, dry_run=True)
+    
+    if result:
+        print(f"\n✅ Analysis complete!")
+        print(f"Summary: {analyzer.get_classification_summary(result)}")
+    else:
+        print(f"\n❌ Analysis failed")

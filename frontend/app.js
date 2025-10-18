@@ -25,6 +25,15 @@ class SearchInterface {
         this.triageContainer = document.getElementById('triageContainer');
         this.triageEmpty = document.getElementById('triageEmpty');
         
+        // Modal elements
+        this.reclassifyModal = document.getElementById('reclassifyModal');
+        this.modalFilename = document.getElementById('modalFilename');
+        this.modalCurrentCategory = document.getElementById('modalCurrentCategory');
+        this.newCategoryInput = document.getElementById('newCategoryInput');
+        this.modalCloseBtn = document.getElementById('modalCloseBtn');
+        this.modalCancelBtn = document.getElementById('modalCancelBtn');
+        this.modalSubmitBtn = document.getElementById('modalSubmitBtn');
+        
         // Search state
         this.currentMode = 'auto';
         this.debounceTimer = null;
@@ -33,6 +42,9 @@ class SearchInterface {
         
         // Application state
         this.currentView = 'search'; // 'search' or 'triage'
+        
+        // Modal state
+        this.currentFileData = null; // File data for the currently open modal
         
         this.init();
     }
@@ -78,6 +90,9 @@ class SearchInterface {
         
         // Focus search input on page load
         this.searchInput.focus();
+        
+        // Initialize modal event listeners
+        this.initModalEventListeners();
     }
     
     handleSearchInput(query) {
@@ -628,9 +643,12 @@ class SearchInterface {
                 }, 300);
                 
             } else {
-                // For re-classify, show a simple message for now
-                // In future versions, this could open a category selection modal
-                this.showTriageActionFeedback('info', `🔄 Re-classification for ${filename} would open category selection here`);
+                // Open re-classify modal
+                this.openReclassifyModal({
+                    filename: filename,
+                    filePath: filePath,
+                    currentCategory: suggestedCategory
+                });
                 
                 // Reset button
                 button.disabled = false;
@@ -760,6 +778,178 @@ class SearchInterface {
                 </div>
             </div>
         `;
+    }
+    
+    // ===== MODAL FUNCTIONALITY =====
+    
+    initModalEventListeners() {
+        // Close button click
+        this.modalCloseBtn.addEventListener('click', () => {
+            this.closeReclassifyModal();
+        });
+        
+        // Cancel button click
+        this.modalCancelBtn.addEventListener('click', () => {
+            this.closeReclassifyModal();
+        });
+        
+        // Overlay click (click outside modal)
+        this.reclassifyModal.addEventListener('click', (e) => {
+            if (e.target === this.reclassifyModal) {
+                this.closeReclassifyModal();
+            }
+        });
+        
+        // ESC key to close modal
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this.reclassifyModal.classList.contains('show')) {
+                this.closeReclassifyModal();
+            }
+        });
+        
+        // Input validation for submit button
+        this.newCategoryInput.addEventListener('input', () => {
+            this.validateModalForm();
+        });
+        
+        // Submit button click
+        this.modalSubmitBtn.addEventListener('click', () => {
+            this.submitReclassification();
+        });
+        
+        // Enter key in input field
+        this.newCategoryInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !this.modalSubmitBtn.disabled) {
+                e.preventDefault();
+                this.submitReclassification();
+            }
+        });
+    }
+    
+    openReclassifyModal(fileData) {
+        // Store file data for submission
+        this.currentFileData = fileData;
+        
+        // Populate modal content
+        this.modalFilename.textContent = fileData.filename;
+        this.modalCurrentCategory.textContent = fileData.currentCategory;
+        
+        // Reset form
+        this.newCategoryInput.value = '';
+        this.modalSubmitBtn.disabled = true;
+        
+        // Show modal with animation
+        this.reclassifyModal.style.display = 'flex';
+        
+        // Use requestAnimationFrame to ensure display:flex is applied before adding 'show' class
+        requestAnimationFrame(() => {
+            this.reclassifyModal.classList.add('show');
+            
+            // Focus the input field after animation starts
+            setTimeout(() => {
+                this.newCategoryInput.focus();
+            }, 100);
+        });
+        
+        // Prevent background scrolling
+        document.body.style.overflow = 'hidden';
+    }
+    
+    closeReclassifyModal() {
+        // Remove show class to trigger fade out animation
+        this.reclassifyModal.classList.remove('show');
+        
+        // Wait for animation to complete before hiding
+        setTimeout(() => {
+            this.reclassifyModal.style.display = 'none';
+            this.currentFileData = null;
+            
+            // Restore background scrolling
+            document.body.style.overflow = '';
+        }, 250); // Match CSS transition duration
+    }
+    
+    validateModalForm() {
+        const newCategory = this.newCategoryInput.value.trim();
+        const isValid = newCategory.length > 0 && newCategory !== this.currentFileData?.currentCategory;
+        
+        this.modalSubmitBtn.disabled = !isValid;
+        
+        // Update button text based on validation
+        if (newCategory.length === 0) {
+            this.modalSubmitBtn.textContent = 'Enter category name';
+        } else if (newCategory === this.currentFileData?.currentCategory) {
+            this.modalSubmitBtn.textContent = 'Category unchanged';
+        } else {
+            this.modalSubmitBtn.textContent = 'Re-classify File';
+        }
+    }
+    
+    async submitReclassification() {
+        if (!this.currentFileData || this.modalSubmitBtn.disabled) {
+            return;
+        }
+        
+        const newCategory = this.newCategoryInput.value.trim();
+        
+        try {
+            // Update button to show loading state
+            this.modalSubmitBtn.disabled = true;
+            this.modalSubmitBtn.textContent = '⏳ Re-classifying...';
+            
+            // API call to re-classify the file
+            const response = await fetch('/api/triage/classify', {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    file_path: this.currentFileData.filePath,
+                    confirmed_category: newCategory
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Re-classification failed: ${response.status} ${response.statusText}`);
+            }
+            
+            const result = await response.json();
+            
+            // Close modal
+            this.closeReclassifyModal();
+            
+            // Show success feedback
+            this.showTriageActionFeedback('success', `✅ ${this.currentFileData.filename} has been re-classified as "${newCategory}"!`);
+            
+            // Find and update the triage card
+            const triageCard = document.querySelector(`[data-file-path="${this.currentFileData.filePath}"]`);
+            if (triageCard) {
+                // Remove the card with animation
+                triageCard.style.opacity = '0.5';
+                triageCard.style.transform = 'translateX(100%)';
+                
+                setTimeout(() => {
+                    triageCard.remove();
+                    
+                    // Update count
+                    const remainingCards = this.triageContainer.querySelectorAll('.triage-card');
+                    if (remainingCards.length === 0) {
+                        this.showTriageEmptyState();
+                    } else {
+                        this.triageCount.textContent = `${remainingCards.length} file${remainingCards.length !== 1 ? 's' : ''} need${remainingCards.length === 1 ? 's' : ''} review`;
+                    }
+                }, 300);
+            }
+            
+        } catch (error) {
+            console.error('Re-classification error:', error);
+            this.showTriageActionFeedback('error', `❌ Error re-classifying ${this.currentFileData.filename}: ${error.message}`);
+            
+            // Reset button
+            this.modalSubmitBtn.disabled = false;
+            this.modalSubmitBtn.textContent = 'Re-classify File';
+        }
     }
 }
 
