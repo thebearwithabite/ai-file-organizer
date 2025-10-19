@@ -9,7 +9,7 @@
   "evidence": {
     "compiled_file": {
       "exists": true,
-      "path": "/Users/ryanthomson/Github/ai-file-organizer/__pycache__/gdrive_librarian.cpython-312.pyc",
+      "path": "/Users/user/Github/ai-file-organizer/__pycache__/gdrive_librarian.cpython-312.pyc",
       "modified_time": "2025-09-02T22:17:01.211495",
       "size_bytes": 58337,
       "magic_number": "cb0d0d0a"
@@ -20,7 +20,7 @@
         {
           "rollback_id": 1,
           "timestamp": "2025-09-01T06:10:38.051402",
-          "original_path": "/Users/ryanthomson/Downloads/grok doc.pdf",
+          "original_path": "/Users/user/Downloads/grok doc.pdf",
           "original_filename": "grok doc.pdf",
           "new_filename": "TPTD - Episode Draft - 2025-09-01.pdf",
           "gdrive_folder": "Episodes",
@@ -33,7 +33,7 @@
         {
           "rollback_id": 2,
           "timestamp": "2025-09-01T06:11:26.175019",
-          "original_path": "/Users/ryanthomson/Downloads/Mastering_the_game_of_Go_with_deep_neural_networks.pdf",
+          "original_path": "/Users/user/Downloads/Mastering_the_game_of_Go_with_deep_neural_networks.pdf",
           "original_filename": "Mastering_the_game_of_Go_with_deep_neural_networks.pdf",
           "new_filename": "AlphaGo - Research Paper - DeepMind.pdf",
           "gdrive_folder": "Industry_Templates",
@@ -52,22 +52,22 @@
     },
     "gdrive_evidence": {
       "api_files": [
-        "/Users/ryanthomson/Github/ai-file-organizer/google_drive_auth.py",
-        "/Users/ryanthomson/Github/ai-file-organizer/gdrive_integration.py"
+        "/Users/user/Github/ai-file-organizer/google_drive_auth.py",
+        "/Users/user/Github/ai-file-organizer/gdrive_integration.py"
       ],
       "config_files": [],
       "credentials": [],
       "integration_patterns": [
         {
-          "file": "/Users/ryanthomson/Github/ai-file-organizer/smart_cloud_storage.py",
+          "file": "/Users/user/Github/ai-file-organizer/smart_cloud_storage.py",
           "has_google_api": true
         },
         {
-          "file": "/Users/ryanthomson/Github/ai-file-organizer/investigate_missing_system.py",
+          "file": "/Users/user/Github/ai-file-organizer/investigate_missing_system.py",
           "has_google_api": true
         },
         {
-          "file": "/Users/ryanthomson/Github/ai-file-organizer/google_drive_auth.py",
+          "file": "/Users/user/Github/ai-file-organizer/google_drive_auth.py",
           "has_google_api": true
         }
       ]
@@ -88,7 +88,7 @@
       ],
       "file_history": [
         "commit 890cb6c5800db275c59ab9ba401eeb04ee2f9b27",
-        "Author: RT Max <thebearwithabite@gmail.com>",
+        "Author: RT Max <user@example.com>",
         "Date:   Tue Sep 2 23:35:02 2025 -0700",
         "",
         "    feat(core): Add proactive learning, archival, and Gemini context",
@@ -108,7 +108,7 @@
         "    - **Code Updates**: Modifies core scripts like `classification_engine.py` and `gdrive_librarian.py` to integrate the new functionalities.",
         "",
         "commit 02cd8106c12f3f54c666c90ca245c99872c5bf8b",
-        "Author: RT Max <thebearwithabite@gmail.com>",
+        "Author: RT Max <user@example.com>",
         "Date:   Sun Aug 31 09:52:24 2025 -0700",
         "",
         "    \ud83d\udd12 Critical Safety Fixes: Database & Auto-Delete Protection",
@@ -159,10 +159,10 @@
         "    ",
         "    \ud83e\udd16 Generated with [Claude Code](https://claude.ai/code)",
         "    ",
-        "    Co-Authored-By: Claude <noreply@anthropic.com>",
+        "    Co-Authored-By: Claude <user@example.com>",
         "",
         "commit 20a833ad3a71d0efb69552727ef370ff0a9b7380",
-        "Author: RT Max <thebearwithabite@gmail.com>",
+        "Author: RT Max <user@example.com>",
         "Date:   Thu Aug 28 19:33:14 2025 -0700",
         "",
         "    Complete AI File Organizer with AudioAI Integration and macOS Admin UI",
@@ -213,7 +213,7 @@
         "    ",
         "    \ud83e\udd16 Generated with [Claude Code](https://claude.ai/code)",
         "    ",
-        "    Co-Authored-By: Claude <noreply@anthropic.com>"
+        "    Co-Authored-By: Claude <user@example.com>"
       ],
       "deleted_files": [
         ""
@@ -402,7 +402,7 @@
     "dependencies": {
       "import_references": [
         {
-          "file": "/Users/ryanthomson/Github/ai-file-organizer/investigate_missing_system.py",
+          "file": "/Users/user/Github/ai-file-organizer/investigate_missing_system.py",
           "references": 12
         }
       ],

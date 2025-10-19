@@ -161,7 +161,7 @@ def show_help():
     print("   python monitor_control.py start")
     print("   python monitor_control.py status")
     print("   python monitor_control.py scan")
-    print("   python monitor_control.py scan /Users/ryan/Downloads")
+    print("   python monitor_control.py scan /Users/user/Downloads")
     print()
     print("🔄 The monitor automatically:")
     print("   • Watches staging directory every 30 seconds")
