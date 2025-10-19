@@ -35,9 +35,17 @@ app = FastAPI(
 app.mount("/static", StaticFiles(directory="frontend"), name="static")
 
 # Initialize services
+print("DEBUG: Initializing SystemService...")
 system_service = SystemService()
+print("DEBUG: SystemService initialized.")
+
+print("DEBUG: Initializing SearchService...")
 search_service = SearchService()
+print("DEBUG: SearchService initialized.")
+
+print("DEBUG: Initializing TriageService...")
 triage_service = TriageService()
+print("DEBUG: TriageService initialized.")
 
 @app.get("/")
 async def serve_web_interface():
@@ -181,4 +189,4 @@ async def open_file(request: OpenFileRequest):
 
 if __name__ == "__main__":
     # Run the application directly with python main.py
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000)
