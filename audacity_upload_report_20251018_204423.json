@@ -1,0 +1,36 @@
+{
+  "timestamp": "2025-10-18T20:44:23.722384",
+  "script_version": "1.0",
+  "target_folder": "Audacity Projects",
+  "target_folder_id": "13LwWoybcxJCgCbWEHhCRXvBjPCa7WZHP",
+  "summary": {
+    "total_files": 2,
+    "successful_uploads": 2,
+    "failed_uploads": 0,
+    "local_files_removed": 2,
+    "total_space_freed_mb": 2359.22265625,
+    "upload_details": [
+      {
+        "file_name": "AlphaGo-Checkpoint Final.aup3",
+        "file_path": "/Users/user/Library/Application Support/audacity/CloudProjects/AlphaGo-Checkpoint Final.aup3",
+        "upload_successful": true,
+        "verification_passed": true,
+        "local_removed": true,
+        "space_freed_mb": 1233.28125,
+        "error": null,
+        "gdrive_file_id": "1EpULYX1oyyl1EQE6qvbnuGkHDtviMMrR"
+      },
+      {
+        "file_name": "CSC.aup3",
+        "file_path": "/Users/user/Library/Application Support/audacity/CloudProjects/CSC.aup3",
+        "upload_successful": true,
+        "verification_passed": true,
+        "local_removed": true,
+        "space_freed_mb": 1125.94140625,
+        "error": null,
+        "gdrive_file_id": "1TML2ttSAsTmdpjrl6zfDAjbvSd9jz8Mu"
+      }
+    ],
+    "errors": []
+  }
+}
