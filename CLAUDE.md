@@ -1,3 +1,7 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 # User's AI File Organizer
 
 ## 🎯 **Why This System Exists**
@@ -78,6 +82,90 @@ User has ADHD and managing file organization is genuinely difficult. This system
 - **gdrive_streamer.py**: On-demand file streaming from Google Drive
 - **background_sync_service.py**: Continuous local/cloud synchronization
 
+### Audio Organizer Inspiration Features:
+- **audio_analyzer.py**: Audio content analysis (BPM, brightness, texture, energy levels)
+- **audioai_organizer.py**: Core adaptive learning system from audio-ai-organizer
+- **Spectral Analysis**: Advanced audio understanding using librosa
+- **Adaptive Learning System**: Learns user patterns and improves over time
+- **Confidence-Based Processing**: Smart interaction modes (smart/minimal/always/never)
+- **Metadata Export**: Excel spreadsheets with comprehensive analysis data
+
+## 🛠️ **Development Commands**
+
+### Setup & Dependencies
+```bash
+# Install Python dependencies
+pip install -r requirements_v3.txt  # Main requirements for v3 system
+pip install -r requirements.txt      # Core dependencies (PyPDF2, chromadb, etc)
+
+# Start web server
+python main.py  # Runs FastAPI server on http://localhost:8000
+```
+
+### Testing Commands
+```bash
+# Run individual test files
+python test_integration.py          # Test complete system integration
+python test_hybrid_architecture.py  # Test Google Drive hybrid setup
+python test_single_file.py         # Test single file classification
+python test_7day_rule.py           # Test 7-day staging rule
+python test_email_integration.py   # Test email extraction
+```
+
+### Audio Analysis Commands (Inspired by audio-ai-organizer)
+```bash
+# Audio content analysis and organization
+python audio_analyzer.py analyze file.mp3    # BPM, brightness, texture analysis
+python audioai_organizer.py --mode smart     # Smart interaction mode (70% confidence)
+python audioai_organizer.py --mode minimal   # Minimal questions (40% confidence)
+python audioai_organizer.py --mode always    # Always ask (100% confidence)
+python audioai_organizer.py --mode never     # Fully automatic (0% confidence)
+
+# Learning system operations
+python audioai_organizer.py --export-learning    # Export classification patterns
+python audioai_organizer.py --import-learning    # Import previous patterns
+python audioai_organizer.py --learning-stats     # Show learning statistics
+```
+
+### 🚨 **MANDATORY PROCESS: Check Critical Files First**
+**BEFORE starting ANY task, read these files for context and process requirements:**
+
+1. **`MANDATORY_WORKFLOW_CHECKLIST.md`** - Process requirements for all work
+2. **`PM_SYSTEM_ANALYSIS_MEMO.md`** - Current project priorities and status  
+3. **`CRITICAL_PROCESS_REFERENCE_INDEX.md`** - Quick navigation and templates
+
+### 🤖 **MANDATORY: Agent Usage Requirements**
+**AFTER checking critical files, use this agent checklist:**
+
+```bash
+# Agent Selection Checklist (ALWAYS use before starting work):
+# □ Multi-step task (>3 steps)? → task-orchestrator
+# □ Code implementation/verification? → testing-debugging-expert  
+# □ Documentation work? → documentation-expert
+# □ UI/UX improvements? → ux-fullstack-designer
+# □ Google Drive operations? → google-drive-api-expert
+# □ Complex research/search? → general-purpose
+
+# Examples of MANDATORY agent use:
+python -c "# Multi-step implementation" # → Use task-orchestrator
+python -c "# After any code changes" # → Use testing-debugging-expert
+python -c "# Any documentation updates" # → Use documentation-expert
+python -c "# Any web interface work" # → Use ux-fullstack-designer
+python -c "# Any Google Drive issues" # → Use google-drive-api-expert
+```
+
+### 📋 **Workflow Automation**
+Use templates from `TODO_TEMPLATES_AGENT_INTEGRATION.py` for automatic agent integration in TodoWrite.
+
+### Development Tips
+- **Agent-First Workflow** - Use specialized agents rather than manual work
+- **No formal linting setup** - maintain clean Python code style
+- **No package manager** - use pip with requirements files
+- **FastAPI server** - Main entry point is `main.py`
+- **Test files** - Individual test scripts, no test framework
+- **Audio Analysis** - Uses librosa, mutagen, OpenAI for spectral analysis
+- **Adaptive Learning** - Pickle files store classification patterns and user corrections
+
 ## 🚀 **How to Use**
 
 ### Quick Search (GUI):
@@ -150,6 +238,200 @@ python easy_rollback_system.py --today
 - **Connects ideas**: Links creative projects to business documents
 - **Learns patterns**: Recognizes User's work style and priorities
 - **Reduces friction**: No manual tagging or complex folder structures
+
+## 🏛️ **High-Level Architecture**
+
+### Core System Flow
+1. **File Ingestion** → Files enter through Downloads/Desktop monitoring or manual input
+2. **Content Extraction** → `content_extractor.py` processes PDFs, DOCX, emails
+3. **Semantic Analysis** → `vector_librarian.py` creates embeddings with ChromaDB
+4. **Classification** → `interactive_classifier.py` determines categories with confidence scores
+5. **User Interaction** → Low-confidence files trigger questions via web UI or CLI
+6. **Organization** → `interactive_organizer.py` moves files to appropriate locations
+7. **Rollback Safety** → `easy_rollback_system.py` logs all operations for undo
+
+### Key Design Patterns
+- **Hybrid Storage**: Google Drive as primary with local caching/streaming
+- **Confidence-Based Actions**: 85% threshold for automatic filing
+- **Learning System**: Tracks user corrections to improve future classifications
+- **ADHD-Optimized UX**: Minimal decisions, visual feedback, easy rollback
+
+### Service Architecture (FastAPI)
+- **SystemService**: Manages system status and Google Drive integration
+- **SearchService**: Handles semantic and keyword search queries
+- **TriageService**: Manages low-confidence file reviews
+- **Web Frontend**: Glassmorphic UI in `/frontend` directory
+
+### Audio-AI-Organizer Inspired Features (Target Implementation)
+
+#### Adaptive Learning System
+```python
+# From audio_organizer_source/audioai_organizer.py - core learning patterns
+class AdaptiveAudioOrganizer:
+    - Pickle-based learning data storage (learning_data.pkl)
+    - Dynamic category discovery (discovered_categories.json)
+    - User correction tracking and pattern recognition
+    - Confidence calibration based on historical accuracy
+```
+
+#### Interaction Modes (4 Levels)
+- **SMART Mode (70% confidence)**: Balanced operation, asks when genuinely uncertain
+- **MINIMAL Mode (40% confidence)**: Quick processing, only very uncertain files
+- **ALWAYS Mode (100% confidence)**: Maximum accuracy, every file gets review
+- **NEVER Mode (0% confidence)**: Fully automatic, bulk processing
+
+#### Advanced Audio Analysis Pipeline
+1. **Spectral Analysis**: librosa extracts tempo, brightness, texture, energy
+2. **Content Classification**: ML distinguishes music/SFX/voice/documents
+3. **Mood Detection**: Energy and harmonic analysis for emotional context
+4. **Pattern Recognition**: Compares against learned user preferences
+5. **Confidence Scoring**: Determines if human input needed
+
+#### Metadata Export System
+- **Excel Spreadsheets**: Comprehensive analysis data with timestamps
+- **Learning Statistics**: Track system improvement over time
+- **Original Filename Preservation**: Complete traceability for rollback
+- **Cross-Reference System**: Files can belong to multiple categories
+
+## 🧠 **Critical Missing Features from Audio-AI-Organizer (SYSTEM-WIDE)**
+
+**Based on analysis of `/Users/user/Github/AI-Audio-Organizer/`, these features should be implemented SYSTEM-WIDE for ALL file types (documents, emails, images, audio, etc.):**
+
+### Universal Adaptive Learning System (Currently Missing)
+```bash
+# SYSTEM-WIDE learning for ALL file types - not just audio
+pip install librosa mutagen pandas openpyxl  # Required dependencies
+
+# Content analysis for any file type
+python content_analyzer.py extract_features file.pdf     # Contract analysis, mood detection
+python content_analyzer.py detect_mood file.mp3         # Audio: contemplative, mysterious, energetic  
+python content_analyzer.py classify_content file.jpg    # Image: professional, creative, personal
+python content_analyzer.py analyze_email message.emlx   # Email: project-related, client communication
+python content_analyzer.py detect_patterns file.docx    # Document: script, contract, creative writing
+```
+
+### Universal Adaptive Learning System Architecture
+```python
+# Adapted from AI-Audio-Organizer: SYSTEM-WIDE for ALL file types
+04_METADATA_SYSTEM/
+├── learning_data.pkl          # ALL file type classification history
+├── discovered_categories.json # Dynamic category discovery (contracts, creative, etc.)
+├── file_metadata_YYYYMMDD.xlsx   # Excel export for ALL files
+├── email_patterns.pkl         # Email-specific learning patterns
+├── document_patterns.pkl      # PDF/DOCX learning patterns  
+└── multimedia_patterns.pkl    # Audio/image/video patterns
+
+# UNIVERSAL learning data structure for ALL file types:
+learning_data = {
+    'classifications': [],      # AI decisions for PDFs, emails, audio, images, etc.
+    'user_corrections': [],     # User feedback for ALL file types
+    'patterns': defaultdict(list),  # Contract patterns, creative patterns, etc.
+    'filename_patterns': defaultdict(list),  # Patterns across ALL file types
+    'content_patterns': defaultdict(list),   # Document content, email themes, etc.
+    'client_patterns': defaultdict(list),    # Entertainment industry client patterns
+    'project_patterns': defaultdict(list)    # Creative project patterns
+}
+```
+
+### Smart Folder Structure (Target Implementation)
+```
+01_UNIVERSAL_ASSETS/
+├── MUSIC_LIBRARY/by_mood/
+│   ├── contemplative/
+│   ├── tension_building/
+│   ├── mysterious/
+│   └── wonder_discovery/
+├── SFX_LIBRARY/by_category/
+│   ├── consciousness/thought_processing/
+│   ├── human_elements/breathing_heartbeat/
+│   ├── environmental/abstract_conceptual/
+│   └── technology/digital_synthetic/
+└── VOICE_ELEMENTS/
+    ├── narrator_banks/
+    ├── processed_vocals/
+    └── character_voices/
+```
+
+### Filename Enhancement System
+```python
+# Semantic preservation with metadata integration
+# Before: "88bpm_play playful_childlike_beat_ES_February_Moon.mp3"
+# After:  "playful_childlike_February_Moon_Instrumental_MUS_88bpm_CONT_E7.mp3"
+
+# Enhancement includes:
+- Original semantic meaning preservation
+- BPM detection and tagging
+- Energy level classification (E1-E10)
+- Mood abbreviations (CONT=contemplative, MYST=mysterious)
+- Content type codes (MUS=music, SFX=sound effects, VOX=voice)
+```
+
+### Universal Interactive Batch Processing
+```python
+# SYSTEM-WIDE interactive processing for ALL file types
+organizer.interactive_batch_process(
+    file_list,  # Can be PDFs, emails, audio, images, any file type
+    confidence_threshold=0.7,  # Ask when uncertain about ANY file
+    preview_content=True,      # Preview PDFs, play audio, show images
+    dry_run=True              # Test mode for all file types
+)
+
+# Universal interaction modes for ALL file types:
+# SMART (70%) - Ask about uncertain contracts, emails, audio, etc.
+# MINIMAL (40%) - Only ask about very uncertain files of any type
+# ALWAYS (100%) - Human review for every file (contracts, creative, etc.)
+# NEVER (0%) - Fully automatic for all file types
+
+# Examples of system-wide learning:
+- "Client contract" patterns learned and applied to new contracts
+- "Creative project" email patterns applied to similar communications  
+- "Podcast episode" file patterns for creative content organization
+- "Business document" classification improving over time
+```
+
+### Advanced Pattern Recognition
+```python
+# Filename pattern analysis for content hints
+descriptors = {
+    'ambient': ['ambient', 'atmosphere', 'background'],
+    'percussion': ['drum', 'beat', 'rhythm', 'kick'],
+    'vocal': ['vocal', 'voice', 'speech', 'dialogue'], 
+    'nature': ['nature', 'wind', 'rain', 'forest'],
+    'mechanical': ['robot', 'machine', 'tech', 'digital'],
+    'emotional': ['sad', 'happy', 'dark', 'calm', 'tense']
+}
+```
+
+## 🚨 **Implementation Priority for SYSTEM-WIDE Features**
+
+1. **Universal Content Analysis Pipeline**: 
+   - Audio: librosa integration for BPM/mood detection
+   - Documents: PDF content analysis, contract section detection
+   - Emails: Subject/sender pattern recognition
+   - Images: Computer vision for professional vs creative content
+
+2. **Universal Adaptive Learning System**: 
+   - Pickle-based learning with user corrections for ALL file types
+   - Cross-file-type pattern recognition (email→document→audio connections)
+   - Entertainment industry specific learning (client names, project types)
+
+3. **System-Wide Interaction Modes**: 
+   - 4-level confidence system (SMART/MINIMAL/ALWAYS/NEVER) for ALL files
+   - ADHD-friendly questioning for contracts, creative files, emails, etc.
+
+4. **Universal Metadata Export**: 
+   - Excel spreadsheets with analysis data for ALL file types
+   - Cross-reference system linking related documents/emails/audio
+
+5. **Dynamic Category Discovery**: 
+   - Auto-discover new categories from ALL content types
+   - Learn entertainment industry patterns, creative project themes
+
+6. **Universal Filename Enhancement**: 
+   - Semantic preservation + metadata integration for ALL file types
+   - Client-aware naming (entertainment industry context)
+
+**The goal: The system learns from your corrections on a contract and applies that knowledge to emails, creative files, and audio - creating a truly intelligent, unified file management system.**
 
 ## 🔧 **Technical Details**
 

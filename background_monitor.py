@@ -27,7 +27,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('/Users/user/Github/ai-file-organizer/monitor.log'),
+        logging.FileHandler(str(Path(__file__).parent / 'logs' / 'monitor.log')),
         logging.StreamHandler()
     ]
 )
