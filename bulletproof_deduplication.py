@@ -77,12 +77,24 @@ class BulletproofDeduplicator:
         Used for initial duplicate detection
         """
         try:
+            # Skip symlinks and special files
+            if file_path.is_symlink():
+                return None
+
+            # Check file size - warn about large files
+            file_size = file_path.stat().st_size
+            if file_size > 1024 * 1024 * 100:  # 100MB
+                print(f"   ⏸️  Large file ({file_size / (1024*1024):.1f}MB): {file_path.name}")
+
             with open(file_path, 'rb') as f:
                 # Read first 64KB for quick hash - catches most duplicates
                 content = f.read(65536)
                 return hashlib.md5(content).hexdigest()
+        except (PermissionError, OSError) as e:
+            # Skip files we can't read (locked, network, etc.)
+            return None
         except Exception as e:
-            print(f"⚠️ Quick hash error for {file_path}: {e}")
+            print(f"⚠️ Quick hash error for {file_path.name}: {e}")
             return None
     
     def calculate_secure_hash(self, file_path: Path) -> Optional[str]:
@@ -91,14 +103,21 @@ class BulletproofDeduplicator:
         Used for cryptographic certainty before deletion
         """
         try:
+            # Skip symlinks and special files
+            if file_path.is_symlink():
+                return None
+
             sha256_hash = hashlib.sha256()
             with open(file_path, 'rb') as f:
                 # Read file in chunks for memory efficiency
                 for chunk in iter(lambda: f.read(4096), b""):
                     sha256_hash.update(chunk)
             return sha256_hash.hexdigest()
+        except (PermissionError, OSError) as e:
+            # Skip files we can't read (locked, network, etc.)
+            return None
         except Exception as e:
-            print(f"⚠️ Secure hash error for {file_path}: {e}")
+            print(f"⚠️ Secure hash error for {file_path.name}: {e}")
             return None
     
     def calculate_safety_score(self, file_path: Path, duplicate_group: List[Dict]) -> float:
@@ -146,7 +165,7 @@ class BulletproofDeduplicator:
         
         return min(1.0, max(0.0, score))
     
-    def scan_directory(self, directory: Path, execute: bool = False) -> Dict:
+    def scan_directory(self, directory: Path, execute: bool = False, safety_threshold: float = 0.7) -> Dict:
         """
         Scan directory for duplicates using two-tier hashing
         
@@ -180,18 +199,28 @@ class BulletproofDeduplicator:
                 all_files.append(file_path)
         
         print(f"📁 Found {len(all_files)} files to analyze")
-        
+
         # Group files by quick hash (Tier 1 screening)
         print("⚡ Tier 1: Quick MD5 screening...")
         quick_hash_groups = {}
-        
-        for file_path in all_files:
+        skipped_files = 0
+
+        for i, file_path in enumerate(all_files):
+            # Show progress every 50 files
+            if (i + 1) % 50 == 0 or (i + 1) == len(all_files):
+                print(f"   Progress: {i + 1}/{len(all_files)} files ({((i+1)/len(all_files)*100):.1f}%)")
+
             quick_hash = self.calculate_quick_hash(file_path)
             if quick_hash:
                 if quick_hash not in quick_hash_groups:
                     quick_hash_groups[quick_hash] = []
                 quick_hash_groups[quick_hash].append(file_path)
-        
+            else:
+                skipped_files += 1
+
+        if skipped_files > 0:
+            print(f"   ⏭️  Skipped {skipped_files} files (locked, symlinks, or inaccessible)")
+
         results["scanned_files"] = len(all_files)
         
         # Find potential duplicates (groups with multiple files)
@@ -203,14 +232,19 @@ class BulletproofDeduplicator:
         
         print(f"🔍 Found {len(potential_duplicates)} potential duplicate groups")
         print("🔒 Tier 2: SHA-256 bulletproof verification...")
-        
+
         # Verify with SHA-256 (Tier 2 verification)
         confirmed_duplicates = {}
-        
-        for quick_hash, file_list in potential_duplicates.items():
+        total_groups = len(potential_duplicates)
+
+        for group_idx, (quick_hash, file_list) in enumerate(potential_duplicates.items()):
+            # Show progress for verification phase
+            if (group_idx + 1) % 10 == 0 or (group_idx + 1) == total_groups:
+                print(f"   Verifying group {group_idx + 1}/{total_groups} ({((group_idx+1)/total_groups*100):.1f}%)")
+
             # Calculate secure hashes for this group
             secure_hash_groups = {}
-            
+
             for file_path in file_list:
                 secure_hash = self.calculate_secure_hash(file_path)
                 if secure_hash:
@@ -221,7 +255,7 @@ class BulletproofDeduplicator:
                         'size': file_path.stat().st_size,
                         'mtime': file_path.stat().st_mtime
                     })
-            
+
             # Only groups with multiple files are true duplicates
             for secure_hash, duplicate_group in secure_hash_groups.items():
                 if len(duplicate_group) > 1:
@@ -255,7 +289,7 @@ class BulletproofDeduplicator:
             # Keep the original (lowest safety score) and mark others for deletion
             files_to_keep = 1
             for i, (file_path, safety_score, file_size) in enumerate(file_scores):
-                if i >= files_to_keep and safety_score > 0.7:  # High safety threshold
+                if i >= files_to_keep and safety_score > safety_threshold:  # Use configurable safety threshold
                     results["safe_to_delete"] += 1
                     results["space_recoverable"] += file_size
                     
@@ -304,7 +338,7 @@ def main():
     print("🔒 Two-Tier Hashing: MD5 (screening) + SHA-256 (verification)")
     print(f"⚖️  Safety threshold: {args.safety_threshold}")
     
-    results = deduplicator.scan_directory(directory, args.execute)
+    results = deduplicator.scan_directory(directory, args.execute, args.safety_threshold)
     
     if results.get("errors"):
         print("\n❌ ERRORS:")
