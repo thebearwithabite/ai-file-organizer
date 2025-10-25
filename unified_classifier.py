@@ -233,16 +233,39 @@ class UnifiedClassificationService:
 
     def _classify_audio_file(self, file_path: Path) -> Dict[str, Any]:
         """
-        Classify audio file using the integrated AudioAnalyzer with AI-powered analysis.
+        Classify audio file using the integrated AudioAnalyzer with AI-powered analysis
+        and spectral analysis using librosa.
         """
         try:
-            # Use AudioAnalyzer for intelligent classification
+            # Perform spectral analysis first (works without OpenAI API)
+            spectral_result = self.audio_analyzer.analyze_audio_spectral(file_path, max_duration=30)
+
+            # Use AudioAnalyzer for intelligent classification (requires OpenAI API)
             classification_result = self.audio_analyzer.classify_audio_file(file_path)
-            
+
             if classification_result:
+                # Merge spectral analysis with AI classification
+                metadata = {
+                    'mood': classification_result.get('mood'),
+                    'intensity': classification_result.get('intensity'),
+                    'energy_level': classification_result.get('energy_level'),
+                    'tags': classification_result.get('tags', []),
+                    'thematic_notes': classification_result.get('thematic_notes'),
+                    'target_folder': classification_result.get('target_folder'),
+                    'discovered_elements': classification_result.get('discovered_elements', [])
+                }
+
+                # Add spectral analysis data if available
+                if spectral_result.get('success'):
+                    metadata['bpm'] = spectral_result.get('bpm', 0)
+                    metadata['spectral_mood'] = spectral_result.get('mood', 'unknown')
+                    metadata['spectral_content_type'] = spectral_result.get('content_type', 'unknown')
+                    metadata['spectral_features'] = spectral_result.get('spectral_features', {})
+                    metadata['energy_level_spectral'] = spectral_result.get('energy_level_scale', 0)
+
                 # Convert AudioAnalyzer result to unified format
                 return {
-                    'source': 'Audio Classifier (AI-Powered)',
+                    'source': 'Audio Classifier (AI + Spectral Analysis)',
                     'category': classification_result.get('category', 'audio'),
                     'confidence': classification_result.get('confidence', 0.0),
                     'reasoning': [
@@ -250,23 +273,22 @@ class UnifiedClassificationService:
                         f"Mood: {classification_result.get('mood', 'unknown')}",
                         f"Intensity: {classification_result.get('intensity', 'unknown')}",
                         f"Energy Level: {classification_result.get('energy_level', 0)}/10",
+                        f"BPM: {spectral_result.get('bpm', 0):.1f}" if spectral_result.get('success') else "",
+                        f"Spectral Content: {spectral_result.get('content_type', 'unknown')}" if spectral_result.get('success') else "",
                         f"Tags: {', '.join(classification_result.get('tags', []))}"
                     ],
                     'suggested_filename': classification_result.get('suggested_filename', file_path.name),
-                    'metadata': {
-                        'mood': classification_result.get('mood'),
-                        'intensity': classification_result.get('intensity'),
-                        'energy_level': classification_result.get('energy_level'),
-                        'tags': classification_result.get('tags', []),
-                        'thematic_notes': classification_result.get('thematic_notes'),
-                        'target_folder': classification_result.get('target_folder'),
-                        'discovered_elements': classification_result.get('discovered_elements', [])
-                    }
+                    'metadata': metadata
                 }
+
+            # Fallback to spectral-only classification if AI classification unavailable
+            elif spectral_result.get('success'):
+                return self._classify_audio_spectral_only(file_path, spectral_result)
+
             else:
-                # Fallback if AudioAnalyzer fails
+                # Both analyses failed - use basic fallback
                 return self._classify_audio_fallback(file_path)
-                
+
         except Exception as e:
             # Error handling - fallback to basic analysis
             return {
@@ -276,6 +298,49 @@ class UnifiedClassificationService:
                 'reasoning': [f'AudioAnalyzer error: {str(e)}', 'Using basic fallback classification'],
                 'suggested_filename': file_path.name
             }
+
+    def _classify_audio_spectral_only(self, file_path: Path, spectral_result: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Classify audio file using only spectral analysis (when AI classification unavailable)
+        """
+        content_type = spectral_result.get('content_type', 'audio')
+        mood = spectral_result.get('mood', 'ambient')
+        bpm = spectral_result.get('bpm', 0)
+        energy_level = spectral_result.get('energy_level_scale', 0)
+
+        # Map content type to category
+        category_map = {
+            'music': 'music_ambient',
+            'sfx': 'sfx_environmental',
+            'voice': 'voice_element',
+            'ambient': 'music_ambient'
+        }
+        category = category_map.get(content_type, 'audio')
+
+        # Calculate confidence based on spectral analysis quality
+        confidence = 0.6 if spectral_result.get('success') else 0.3
+
+        return {
+            'source': 'Audio Classifier (Spectral Analysis Only)',
+            'category': category,
+            'confidence': confidence,
+            'reasoning': [
+                f"Spectral analysis detected: {content_type}",
+                f"Mood: {mood}",
+                f"BPM: {bpm:.1f}",
+                f"Energy Level: {energy_level}/10",
+                "Note: AI classification unavailable, using spectral analysis only"
+            ],
+            'suggested_filename': file_path.name,
+            'metadata': {
+                'mood': mood,
+                'bpm': bpm,
+                'content_type': content_type,
+                'energy_level': energy_level,
+                'spectral_features': spectral_result.get('spectral_features', {}),
+                'spectral_only': True
+            }
+        }
 
     def _classify_audio_fallback(self, file_path: Path) -> Dict[str, Any]:
         """
