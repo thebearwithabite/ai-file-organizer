@@ -97,6 +97,10 @@ class UniversalAdaptiveLearning:
         self.patterns: Dict[str, AdaptivePattern] = self._load_patterns()
         self.user_preferences: Dict[str, UserPreference] = self._load_preferences()
         self.stats = self._load_stats()
+
+        # Visual pattern storage for image/video learning
+        self.visual_patterns_file = self.learning_dir / "visual_patterns.pkl"
+        self.visual_patterns = self._load_visual_patterns()
         
         # Learning configuration
         self.config = {
@@ -207,7 +211,7 @@ class UniversalAdaptiveLearning:
                     return json.load(f)
             except Exception as e:
                 self.logger.warning(f"Could not load stats: {e}")
-        
+
         return {
             "total_learning_events": 0,
             "patterns_discovered": 0,
@@ -216,6 +220,24 @@ class UniversalAdaptiveLearning:
             "last_updated": datetime.now().isoformat(),
             "confidence_trends": [],
             "most_common_corrections": []
+        }
+
+    def _load_visual_patterns(self) -> Dict[str, Any]:
+        """Load visual patterns from pickle file"""
+        if self.visual_patterns_file.exists():
+            try:
+                with open(self.visual_patterns_file, 'rb') as f:
+                    return pickle.load(f)
+            except Exception as e:
+                self.logger.warning(f"Could not load visual patterns: {e}")
+
+        # Initialize default visual pattern structure
+        return {
+            'objects_detected': defaultdict(list),
+            'scene_types': defaultdict(list),
+            'screenshot_contexts': defaultdict(list),
+            'visual_keywords': defaultdict(list),
+            'category_frequencies': defaultdict(int)
         }
 
     def save_all_data(self):
@@ -958,16 +980,115 @@ class UniversalAdaptiveLearning:
     def _extract_keywords(self, text: str) -> List[str]:
         """Extract relevant keywords from text"""
         import re
-        
+
         # Remove file extension and common words
         text = re.sub(r'\.[^.]*$', '', text)  # Remove extension
         words = re.findall(r'\b[a-zA-Z]{3,}\b', text.lower())  # Words with 3+ chars
-        
+
         # Filter out common words
         stop_words = {"the", "and", "for", "are", "but", "not", "you", "all", "can", "had", "her", "was", "one", "our", "out", "day", "get", "has", "him", "his", "how", "its", "may", "new", "now", "old", "see", "two", "who", "boy", "did", "man", "men", "put", "say", "she", "too", "use"}
-        
+
         keywords = [word for word in words if word not in stop_words]
         return keywords[:10]  # Return top 10 keywords
+
+    def record_classification(self,
+                            file_path: str,
+                            predicted_category: str,
+                            confidence: float,
+                            features: Dict[str, Any] = None) -> str:
+        """
+        Record a classification for learning system integration.
+        Used by audio, vision, and document classifiers to build pattern library.
+
+        Args:
+            file_path: Path to the classified file
+            predicted_category: Category predicted by classifier
+            confidence: Confidence score (0.0-1.0)
+            features: Feature dictionary (keywords, visual_objects, audio_features, etc.)
+
+        Returns:
+            Event ID
+        """
+
+        # Create a learning event from the classification
+        original_prediction = {
+            "category": predicted_category,
+            "confidence": confidence,
+            "features": features or {}
+        }
+
+        # For initial classifications (no user correction yet),
+        # user_action is same as prediction
+        user_action = {
+            "target_category": predicted_category
+        }
+
+        # Create context from features
+        context = features or {}
+
+        # Record as a learning event
+        event_id = self.record_learning_event(
+            event_type="classification",
+            file_path=file_path,
+            original_prediction=original_prediction,
+            user_action=user_action,
+            confidence_before=confidence,
+            context=context
+        )
+
+        # Update visual patterns if this is a visual file
+        if features and ('visual_objects' in features or 'keywords' in features):
+            self._update_visual_patterns_from_classification(
+                file_path,
+                predicted_category,
+                features
+            )
+
+        return event_id
+
+    def _update_visual_patterns_from_classification(self,
+                                                   file_path: str,
+                                                   category: str,
+                                                   features: Dict[str, Any]):
+        """
+        Update visual patterns from a classification event.
+        Integrates with VisionAnalyzer patterns.
+
+        Args:
+            file_path: Path to the visual file
+            category: Predicted category
+            features: Feature dictionary from vision analysis
+        """
+
+        # Extract visual features
+        visual_objects = features.get('visual_objects', [])
+        keywords = features.get('keywords', [])
+        scene_type = features.get('scene_type', 'unknown')
+
+        # Update visual pattern storage
+        if visual_objects:
+            for obj in visual_objects:
+                if obj not in self.visual_patterns['objects_detected'][category]:
+                    self.visual_patterns['objects_detected'][category].append(obj)
+
+        if keywords:
+            for keyword in keywords:
+                if keyword not in self.visual_patterns['visual_keywords'][category]:
+                    self.visual_patterns['visual_keywords'][category].append(keyword)
+
+        if scene_type != 'unknown':
+            if category not in self.visual_patterns['scene_types'][scene_type]:
+                self.visual_patterns['scene_types'][scene_type].append(category)
+
+        # Update category frequency
+        self.visual_patterns['category_frequencies'][category] += 1
+
+        # Save visual patterns
+        try:
+            with open(self.visual_patterns_file, 'wb') as f:
+                pickle.dump(self.visual_patterns, f)
+        except Exception as e:
+            self.logger.warning(f"Could not save visual patterns: {e}")
 
     def get_learning_summary(self) -> Dict[str, Any]:
         """Get a summary of what the system has learned"""
