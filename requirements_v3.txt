@@ -8,3 +8,5 @@ pandas
 openpyxl
 numpy
 mutagen
+google-generativeai>=0.3.0
+Pillow>=10.0.0
