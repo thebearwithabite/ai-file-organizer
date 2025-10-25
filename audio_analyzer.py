@@ -28,6 +28,14 @@ except ImportError:
     OPENAI_AVAILABLE = False
     print("Warning: OpenAI not available. AI classification will be disabled.")
 
+try:
+    import librosa
+    import numpy as np
+    LIBROSA_AVAILABLE = True
+except ImportError:
+    LIBROSA_AVAILABLE = False
+    print("Warning: librosa not available. Spectral analysis will be disabled.")
+
 
 class AudioAnalyzer:
     """
@@ -181,20 +189,197 @@ class AudioAnalyzer:
         """Extract audio metadata using mutagen"""
         if not MUTAGEN_AVAILABLE:
             return {'duration': 'Unknown', 'bitrate': 'Unknown', 'sample_rate': 'Unknown'}
-        
+
         try:
             audio_file = mutagen.File(file_path)
             if audio_file is not None:
                 duration = audio_file.info.length
                 return {
                     'duration': f"{int(duration // 60)}:{int(duration % 60):02d}",
+                    'duration_seconds': duration,
                     'bitrate': getattr(audio_file.info, 'bitrate', 'Unknown'),
                     'sample_rate': getattr(audio_file.info, 'sample_rate', 'Unknown')
                 }
         except Exception as e:
             print(f"Could not read metadata for {file_path}: {e}")
-        
-        return {'duration': 'Unknown', 'bitrate': 'Unknown', 'sample_rate': 'Unknown'}
+
+        return {'duration': 'Unknown', 'duration_seconds': 0, 'bitrate': 'Unknown', 'sample_rate': 'Unknown'}
+
+    def analyze_audio_spectral(self, file_path: Path, max_duration: int = 60) -> Dict[str, Any]:
+        """
+        Perform spectral analysis on audio file using librosa
+
+        Args:
+            file_path: Path to audio file
+            max_duration: Maximum duration to analyze in seconds (default 60s to save time)
+
+        Returns:
+            Dictionary with spectral features including BPM, energy, brightness, etc.
+        """
+        if not LIBROSA_AVAILABLE:
+            return {
+                'success': False,
+                'error': 'librosa not available',
+                'bpm': 0,
+                'energy_level': 0.0,
+                'spectral_features': {}
+            }
+
+        try:
+            # Load audio file (limit to max_duration to save processing time)
+            y, sr = librosa.load(str(file_path), duration=max_duration, sr=None)
+
+            # Detect BPM (tempo)
+            tempo, beat_frames = librosa.beat.beat_track(y=y, sr=sr)
+            bpm = float(tempo)
+
+            # Calculate spectral features
+            spectral_centroids = librosa.feature.spectral_centroid(y=y, sr=sr)[0]
+            spectral_rolloff = librosa.feature.spectral_rolloff(y=y, sr=sr)[0]
+            spectral_bandwidth = librosa.feature.spectral_bandwidth(y=y, sr=sr)[0]
+            zero_crossing_rate = librosa.feature.zero_crossing_rate(y)[0]
+
+            # Calculate RMS energy
+            rms = librosa.feature.rms(y=y)[0]
+
+            # Separate harmonic and percussive components
+            y_harmonic, y_percussive = librosa.effects.hpss(y)
+
+            # Calculate harmonic/percussive ratio
+            harmonic_energy = np.sum(y_harmonic ** 2)
+            percussive_energy = np.sum(y_percussive ** 2)
+            total_energy = harmonic_energy + percussive_energy
+            harmonic_ratio = harmonic_energy / total_energy if total_energy > 0 else 0
+
+            # Determine brightness (high frequency content)
+            brightness = float(np.mean(spectral_centroids))
+            brightness_normalized = min(1.0, brightness / 4000.0)  # Normalize to 0-1
+
+            # Determine texture based on spectral features
+            texture = self._determine_texture(
+                spectral_bandwidth=np.mean(spectral_bandwidth),
+                zero_crossing_rate=np.mean(zero_crossing_rate),
+                harmonic_ratio=harmonic_ratio
+            )
+
+            # Calculate energy level (0.0 to 1.0)
+            energy_level = float(np.mean(rms))
+            energy_level_normalized = min(1.0, energy_level * 10)  # Normalize
+
+            # Calculate energy level as 0-10 scale
+            energy_level_scale = int(energy_level_normalized * 10)
+
+            # Determine mood based on spectral features
+            mood = self._determine_mood_from_spectral(
+                bpm=bpm,
+                energy_level=energy_level_normalized,
+                brightness=brightness_normalized,
+                harmonic_ratio=harmonic_ratio
+            )
+
+            # Determine content type (music vs SFX vs voice)
+            content_type = self._determine_content_type(
+                harmonic_ratio=harmonic_ratio,
+                zero_crossing_rate=np.mean(zero_crossing_rate),
+                spectral_centroid=brightness
+            )
+
+            return {
+                'success': True,
+                'bpm': bpm,
+                'energy_level': energy_level_normalized,
+                'energy_level_scale': energy_level_scale,
+                'mood': mood,
+                'content_type': content_type,
+                'spectral_features': {
+                    'brightness': brightness,
+                    'brightness_normalized': brightness_normalized,
+                    'texture': texture,
+                    'harmonic_ratio': harmonic_ratio,
+                    'spectral_centroid_mean': float(np.mean(spectral_centroids)),
+                    'spectral_rolloff_mean': float(np.mean(spectral_rolloff)),
+                    'spectral_bandwidth_mean': float(np.mean(spectral_bandwidth)),
+                    'zero_crossing_rate_mean': float(np.mean(zero_crossing_rate)),
+                    'rms_energy_mean': float(np.mean(rms))
+                },
+                'analysis_duration': max_duration
+            }
+
+        except Exception as e:
+            print(f"Spectral analysis failed for {file_path.name}: {e}")
+            return {
+                'success': False,
+                'error': str(e),
+                'bpm': 0,
+                'energy_level': 0.0,
+                'spectral_features': {}
+            }
+
+    def _determine_texture(self, spectral_bandwidth: float, zero_crossing_rate: float, harmonic_ratio: float) -> str:
+        """Determine audio texture based on spectral features"""
+        if harmonic_ratio > 0.7:
+            if spectral_bandwidth < 1000:
+                return 'smooth'
+            else:
+                return 'rich'
+        elif harmonic_ratio < 0.3:
+            if zero_crossing_rate > 0.1:
+                return 'rough'
+            else:
+                return 'percussive'
+        else:
+            return 'mixed'
+
+    def _determine_mood_from_spectral(self, bpm: float, energy_level: float, brightness: float, harmonic_ratio: float) -> str:
+        """Determine mood based on spectral analysis"""
+        # High energy, fast tempo
+        if energy_level > 0.7 and bpm > 140:
+            return 'energetic'
+
+        # High energy, moderate tempo
+        elif energy_level > 0.6 and bpm > 100:
+            return 'uplifting'
+
+        # Low energy, slow tempo, dark
+        elif energy_level < 0.4 and bpm < 90 and brightness < 0.4:
+            return 'contemplative'
+
+        # Low energy, slow tempo, bright
+        elif energy_level < 0.4 and bpm < 90 and brightness > 0.5:
+            return 'calm'
+
+        # Moderate energy, dissonant (low harmonic ratio)
+        elif harmonic_ratio < 0.4 and energy_level > 0.5:
+            return 'tense'
+
+        # Low harmonic, slow
+        elif harmonic_ratio < 0.5 and bpm < 100:
+            return 'mysterious'
+
+        # Moderate tempo, moderate energy
+        elif 90 <= bpm <= 130 and 0.4 <= energy_level <= 0.6:
+            return 'melancholic'
+
+        else:
+            return 'ambient'
+
+    def _determine_content_type(self, harmonic_ratio: float, zero_crossing_rate: float, spectral_centroid: float) -> str:
+        """Determine content type (music, SFX, voice, ambient) based on spectral features"""
+        # Voice typically has specific harmonic characteristics
+        if 0.5 < harmonic_ratio < 0.8 and 1500 < spectral_centroid < 3500:
+            return 'voice'
+
+        # Music typically has high harmonic content
+        elif harmonic_ratio > 0.6:
+            return 'music'
+
+        # SFX typically has high zero-crossing rate and low harmonic ratio
+        elif zero_crossing_rate > 0.15 or harmonic_ratio < 0.3:
+            return 'sfx'
+
+        # Ambient/atmospheric
+        else:
+            return 'ambient'
     
     def analyze_filename_patterns(self, filename: str) -> List[str]:
         """Extract patterns from filename that might indicate content type"""

@@ -101,6 +101,10 @@ class UniversalAdaptiveLearning:
         # Visual pattern storage for image/video learning
         self.visual_patterns_file = self.learning_dir / "visual_patterns.pkl"
         self.visual_patterns = self._load_visual_patterns()
+
+        # Audio pattern storage for audio learning
+        self.audio_patterns_file = self.learning_dir / "audio_patterns.pkl"
+        self.audio_patterns = self._load_audio_patterns()
         
         # Learning configuration
         self.config = {
@@ -238,6 +242,26 @@ class UniversalAdaptiveLearning:
             'screenshot_contexts': defaultdict(list),
             'visual_keywords': defaultdict(list),
             'category_frequencies': defaultdict(int)
+        }
+
+    def _load_audio_patterns(self) -> Dict[str, Any]:
+        """Load audio patterns from pickle file"""
+        if self.audio_patterns_file.exists():
+            try:
+                with open(self.audio_patterns_file, 'rb') as f:
+                    return pickle.load(f)
+            except Exception as e:
+                self.logger.warning(f"Could not load audio patterns: {e}")
+
+        # Initialize default audio pattern structure
+        return {
+            'bpm_ranges': defaultdict(list),  # BPM ranges by category
+            'moods': defaultdict(list),  # Mood associations by category
+            'content_types': defaultdict(list),  # music, SFX, voice, ambient
+            'energy_levels': defaultdict(list),  # Energy level ranges by category
+            'spectral_features': defaultdict(list),  # Spectral characteristics
+            'audio_keywords': defaultdict(list),  # Keywords from audio analysis
+            'category_frequencies': defaultdict(int)  # Category usage frequency
         }
 
     def save_all_data(self):
@@ -1044,6 +1068,14 @@ class UniversalAdaptiveLearning:
                 features
             )
 
+        # Update audio patterns if this is an audio file
+        if features and ('bpm' in features or 'mood' in features or 'audio_features' in features):
+            self._update_audio_patterns_from_classification(
+                file_path,
+                predicted_category,
+                features
+            )
+
         return event_id
 
     def _update_visual_patterns_from_classification(self,
@@ -1089,6 +1121,66 @@ class UniversalAdaptiveLearning:
                 pickle.dump(self.visual_patterns, f)
         except Exception as e:
             self.logger.warning(f"Could not save visual patterns: {e}")
+
+    def _update_audio_patterns_from_classification(self,
+                                                   file_path: str,
+                                                   category: str,
+                                                   features: Dict[str, Any]):
+        """
+        Update audio patterns from a classification event.
+        Integrates with AudioAnalyzer patterns.
+
+        Args:
+            file_path: Path to the audio file
+            category: Predicted category
+            features: Feature dictionary from audio analysis
+        """
+
+        # Extract audio features
+        bpm = features.get('bpm', 0)
+        mood = features.get('mood', 'unknown')
+        content_type = features.get('content_type', 'unknown')
+        energy_level = features.get('energy_level', 0.0)
+        audio_keywords = features.get('audio_keywords', features.get('keywords', []))
+        spectral_features = features.get('spectral_features', {})
+
+        # Update BPM ranges by category
+        if bpm > 0:
+            self.audio_patterns['bpm_ranges'][category].append(bpm)
+
+        # Update mood associations
+        if mood != 'unknown':
+            if mood not in self.audio_patterns['moods'][category]:
+                self.audio_patterns['moods'][category].append(mood)
+
+        # Update content type associations
+        if content_type != 'unknown':
+            if content_type not in self.audio_patterns['content_types'][category]:
+                self.audio_patterns['content_types'][category].append(content_type)
+
+        # Update energy levels
+        if energy_level > 0:
+            self.audio_patterns['energy_levels'][category].append(energy_level)
+
+        # Update audio keywords
+        if audio_keywords:
+            for keyword in audio_keywords:
+                if keyword not in self.audio_patterns['audio_keywords'][category]:
+                    self.audio_patterns['audio_keywords'][category].append(keyword)
+
+        # Update spectral feature patterns
+        if spectral_features:
+            self.audio_patterns['spectral_features'][category].append(spectral_features)
+
+        # Update category frequency
+        self.audio_patterns['category_frequencies'][category] += 1
+
+        # Save audio patterns
+        try:
+            with open(self.audio_patterns_file, 'wb') as f:
+                pickle.dump(self.audio_patterns, f)
+        except Exception as e:
+            self.logger.warning(f"Could not save audio patterns: {e}")
 
     def get_learning_summary(self) -> Dict[str, Any]:
         """Get a summary of what the system has learned"""
