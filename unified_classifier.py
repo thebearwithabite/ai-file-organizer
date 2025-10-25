@@ -13,10 +13,10 @@ from typing import Dict, Any
 # Import the analysis engines that will be integrated
 from content_extractor import ContentExtractor
 from audio_analyzer import AudioAnalyzer
-# from vision_analyzer import VisionAnalyzer # Future implementation
+from vision_analyzer import VisionAnalyzer
 
 # Import the learning system
-# from unified_learning_service import UnifiedLearningService # Will be created
+from universal_adaptive_learning import UniversalAdaptiveLearning
 
 class UnifiedClassificationService:
     """
@@ -26,19 +26,43 @@ class UnifiedClassificationService:
     def __init__(self):
         """Initialize all necessary subsystems."""
         print("Initializing Unified Classification Service...")
-        # self.learning_service = UnifiedLearningService()
+
+        # Initialize base directory
         self.text_analyzer = ContentExtractor()
-        
+        base_dir = getattr(self.text_analyzer, 'base_dir', os.getcwd())
+        self.base_dir = Path(base_dir)
+
+        # Initialize learning system
+        try:
+            self.learning_system = UniversalAdaptiveLearning(base_dir=str(self.base_dir))
+            self.learning_enabled = True
+            print("✅ Adaptive learning system initialized")
+        except Exception as e:
+            self.learning_system = None
+            self.learning_enabled = False
+            print(f"⚠️  Adaptive learning disabled: {e}")
+
         # Initialize AudioAnalyzer with OpenAI API key from environment
         openai_api_key = os.getenv('OPENAI_API_KEY')
-        base_dir = getattr(self.text_analyzer, 'base_dir', os.getcwd())
         self.audio_analyzer = AudioAnalyzer(
             base_dir=base_dir,
             confidence_threshold=0.7,
             openai_api_key=openai_api_key
         )
-        
-        # self.vision_analyzer = VisionAnalyzer() # Placeholder
+
+        # Initialize VisionAnalyzer with Gemini API
+        try:
+            self.vision_analyzer = VisionAnalyzer(base_dir=str(self.base_dir))
+            self.vision_enabled = self.vision_analyzer.api_initialized
+            if self.vision_enabled:
+                print("✅ Vision analysis enabled with Gemini API")
+            else:
+                print("⚠️  Vision analysis enabled (fallback mode only)")
+        except Exception as e:
+            self.vision_analyzer = None
+            self.vision_enabled = False
+            print(f"⚠️  Vision analysis disabled: {e}")
+
         print("Unified Classification Service Ready.")
 
     def classify_file(self, file_path: Path) -> Dict[str, Any]:
@@ -66,6 +90,8 @@ class UnifiedClassificationService:
             result = self._classify_audio_file(file_path)
         elif file_type == 'image':
             result = self._classify_image_file(file_path)
+        elif file_type == 'video':
+            result = self._classify_video_file(file_path)
         elif file_type == 'text':
             result = self._classify_text_document(file_path)
         else:
@@ -77,12 +103,14 @@ class UnifiedClassificationService:
         return result
 
     def _get_file_type(self, file_path: Path) -> str:
-        """Determine the general file type (audio, image, text, etc.)."""
+        """Determine the general file type (audio, image, video, text, etc.)."""
         extension = file_path.suffix.lower()
         if extension in ['.wav', '.mp3', '.aiff', '.flac', '.m4a']:
             return 'audio'
-        if extension in ['.png', '.jpg', '.jpeg', '.gif', '.webp']:
+        if extension in ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.heic', '.heif']:
             return 'image'
+        if extension in ['.mp4', '.mov', '.avi', '.mkv', '.webm', '.flv']:
+            return 'video'
         if extension in ['.pdf', '.docx', '.txt', '.md']:
             return 'text'
         return 'generic'
@@ -291,62 +319,134 @@ class UnifiedClassificationService:
 
     def _classify_image_file(self, file_path: Path) -> Dict[str, Any]:
         """
-        Interim image classification using filename analysis only.
-        This will be replaced with computer vision analysis.
+        Classify image file using Gemini Vision API
+
+        Args:
+            file_path: Path to image file
+
+        Returns:
+            Classification result with vision analysis
         """
+        if not self.vision_enabled or not self.vision_analyzer:
+            # Fallback to basic classification
+            return self._fallback_classification(file_path, 'image')
+
         try:
-            # Analyze filename for category hints
-            filename = file_path.name.lower()
-            stem = file_path.stem.lower()
+            # Analyze image with Gemini Vision
+            vision_result = self.vision_analyzer.analyze_image(str(file_path))
 
-            category = 'image'  # Default category
-            confidence = 0.3    # Low confidence as this is interim
-            reasoning = ['Computer vision not yet integrated, using filename analysis only']
+            if not vision_result.get('success'):
+                print(f"⚠️  Vision analysis failed for {file_path.name}, using fallback")
+                return self._fallback_classification(file_path, 'image')
 
-            # Simple keyword analysis for category detection
-            if any(keyword in filename for keyword in ['screenshot', 'screen_shot', 'screencap']):
-                category = 'screenshot'
-                confidence = 0.4
-                reasoning.append("Filename contains screenshot keywords")
-            elif any(keyword in filename for keyword in ['headshot', 'portrait', 'profile']):
-                category = 'headshot'
-                confidence = 0.4
-                reasoning.append("Filename contains headshot/portrait keywords")
-            elif any(keyword in filename for keyword in ['logo', 'brand', 'branding']):
-                category = 'logo'
-                confidence = 0.4
-                reasoning.append("Filename contains logo/brand keywords")
-            elif any(keyword in filename for keyword in ['photo', 'picture', 'pic', 'img']):
-                category = 'photo'
-                confidence = 0.3
-                reasoning.append("Filename contains photo keywords")
-            else:
-                reasoning.append("No specific category keywords found in filename")
-
-            # Include file format information
-            file_format = file_path.suffix.lower().lstrip('.')
-            reasoning.append(f"Image format: {file_format}")
-
-            # Note that this is placeholder logic
-            reasoning.append("Note: Full computer vision analysis will be implemented in future updates")
-
-            return {
-                'source': 'Image Classifier (Interim)',
-                'category': category,
-                'confidence': confidence,
-                'reasoning': reasoning,
-                'suggested_filename': file_path.name
+            # Map vision results to unified classification format
+            classification = {
+                'source': 'Image Classifier (Gemini Vision)',
+                'category': vision_result.get('suggested_category', 'image'),
+                'confidence': vision_result.get('confidence_score', 0.0),
+                'reasoning': [
+                    vision_result.get('description', '')[:200],  # Truncate description
+                    f"Scene type: {vision_result.get('scene_type', 'unknown')}",
+                    f"Objects detected: {', '.join(vision_result.get('objects_detected', [])[:3])}"
+                ],
+                'suggested_filename': file_path.name,
+                'metadata': {
+                    'keywords': vision_result.get('keywords', []),
+                    'objects_detected': vision_result.get('objects_detected', []),
+                    'scene_type': vision_result.get('scene_type', 'unknown'),
+                    'text_content': vision_result.get('text_content', ''),
+                    'analysis_timestamp': vision_result.get('metadata', {}).get('analysis_timestamp', '')
+                }
             }
+
+            # Record in learning system if available
+            if self.learning_enabled and self.learning_system:
+                self.learning_system.record_classification(
+                    file_path=str(file_path),
+                    predicted_category=classification['category'],
+                    confidence=classification['confidence'],
+                    features={
+                        'keywords': classification['metadata']['keywords'],
+                        'visual_objects': vision_result.get('objects_detected', []),
+                        'scene_type': vision_result.get('scene_type', '')
+                    }
+                )
+
+            return classification
 
         except Exception as e:
-            # Fallback for any errors
-            return {
-                'source': 'Image Classifier (Interim - Error Fallback)',
-                'category': 'image',
-                'confidence': 0.2,
-                'reasoning': [f'Error during image analysis: {str(e)}', 'Using basic fallback classification'],
-                'suggested_filename': file_path.name
+            print(f"❌ Error classifying image {file_path.name}: {e}")
+            return self._fallback_classification(file_path, 'image')
+
+    def _classify_video_file(self, file_path: Path) -> Dict[str, Any]:
+        """
+        Classify video file using Gemini Vision API
+
+        Args:
+            file_path: Path to video file
+
+        Returns:
+            Classification result with vision analysis
+        """
+        if not self.vision_enabled or not self.vision_analyzer:
+            return self._fallback_classification(file_path, 'video')
+
+        try:
+            # Analyze video with Gemini Vision (2 minute limit)
+            vision_result = self.vision_analyzer.analyze_video(str(file_path))
+
+            if not vision_result.get('success'):
+                print(f"⚠️  Vision analysis failed for {file_path.name}, using fallback")
+                return self._fallback_classification(file_path, 'video')
+
+            # Map vision results to unified classification format
+            classification = {
+                'source': 'Video Classifier (Gemini Vision)',
+                'category': vision_result.get('suggested_category', 'video'),
+                'confidence': vision_result.get('confidence_score', 0.0),
+                'reasoning': [
+                    vision_result.get('description', '')[:200],  # Truncate description
+                    f"Video type detected"
+                ],
+                'suggested_filename': file_path.name,
+                'metadata': {
+                    'keywords': vision_result.get('keywords', []),
+                    'video_type': vision_result.get('metadata', {}).get('video_type', 'unknown'),
+                    'analysis_timestamp': vision_result.get('metadata', {}).get('analysis_timestamp', '')
+                }
             }
+
+            # Record in learning system if available
+            if self.learning_enabled and self.learning_system:
+                self.learning_system.record_classification(
+                    file_path=str(file_path),
+                    predicted_category=classification['category'],
+                    confidence=classification['confidence'],
+                    features={
+                        'keywords': classification['metadata']['keywords'],
+                        'video_type': vision_result.get('metadata', {}).get('video_type', 'unknown')
+                    }
+                )
+
+            return classification
+
+        except Exception as e:
+            print(f"❌ Error classifying video {file_path.name}: {e}")
+            return self._fallback_classification(file_path, 'video')
+
+    def _fallback_classification(self, file_path: Path, file_type: str) -> Dict[str, Any]:
+        """Fallback classification when vision analysis unavailable"""
+        return {
+            'source': f'{file_type.capitalize()} Classifier (Fallback)',
+            'category': 'needs_review',
+            'confidence': 0.3,
+            'reasoning': [f'Vision analysis unavailable, manual review needed for {file_type}'],
+            'suggested_filename': file_path.name,
+            'metadata': {
+                'fallback_mode': True,
+                'file_type': file_type
+            }
+        }
 
     def _classify_generic_file(self, file_path: Path) -> Dict[str, Any]:
         """
