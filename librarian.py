@@ -14,6 +14,7 @@ from query_interface import LocalLibrarian
 from staging_monitor import StagingMonitor
 from content_extractor import ContentExtractor
 from classification_engine import FileClassificationEngine
+from gdrive_integration import get_ai_organizer_root
 
 class LibrarianCLI:
     """
@@ -22,13 +23,13 @@ class LibrarianCLI:
     """
     
     def __init__(self, base_dir: str = None):
-        # Default to CONTENT_LIBRARY_MASTER if it exists, otherwise Documents
+        # Default to CONTENT_LIBRARY_MASTER if it exists, otherwise use Google Drive integration
         if base_dir:
             self.base_dir = Path(base_dir)
         elif (Path.home() / "CONTENT_LIBRARY_MASTER").exists():
             self.base_dir = Path.home() / "CONTENT_LIBRARY_MASTER"
         else:
-            self.base_dir = Path.home() / "Documents"
+            self.base_dir = get_ai_organizer_root()
         
         self.librarian = LocalLibrarian(str(self.base_dir))
         print(f"📚 Local LLM Librarian initialized")

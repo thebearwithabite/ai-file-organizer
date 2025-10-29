@@ -367,10 +367,11 @@ class EasyRollbackSystem:
         """Rollback a local file operation"""
         
         # For local operations, try to find and rename the file
+        from gdrive_integration import get_ai_organizer_root
         possible_locations = [
             Path(operation.new_location) / operation.new_filename,
             Path(operation.original_path),
-            Path.home() / "Documents" / operation.new_filename,
+            get_ai_organizer_root() / operation.new_filename,
             Path.home() / "Downloads" / operation.new_filename,
             Path.home() / "Desktop" / operation.new_filename
         ]
