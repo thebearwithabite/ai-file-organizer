@@ -1,0 +1,57 @@
+{
+  "phase": "3b",
+  "tests": [
+    {
+      "id": "BATCH_01",
+      "description": "Run batch processing on >=3 clips",
+      "input": "/tests/sample_batch/",
+      "expected": {
+        "min_clips": 3,
+        "manifest_exists": true,
+        "avg_confidence_min": 0.7,
+        "no_errors": true
+      }
+    },
+    {
+      "id": "CONTINUITY_02",
+      "description": "Continuity scores computed and in 0–1 range",
+      "expected": {
+        "fields_present": ["pair","visual_similarity","audio_similarity","continuity_score"],
+        "score_range": [0.0,1.0],
+        "recommend_extend_count": ">=1"
+      }
+    },
+    {
+      "id": "MANIFEST_03",
+      "description": "Manifest JSON validates against schema",
+      "expected": {
+        "root_keys": ["project","clips","continuity","summary"],
+        "summary_fields": ["avg_confidence","avg_continuity","total_clips"],
+        "json_valid": true
+      }
+    },
+    {
+      "id": "LEARNING_04",
+      "description": "Adaptive learning module updates after batch",
+      "expected": {
+        "style_memory_updated": true,
+        "new_entries_min": 3,
+        "continuity_scores_logged": true
+      }
+    },
+    {
+      "id": "DATABASE_05",
+      "description": "Database entries created for each processed clip",
+      "expected": {
+        "table_exists": "veo_prompts",
+        "rows_inserted_min": 3,
+        "fields_present": ["file_path","shot_id","confidence_score","created_at"]
+      }
+    }
+  ],
+  "summary": {
+    "all_pass_required": true,
+    "min_success_rate": 1.0,
+    "phase_complete_condition": "ALL_PASS"
+  }
+}
