@@ -144,10 +144,10 @@ class GoogleDriveLibrarian:
             cache_size_gb=cache_size_gb
         )
         
-        # Hybrid search (local + semantic)
-        self.hybrid_librarian = HybridLibrarian(
-            base_dir=str(Path.home() / "Documents")
-        )
+        # Hybrid search (local + semantic) - LAZY LOADED
+        # Don't initialize HybridLibrarian here - it loads heavy SentenceTransformer model
+        self._hybrid_librarian = None
+        self._hybrid_librarian_base_dir = str(Path.home() / "Documents")
         
         # Background sync service
         self.sync_service = None
@@ -168,10 +168,22 @@ class GoogleDriveLibrarian:
         self._last_drive_scan: Optional[datetime] = None
         self._drive_file_cache: Dict[str, Dict] = {}
         
-        logger.info("✅ Google Drive Librarian initialized")
+        logger.info("✅ Google Drive Librarian created (components initialized)")
         logger.info(f"   📁 Config: {config_dir}")
         logger.info(f"   💾 Cache: {cache_size_gb}GB")
         logger.info(f"   🔄 Auto-sync: {auto_sync}")
+        logger.info("   🚀 HybridLibrarian (semantic search) will load on first use")
+
+    @property
+    def hybrid_librarian(self):
+        """Lazy load HybridLibrarian with SentenceTransformer model"""
+        if self._hybrid_librarian is None:
+            logger.info("🔍 Loading HybridLibrarian (semantic search) for first time...")
+            self._hybrid_librarian = HybridLibrarian(
+                base_dir=self._hybrid_librarian_base_dir
+            )
+            logger.info("✅ HybridLibrarian loaded successfully")
+        return self._hybrid_librarian
     
     def _load_config(self) -> Dict[str, Any]:
         """Load configuration from file"""

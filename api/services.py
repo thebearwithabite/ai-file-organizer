@@ -24,22 +24,36 @@ class SystemService:
     # Class-level shared instance to avoid re-initialization
     _librarian_instance: Optional[GoogleDriveLibrarian] = None
     _initialization_error: Optional[str] = None
+    _initialized: bool = False
 
     def __init__(self):
-        """Initialize SystemService with shared GoogleDriveLibrarian instance"""
+        """Initialize SystemService with lazy GoogleDriveLibrarian loading"""
         if SystemService._librarian_instance is None:
             try:
-                logger.info("Initializing GoogleDriveLibrarian for SystemService...")
+                logger.info("Creating GoogleDriveLibrarian (lazy initialization mode)...")
                 SystemService._librarian_instance = GoogleDriveLibrarian(
                     cache_size_gb=2.0,
                     auto_sync=False  # Disable auto-sync for API stability
                 )
-                SystemService._librarian_instance.initialize()
-                logger.info("GoogleDriveLibrarian initialized successfully")
+                # DO NOT call initialize() here - defer until first actual use
+                # This avoids blocking server startup with Google Drive API calls
+                logger.info("GoogleDriveLibrarian created (not yet initialized - will initialize on first use)")
             except Exception as e:
                 SystemService._initialization_error = str(e)
-                logger.error(f"Failed to initialize GoogleDriveLibrarian: {e}")
+                logger.error(f"Failed to create GoogleDriveLibrarian: {e}")
                 SystemService._librarian_instance = None
+
+    def _ensure_initialized(self):
+        """Ensure librarian is initialized before use (lazy initialization)"""
+        if SystemService._librarian_instance and not SystemService._initialized:
+            try:
+                logger.info("Performing lazy initialization of GoogleDriveLibrarian...")
+                SystemService._librarian_instance.initialize()
+                SystemService._initialized = True
+                logger.info("GoogleDriveLibrarian initialized successfully")
+            except Exception as e:
+                logger.error(f"Lazy initialization failed: {e}")
+                SystemService._initialization_error = str(e)
 
     def get_status(self) -> Dict[str, Any]:
         """
@@ -58,6 +72,9 @@ class SystemService:
                 "files_in_staging": 0,
                 "last_run": None
             }
+
+        # Ensure initialized before getting status
+        self._ensure_initialized()
 
         try:
             # Get real status from GoogleDriveLibrarian
@@ -111,6 +128,7 @@ class SearchService:
         """Initialize SearchService using the shared GoogleDriveLibrarian instance"""
         # Use the same shared instance that SystemService created
         self.librarian = SystemService._librarian_instance
+        self.system_service = SystemService()  # For accessing _ensure_initialized
 
         if self.librarian is None:
             logger.warning("SearchService initialized but GoogleDriveLibrarian is not available")
@@ -128,6 +146,9 @@ class SearchService:
         if self.librarian is None:
             logger.error("Cannot perform search: GoogleDriveLibrarian not initialized")
             return []
+
+        # Ensure initialized before searching (lazy initialization)
+        self.system_service._ensure_initialized()
 
         try:
             # Call the search method on GoogleDriveLibrarian
@@ -194,7 +215,11 @@ class TriageService:
     def get_files_for_review(self) -> List[Dict[str, Any]]:
         """
         Get list of files that require manual review based on low confidence scores
-        
+
+        IMPORTANT: This method performs EXPENSIVE operations (AI classification, vision analysis, etc.)
+        It should ONLY be called when the user explicitly requests a triage scan,
+        NOT during server initialization.
+
         Returns:
             List of files with suggested categories and confidence scores below 85%
         """
@@ -222,9 +247,14 @@ class TriageService:
                     if not file_path.is_file() or file_path.name.startswith('.'):
                         continue
 
-                    # Skip very large files to avoid processing delays
+                    # Skip very large files to avoid processing delays (PERFORMANCE OPTIMIZATION)
                     try:
-                        if file_path.stat().st_size > 100 * 1024 * 1024:  # 100MB limit
+                        file_size_bytes = file_path.stat().st_size
+                        file_size_mb = file_size_bytes / (1024 * 1024)
+
+                        # Reduce limit from 100MB to 10MB for faster processing
+                        if file_size_mb > 10:  # 10MB limit
+                            logger.info(f"Skipping {file_path.name} ({file_size_mb:.1f}MB) - too large for auto-processing")
                             continue
                     except (OSError, PermissionError):
                         continue
