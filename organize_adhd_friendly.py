@@ -19,6 +19,7 @@ from typing import List
 
 # Import our fixed classifier
 from interactive_classifier_fixed import ADHDFriendlyClassifier
+from gdrive_integration import get_ai_organizer_root
 
 class ADHDFriendlyOrganizer:
     """
@@ -30,7 +31,7 @@ class ADHDFriendlyOrganizer:
     """
     
     def __init__(self, base_dir: str = None):
-        self.base_dir = Path(base_dir) if base_dir else Path.home() / "Documents" 
+        self.base_dir = Path(base_dir) if base_dir else get_ai_organizer_root()
         self.classifier = ADHDFriendlyClassifier(str(self.base_dir))
         self.interrupted = False
         

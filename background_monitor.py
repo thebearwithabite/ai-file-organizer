@@ -21,6 +21,7 @@ sys.path.insert(0, str(project_dir))
 from vector_librarian import VectorLibrarian
 from email_extractor import EmailExtractor
 from content_extractor import ContentExtractor
+from gdrive_integration import get_ai_organizer_root
 
 # Set up logging
 logging.basicConfig(
@@ -41,7 +42,7 @@ class EnhancedBackgroundMonitor:
     """
     
     def __init__(self, base_dir: str = None):
-        self.base_dir = Path(base_dir) if base_dir else Path.home() / "Documents" / "04_METADATA_SYSTEM"
+        self.base_dir = Path(base_dir) if base_dir else get_ai_organizer_root() / "04_METADATA_SYSTEM"
         self.db_path = self.base_dir / "background_monitor.db"
         
         # Initialize components
@@ -78,7 +79,7 @@ class EnhancedBackgroundMonitor:
         return {
             # High priority - check frequently
             'staging': {
-                'path': Path.home() / "Documents" / "TEMP_PROCESSING" / "Downloads_Staging",
+                'path': get_ai_organizer_root() / "TEMP_PROCESSING" / "Downloads_Staging",
                 'priority': 'high',
                 'auto_organize': True
             },
@@ -97,7 +98,7 @@ class EnhancedBackgroundMonitor:
             
             # Medium priority - check hourly
             'documents': {
-                'path': Path.home() / "Documents",
+                'path': get_ai_organizer_root(),
                 'priority': 'medium',
                 'auto_organize': False
             },
