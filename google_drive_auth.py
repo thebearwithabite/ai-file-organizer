@@ -195,8 +195,9 @@ class GoogleDriveAuth:
             
             # Run OAuth flow
             # This will open a browser window for user consent
+            # Use port=0 to let the system choose an available port
             credentials = flow.run_local_server(
-                port=8080,
+                port=0,
                 access_type='offline',
                 prompt='consent'
             )

@@ -90,7 +90,10 @@ async def search_files(q: str = Query(..., description="Search query", min_lengt
 async def get_files_to_review():
     """
     Get list of files that require manual review due to low confidence categorization
-    
+
+    WARNING: This endpoint performs EXPENSIVE AI operations (vision analysis, audio analysis, etc.)
+    and should only be called when the user explicitly requests a triage scan.
+
     Returns:
         JSON response with files needing review
     """
@@ -103,6 +106,23 @@ async def get_files_to_review():
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get files for review: {str(e)}")
+
+@app.post("/api/triage/trigger_scan")
+async def trigger_triage_scan():
+    """
+    Manually trigger a triage scan for files needing review
+
+    This endpoint explicitly triggers the expensive scanning operation.
+    Use this when the user navigates to the triage page or clicks "Scan for files".
+
+    Returns:
+        JSON response with scan results
+    """
+    try:
+        result = triage_service.trigger_scan()
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to trigger scan: {str(e)}")
 
 @app.post("/api/triage/classify")
 async def classify_file(request: ClassificationRequest):
