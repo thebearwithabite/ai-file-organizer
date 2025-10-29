@@ -11,10 +11,16 @@ from pydantic import BaseModel
 import uvicorn
 import subprocess
 import os
+import asyncio
+import logging
 from pathlib import Path
 
 # Import our services
 from api.services import SystemService, SearchService, TriageService
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Pydantic models for request validation
 class ClassificationRequest(BaseModel):
@@ -46,6 +52,57 @@ print("DEBUG: SearchService initialized.")
 print("DEBUG: Initializing TriageService...")
 triage_service = TriageService()
 print("DEBUG: TriageService initialized.")
+
+# Background scanning tasks
+@app.on_event("startup")
+async def startup_event():
+    """
+    Non-blocking startup - schedule initial scan after 30-second delay.
+    This keeps server startup fast while still catching existing Downloads files.
+    """
+    logger.info("🚀 Server started - scheduling initial Downloads scan in 30 seconds...")
+    asyncio.create_task(delayed_initial_scan())
+    asyncio.create_task(periodic_downloads_scan())
+
+async def delayed_initial_scan():
+    """
+    Run initial Downloads scan after 30-second delay.
+    Gives server time to fully initialize before expensive operations.
+    """
+    await asyncio.sleep(30)
+    logger.info("📂 Running initial Downloads scan...")
+    try:
+        # Run in thread pool to avoid blocking async loop
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(None, triage_service.trigger_scan)
+        logger.info(f"✅ Initial scan complete: {result.get('files_found', 0)} files found for triage")
+    except Exception as e:
+        logger.error(f"❌ Initial scan failed: {e}")
+
+async def periodic_downloads_scan():
+    """
+    Periodically scan Downloads folder every 10 minutes.
+    ADHD-friendly: Files organize automatically without manual intervention.
+
+    With rate limiting (15 RPM, 1,500/day):
+    - 10 min intervals = 6 scans/hour = 144 scans/day
+    - Max 20 files/scan = max 2,880 files/day
+    - Actual API calls limited by rate limiter to stay under 1,500/day
+    """
+    # Wait for initial scan to complete first
+    await asyncio.sleep(90)  # Initial scan at 30s + 60s buffer
+
+    while True:
+        try:
+            logger.info("🔄 Running periodic Downloads scan (every 10 minutes)...")
+            loop = asyncio.get_event_loop()
+            result = await loop.run_in_executor(None, triage_service.trigger_scan)
+            logger.info(f"✅ Periodic scan complete: {result.get('files_found', 0)} files found")
+        except Exception as e:
+            logger.error(f"❌ Periodic scan failed: {e}")
+
+        # Wait 10 minutes before next scan
+        await asyncio.sleep(600)  # 600 seconds = 10 minutes
 
 @app.get("/")
 async def serve_web_interface():
