@@ -24,46 +24,68 @@ class UnifiedClassificationService:
     """
 
     def __init__(self):
-        """Initialize all necessary subsystems."""
-        print("Initializing Unified Classification Service...")
+        """Initialize with minimal overhead - lazy load heavy components."""
+        print("Initializing Unified Classification Service (lazy mode)...")
 
         # Initialize base directory
         self.text_analyzer = ContentExtractor()
         base_dir = getattr(self.text_analyzer, 'base_dir', os.getcwd())
         self.base_dir = Path(base_dir)
 
-        # Initialize learning system
-        try:
-            self.learning_system = UniversalAdaptiveLearning(base_dir=str(self.base_dir))
-            self.learning_enabled = True
-            print("✅ Adaptive learning system initialized")
-        except Exception as e:
-            self.learning_system = None
-            self.learning_enabled = False
-            print(f"⚠️  Adaptive learning disabled: {e}")
+        # Lazy-loaded components (initialized on first use)
+        self._learning_system = None
+        self._audio_analyzer = None
+        self._vision_analyzer = None
+        self.learning_enabled = True
+        self.vision_enabled = True
 
-        # Initialize AudioAnalyzer with OpenAI API key from environment
-        openai_api_key = os.getenv('OPENAI_API_KEY')
-        self.audio_analyzer = AudioAnalyzer(
-            base_dir=base_dir,
-            confidence_threshold=0.7,
-            openai_api_key=openai_api_key
-        )
+        print("✅ Unified Classification Service Ready (lazy mode - analyzers will load on demand)")
 
-        # Initialize VisionAnalyzer with Gemini API
-        try:
-            self.vision_analyzer = VisionAnalyzer(base_dir=str(self.base_dir))
-            self.vision_enabled = self.vision_analyzer.api_initialized
-            if self.vision_enabled:
-                print("✅ Vision analysis enabled with Gemini API")
-            else:
-                print("⚠️  Vision analysis enabled (fallback mode only)")
-        except Exception as e:
-            self.vision_analyzer = None
-            self.vision_enabled = False
-            print(f"⚠️  Vision analysis disabled: {e}")
+    @property
+    def learning_system(self):
+        """Lazy load learning system on first use"""
+        if self._learning_system is None and self.learning_enabled:
+            try:
+                print("🧠 Loading adaptive learning system...")
+                self._learning_system = UniversalAdaptiveLearning(base_dir=str(self.base_dir))
+                print("✅ Adaptive learning system initialized")
+            except Exception as e:
+                self._learning_system = None
+                self.learning_enabled = False
+                print(f"⚠️  Adaptive learning disabled: {e}")
+        return self._learning_system
 
-        print("Unified Classification Service Ready.")
+    @property
+    def audio_analyzer(self):
+        """Lazy load audio analyzer on first use"""
+        if self._audio_analyzer is None:
+            print("🎵 Loading audio analyzer...")
+            openai_api_key = os.getenv('OPENAI_API_KEY')
+            self._audio_analyzer = AudioAnalyzer(
+                base_dir=str(self.base_dir),
+                confidence_threshold=0.7,
+                openai_api_key=openai_api_key
+            )
+            print("✅ Audio analyzer loaded")
+        return self._audio_analyzer
+
+    @property
+    def vision_analyzer(self):
+        """Lazy load vision analyzer on first use"""
+        if self._vision_analyzer is None and self.vision_enabled:
+            try:
+                print("👁️  Loading vision analyzer...")
+                self._vision_analyzer = VisionAnalyzer(base_dir=str(self.base_dir))
+                self.vision_enabled = self._vision_analyzer.api_initialized
+                if self.vision_enabled:
+                    print("✅ Vision analysis enabled with Gemini API")
+                else:
+                    print("⚠️  Vision analysis enabled (fallback mode only)")
+            except Exception as e:
+                self._vision_analyzer = None
+                self.vision_enabled = False
+                print(f"⚠️  Vision analysis disabled: {e}")
+        return self._vision_analyzer
 
     def classify_file(self, file_path: Path) -> Dict[str, Any]:
         """
@@ -78,6 +100,27 @@ class UnifiedClassificationService:
         file_path = Path(file_path)
         if not file_path.exists():
             return {"error": "File not found"}
+
+        # PERFORMANCE OPTIMIZATION: Skip large files to avoid slow vision/audio analysis
+        try:
+            file_size_bytes = file_path.stat().st_size
+            file_size_mb = file_size_bytes / (1024 * 1024)
+            MAX_AUTO_PROCESS_SIZE_MB = 10  # 10MB limit for automatic processing
+
+            if file_size_mb > MAX_AUTO_PROCESS_SIZE_MB:
+                print(f"⚠️  Skipping {file_path.name} ({file_size_mb:.1f}MB) - too large for automatic processing")
+                return {
+                    'category': 'unknown',
+                    'confidence': 0.0,
+                    'reasoning': [
+                        f'File too large ({file_size_mb:.1f}MB) for automatic processing',
+                        'Large files should be manually organized to avoid performance issues'
+                    ],
+                    'suggested_filename': file_path.name,
+                    'source': 'FileSize Check (Performance Protection)'
+                }
+        except (OSError, PermissionError) as e:
+            print(f"⚠️  Could not check file size for {file_path.name}: {e}")
 
         # 1. Determine file type (e.g., by MIME type or extension)
         file_type = self._get_file_type(file_path)

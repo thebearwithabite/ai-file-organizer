@@ -157,6 +157,19 @@ Provide a brief but informative summary."""
         self.cache_hits = 0
         self.cache_misses = 0
 
+        # Rate limiting for Gemini Free Tier compliance
+        # Free tier: 15 RPM (requests per minute), 1,500 requests per day
+        self.rate_limit_rpm = 15  # Requests per minute
+        self.rate_limit_daily = 1500  # Requests per day
+        self.min_request_interval = 4.0  # 4 seconds = 15 requests/minute
+        self.last_request_time = 0
+
+        # Daily quota tracking
+        self.quota_file = self.base_dir / "04_METADATA_SYSTEM" / "gemini_quota.json"
+        self.daily_requests = self._load_daily_quota()
+
+        self.logger.info(f"Rate limiting enabled: {self.rate_limit_rpm} RPM, {self.rate_limit_daily} daily")
+
     def _load_api_key(self) -> Optional[str]:
         """Load Gemini API key from config file or environment"""
         # Try config file first
@@ -222,6 +235,80 @@ Provide a brief but informative summary."""
                 pickle.dump(self.vision_patterns, f)
         except Exception as e:
             self.logger.warning(f"Could not save vision patterns: {e}")
+
+    def _load_daily_quota(self) -> Dict[str, Any]:
+        """Load daily quota tracking from file"""
+        if self.quota_file.exists():
+            try:
+                with open(self.quota_file, 'r') as f:
+                    quota_data = json.load(f)
+
+                # Check if it's a new day - reset counter
+                last_date = quota_data.get('date', '')
+                today = datetime.now().strftime('%Y-%m-%d')
+
+                if last_date != today:
+                    self.logger.info(f"New day detected - resetting quota counter (was {quota_data.get('requests', 0)})")
+                    return {'date': today, 'requests': 0}
+
+                return quota_data
+            except Exception as e:
+                self.logger.warning(f"Could not load quota file: {e}")
+
+        return {'date': datetime.now().strftime('%Y-%m-%d'), 'requests': 0}
+
+    def _save_daily_quota(self):
+        """Save daily quota tracking to file"""
+        try:
+            with open(self.quota_file, 'w') as f:
+                json.dump(self.daily_requests, f, indent=2)
+        except Exception as e:
+            self.logger.warning(f"Could not save quota file: {e}")
+
+    def _check_rate_limit(self) -> bool:
+        """
+        Check if we can make an API request within rate limits.
+
+        Returns:
+            True if request is allowed, False if quota exceeded
+        """
+        # Check daily quota
+        today = datetime.now().strftime('%Y-%m-%d')
+        if self.daily_requests.get('date') != today:
+            # New day - reset counter
+            self.daily_requests = {'date': today, 'requests': 0}
+            self._save_daily_quota()
+
+        current_daily = self.daily_requests.get('requests', 0)
+        if current_daily >= self.rate_limit_daily:
+            self.logger.error(f"Daily quota exceeded: {current_daily}/{self.rate_limit_daily} requests used today")
+            return False
+
+        return True
+
+    def _wait_for_rate_limit(self):
+        """
+        Enforce rate limiting by waiting if needed.
+        Ensures minimum 4 seconds between requests (15 RPM compliance).
+        """
+        current_time = time.time()
+        time_since_last = current_time - self.last_request_time
+
+        if time_since_last < self.min_request_interval:
+            wait_time = self.min_request_interval - time_since_last
+            self.logger.info(f"Rate limiting: waiting {wait_time:.1f}s (15 RPM compliance)")
+            time.sleep(wait_time)
+
+        self.last_request_time = time.time()
+
+        # Update daily counter
+        self.daily_requests['requests'] = self.daily_requests.get('requests', 0) + 1
+        self._save_daily_quota()
+
+        # Log quota status every 10 requests
+        if self.daily_requests['requests'] % 10 == 0:
+            remaining = self.rate_limit_daily - self.daily_requests['requests']
+            self.logger.info(f"Gemini API quota: {self.daily_requests['requests']}/{self.rate_limit_daily} used today ({remaining} remaining)")
 
     def _get_cache_key(self, file_path: str) -> str:
         """Generate cache key for a file based on path and modification time"""
@@ -331,8 +418,22 @@ Provide a brief but informative summary."""
             # Load and preprocess image
             image = self._load_image(image_path_obj)
 
+            # Check rate limit before API call
+            if not self._check_rate_limit():
+                return {
+                    'success': False,
+                    'error': f'Daily API quota exceeded ({self.rate_limit_daily} requests/day)',
+                    'content_type': 'image',
+                    'confidence_score': 0.0,
+                    'quota_exceeded': True
+                }
+
+            # Enforce rate limiting (15 RPM)
+            self._wait_for_rate_limit()
+
             # Call Gemini API for analysis
             self.api_calls += 1
+            self.logger.info(f"Analyzing image: {image_path_obj.name} (quota: {self.daily_requests['requests']}/{self.rate_limit_daily})")
             response = self.model.generate_content(
                 [self.IMAGE_ANALYSIS_PROMPT, image],
                 safety_settings={
@@ -384,8 +485,17 @@ Provide a brief but informative summary."""
             # Load image
             image = self._load_image(image_path_obj)
 
+            # Check rate limit before API call
+            if not self._check_rate_limit():
+                self.logger.warning(f"Daily quota exceeded - skipping screenshot text extraction")
+                return ""
+
+            # Enforce rate limiting (15 RPM)
+            self._wait_for_rate_limit()
+
             # Call Gemini for text extraction
             self.api_calls += 1
+            self.logger.info(f"Extracting text from: {image_path_obj.name} (quota: {self.daily_requests['requests']}/{self.rate_limit_daily})")
             response = self.model.generate_content(
                 [self.SCREENSHOT_TEXT_PROMPT, image],
                 safety_settings={
@@ -444,8 +554,21 @@ Provide a brief but informative summary."""
             return self._fallback_video_analysis(video_path_obj)
 
         try:
+            # Check rate limit before API call
+            if not self._check_rate_limit():
+                return {
+                    'success': False,
+                    'error': f'Daily API quota exceeded ({self.rate_limit_daily} requests/day)',
+                    'content_type': 'video',
+                    'confidence_score': 0.0,
+                    'quota_exceeded': True
+                }
+
+            # Enforce rate limiting (15 RPM)
+            self._wait_for_rate_limit()
+
             # Upload video file to Gemini
-            self.logger.info(f"Uploading video {video_path_obj.name} to Gemini...")
+            self.logger.info(f"Uploading video {video_path_obj.name} to Gemini... (quota: {self.daily_requests['requests']}/{self.rate_limit_daily})")
             video_file = genai.upload_file(path=str(video_path_obj))
 
             # Wait for processing
@@ -458,6 +581,7 @@ Provide a brief but informative summary."""
 
             # Analyze video
             self.api_calls += 1
+            self.logger.info(f"Analyzing video: {video_path_obj.name}")
             response = self.model.generate_content(
                 [video_file, self.VIDEO_ANALYSIS_PROMPT],
                 safety_settings={
@@ -757,8 +881,19 @@ Provide a brief but informative summary."""
             return self._fallback_veo_response(video_path_obj)
 
         try:
+            # Check rate limit before API call
+            if not self._check_rate_limit():
+                return {
+                    'success': False,
+                    'error': f'Daily API quota exceeded ({self.rate_limit_daily} requests/day)',
+                    'quota_exceeded': True
+                }
+
+            # Enforce rate limiting (15 RPM)
+            self._wait_for_rate_limit()
+
             # Upload video to Gemini
-            self.logger.info(f"🎬 Uploading video for VEO analysis: {video_path_obj.name}")
+            self.logger.info(f"🎬 Uploading video for VEO analysis: {video_path_obj.name} (quota: {self.daily_requests['requests']}/{self.rate_limit_daily})")
             video_file = genai.upload_file(path=str(video_path_obj))
 
             # Wait for processing
@@ -787,6 +922,7 @@ Format your response clearly with these categories."""
 
             # Call Gemini API
             self.api_calls += 1
+            self.logger.info(f"🎬 Analyzing video for VEO prompt: {video_path_obj.name}")
             response = self.model.generate_content(
                 [video_file, veo_prompt],
                 safety_settings={
