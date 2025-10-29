@@ -21,6 +21,8 @@ from collections import defaultdict
 import time
 import logging
 
+from gdrive_integration import get_ai_organizer_root
+
 try:
     import google.generativeai as genai
     from google.generativeai.types import HarmCategory, HarmBlockThreshold
@@ -104,7 +106,7 @@ Provide a brief but informative summary."""
             enable_caching: Whether to cache analysis results
             cache_duration_days: How long to cache results
         """
-        self.base_dir = Path(base_dir) if base_dir else Path.home() / "GoogleDrive" / "AI_Organizer"
+        self.base_dir = Path(base_dir) if base_dir else get_ai_organizer_root()
         self.confidence_threshold = confidence_threshold
         self.enable_caching = enable_caching
         self.cache_duration_days = cache_duration_days
@@ -724,6 +726,281 @@ Provide a brief but informative summary."""
 
         # Save updated patterns
         self._save_vision_patterns()
+
+    def analyze_for_veo_prompt(self, video_path: str) -> Dict[str, Any]:
+        """
+        Analyze video specifically for VEO 3.1 prompt generation.
+
+        This method provides VEO-structured analysis focusing on:
+        - Shot type (wide, medium, closeup, etc.)
+        - Camera movement (static, pan, dolly, etc.)
+        - Lighting conditions (natural, dramatic, golden hour, etc.)
+        - Mood and atmosphere
+        - Scene context and objects
+        - Color palette
+        - Audio ambience suggestions
+
+        Args:
+            video_path: Path to video file
+
+        Returns:
+            VEO-structured analysis dictionary
+        """
+        video_path_obj = Path(video_path)
+
+        # Validate file
+        if not video_path_obj.exists():
+            return self._fallback_veo_response(video_path_obj)
+
+        # Check if API is available
+        if not self.api_initialized:
+            return self._fallback_veo_response(video_path_obj)
+
+        try:
+            # Upload video to Gemini
+            self.logger.info(f"🎬 Uploading video for VEO analysis: {video_path_obj.name}")
+            video_file = genai.upload_file(path=str(video_path_obj))
+
+            # Wait for processing
+            while video_file.state.name == "PROCESSING":
+                time.sleep(2)
+                video_file = genai.get_file(video_file.name)
+
+            if video_file.state.name == "FAILED":
+                raise ValueError(f"Video processing failed: {video_file.state.name}")
+
+            # VEO-specific analysis prompt
+            veo_prompt = """Analyze this video for cinematic characteristics. Provide:
+
+1. SHOT TYPE: Describe the framing (extreme wide shot, wide shot, medium shot, close-up, extreme close-up)
+2. CAMERA MOVEMENT: Identify camera motion (static, pan, tilt, dolly/tracking, handheld, crane)
+3. LIGHTING: Describe lighting conditions (natural/sunlight, artificial/studio, dramatic/low-key, bright/high-key, backlit, golden hour)
+4. MOOD: Overall emotional tone (professional, casual, dramatic, energetic, calm, mysterious, etc.)
+5. SCENE CONTEXT: Brief description of the setting and what's happening
+6. VISUAL STYLE: Cinematographic style (documentary, cinematic, handheld documentary, commercial, etc.)
+7. OBJECTS/SUBJECTS: Key visible elements, people, props
+8. COLOR PALETTE: Dominant colors and color grading
+9. AUDIO AMBIENCE: What kind of ambient sound would match this scene
+10. CHARACTER INFO: If people are visible, describe age/gender/appearance/behavior/expression
+
+Format your response clearly with these categories."""
+
+            # Call Gemini API
+            self.api_calls += 1
+            response = self.model.generate_content(
+                [video_file, veo_prompt],
+                safety_settings={
+                    HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
+                    HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+                    HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+                    HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+                }
+            )
+
+            # Parse response
+            analysis_text = response.text
+            veo_result = self._parse_veo_analysis(analysis_text, video_path_obj)
+
+            # Clean up uploaded file
+            genai.delete_file(video_file.name)
+
+            self.logger.info(f"✅ VEO analysis complete: {video_path_obj.name}")
+
+            return veo_result
+
+        except Exception as e:
+            self.logger.error(f"❌ VEO analysis failed: {e}")
+            return self._fallback_veo_response(video_path_obj)
+
+    def _parse_veo_analysis(self, analysis_text: str, video_path: Path) -> Dict[str, Any]:
+        """
+        Parse Gemini's VEO analysis into structured format.
+
+        Args:
+            analysis_text: Raw analysis from Gemini
+            video_path: Path to video file
+
+        Returns:
+            Structured VEO analysis dictionary
+        """
+        text_lower = analysis_text.lower()
+
+        # Extract shot type
+        shot_type = 'Medium'  # Default
+        shot_keywords = {
+            'Extreme Wide': ['extreme wide', 'establishing', 'aerial view', 'very wide'],
+            'Wide': ['wide shot', 'full body', 'entire scene', 'full frame'],
+            'Medium': ['medium shot', 'mid shot', 'waist up', 'medium close'],
+            'Close-up': ['close-up', 'close up', 'tight on', 'face shot'],
+            'Extreme Close-up': ['extreme close', 'extreme closeup', 'macro', 'very close']
+        }
+
+        for shot_name, keywords in shot_keywords.items():
+            if any(kw in text_lower for kw in keywords):
+                shot_type = shot_name
+                break
+
+        # Extract camera movement
+        camera_movement = 'Static'  # Default
+        movement_keywords = {
+            'Pan': ['pan', 'panning', 'horizontal sweep'],
+            'Tilt': ['tilt', 'tilting', 'vertical movement'],
+            'Dolly': ['dolly', 'tracking', 'push in', 'pull out', 'moving forward'],
+            'Handheld': ['handheld', 'shaky', 'unstable', 'hand-held'],
+            'Crane': ['crane', 'aerial movement', 'rising', 'descending'],
+            'Static': ['static', 'stationary', 'fixed', 'still camera']
+        }
+
+        for movement_name, keywords in movement_keywords.items():
+            if any(kw in text_lower for kw in keywords):
+                camera_movement = movement_name
+                break
+
+        # Extract lighting
+        lighting = 'Natural lighting'  # Default
+        lighting_keywords = {
+            'Natural daylight': ['natural', 'sunlight', 'daylight', 'outdoor'],
+            'Artificial studio lighting': ['artificial', 'studio', 'indoor lights'],
+            'Dramatic low-key lighting': ['dramatic', 'low-key', 'shadows', 'moody'],
+            'Bright high-key lighting': ['bright', 'high-key', 'well-lit', 'even'],
+            'Backlit': ['backlit', 'silhouette', 'rim light'],
+            'Golden hour': ['golden hour', 'sunset', 'sunrise', 'warm light']
+        }
+
+        for lighting_name, keywords in lighting_keywords.items():
+            if any(kw in text_lower for kw in keywords):
+                lighting = lighting_name
+                break
+
+        # Extract mood
+        mood_keywords = ['professional', 'casual', 'dramatic', 'energetic', 'calm',
+                        'mysterious', 'tense', 'happy', 'serious', 'playful']
+        detected_mood = 'Neutral'
+        for mood_word in mood_keywords:
+            if mood_word in text_lower:
+                detected_mood = mood_word.capitalize()
+                break
+
+        # Extract scene context (first 200 chars of analysis)
+        scene_context = analysis_text[:200].strip()
+        if len(analysis_text) > 200:
+            scene_context += "..."
+
+        # Visual style detection
+        visual_style = 'Standard video recording'
+        style_keywords = {
+            'Cinematic realism': ['cinematic', 'film-like', 'movie'],
+            'Documentary style': ['documentary', 'observational', 'realistic'],
+            'Commercial/advertising': ['commercial', 'polished', 'professional production'],
+            'Handheld documentary': ['handheld documentary', 'verite', 'guerrilla'],
+            'Music video style': ['music video', 'artistic', 'stylized']
+        }
+
+        for style_name, keywords in style_keywords.items():
+            if any(kw in text_lower for kw in keywords):
+                visual_style = style_name
+                break
+
+        # Extract color information
+        color_words = ['blue', 'red', 'green', 'yellow', 'orange', 'purple', 'brown',
+                      'black', 'white', 'gray', 'warm', 'cool', 'vibrant', 'muted']
+        colors_found = [color for color in color_words if color in text_lower]
+
+        # Audio ambience
+        audio_ambience = 'Ambient sound'
+        if 'quiet' in text_lower or 'silent' in text_lower:
+            audio_ambience = 'Quiet atmosphere, minimal sound'
+        elif 'music' in text_lower:
+            audio_ambience = 'Background music'
+        elif 'dialogue' in text_lower or 'speaking' in text_lower:
+            audio_ambience = 'Dialogue and conversation'
+        elif 'outdoor' in text_lower or 'nature' in text_lower:
+            audio_ambience = 'Outdoor ambience, natural sounds'
+        elif 'indoor' in text_lower or 'office' in text_lower:
+            audio_ambience = 'Indoor ambience, room tone'
+
+        # Character detection
+        character_info = ''
+        character_description = ''
+        behavior = ''
+        expression = ''
+
+        if any(word in text_lower for word in ['person', 'people', 'man', 'woman', 'male', 'female']):
+            # Extract character information from text
+            if 'male' in text_lower or 'man' in text_lower:
+                character_info = 'male'
+            elif 'female' in text_lower or 'woman' in text_lower:
+                character_info = 'female'
+
+            # Age estimation
+            age_keywords = ['young', 'adult', 'middle-aged', 'elderly', 'child', 'teenager']
+            for age in age_keywords:
+                if age in text_lower:
+                    character_info += f', {age}'
+                    break
+
+            # Behavior
+            behavior_keywords = ['sitting', 'standing', 'walking', 'talking', 'working',
+                               'typing', 'gesturing', 'looking']
+            for beh in behavior_keywords:
+                if beh in text_lower:
+                    behavior = beh
+                    break
+
+            # Expression
+            expression_keywords = ['smiling', 'serious', 'focused', 'laughing', 'concentrated']
+            for exp in expression_keywords:
+                if exp in text_lower:
+                    expression = exp
+                    break
+
+        # Calculate confidence based on analysis quality
+        confidence = 0.7  # Base confidence with AI analysis
+        if len(analysis_text) > 200:
+            confidence += 0.1
+        if colors_found:
+            confidence += 0.05
+        if character_info:
+            confidence += 0.1
+        confidence = min(0.95, confidence)
+
+        return {
+            'shot_type': shot_type,
+            'camera_movement': camera_movement,
+            'lighting': lighting,
+            'mood': detected_mood,
+            'scene_context': scene_context,
+            'visual_style': visual_style,
+            'objects': [],  # Would need more sophisticated parsing
+            'color_palette': colors_found if colors_found else ['unknown'],
+            'audio_ambience': audio_ambience,
+            'character_info': character_info,
+            'character_description': character_description,
+            'behavior': behavior,
+            'expression': expression,
+            'confidence_score': confidence,
+            'raw_analysis': analysis_text
+        }
+
+    def _fallback_veo_response(self, video_path: Path) -> Dict[str, Any]:
+        """Fallback VEO response when API unavailable"""
+        return {
+            'shot_type': 'Medium',
+            'camera_movement': 'Static',
+            'lighting': 'Natural lighting',
+            'mood': 'Neutral',
+            'scene_context': f'Video: {video_path.stem}',
+            'visual_style': 'Standard video recording',
+            'objects': [],
+            'color_palette': ['unknown'],
+            'audio_ambience': 'Ambient sound',
+            'character_info': '',
+            'character_description': '',
+            'behavior': '',
+            'expression': '',
+            'confidence_score': 0.3,
+            'fallback_mode': True
+        }
 
     def get_statistics(self) -> Dict[str, Any]:
         """Get performance and usage statistics"""

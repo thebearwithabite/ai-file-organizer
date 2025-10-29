@@ -11,6 +11,25 @@ An ADHD-friendly AI file organizer that helps manage complex document workflows 
 ## 🚀 **Quick Start**
 
 ### 1. Install & Start
+
+**Recommended: Use Virtual Environment**
+```bash
+git clone https://github.com/thebearwithabite/ai-file-organizer
+cd ai-file-organizer
+
+# Create and activate virtual environment
+python3 -m venv venv
+source venv/bin/activate  # On macOS/Linux
+# OR: venv\Scripts\activate  # On Windows
+
+# Install dependencies
+pip install -r requirements_v3.txt
+
+# Start the system
+python main.py
+```
+
+**Quick Start (without venv)**
 ```bash
 git clone https://github.com/thebearwithabite/ai-file-organizer
 cd ai-file-organizer

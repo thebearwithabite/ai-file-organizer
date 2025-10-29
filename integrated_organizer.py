@@ -15,12 +15,13 @@ sys.path.insert(0, str(project_dir))
 
 from interactive_with_preview import PreviewClassifier
 from file_naming_protocol import FileNamingProtocol
+from gdrive_integration import get_ai_organizer_root
 
 class IntegratedOrganizer:
     """Complete file organization with classification, naming, and movement"""
     
     def __init__(self, base_dir: str = None):
-        self.base_dir = Path(base_dir) if base_dir else Path.home() / "Documents" / "04_METADATA_SYSTEM"
+        self.base_dir = Path(base_dir) if base_dir else get_ai_organizer_root() / "04_METADATA_SYSTEM"
         self.classifier = PreviewClassifier(str(self.base_dir))
         self.naming_protocol = FileNamingProtocol()
         
@@ -261,7 +262,7 @@ def main():
     print(f"\n📍 Base directory: {organizer.base_dir}")
     
     # Quick test with Downloads staging
-    staging_dir = Path("/Users/user/Documents/TEMP_PROCESSING/Downloads_Staging")
+    staging_dir = get_ai_organizer_root() / "TEMP_PROCESSING" / "Downloads_Staging"
     
     if staging_dir.exists():
         print(f"\n📁 Found staging directory: {staging_dir}")
