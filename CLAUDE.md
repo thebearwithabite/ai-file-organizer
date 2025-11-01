@@ -54,7 +54,7 @@ User has ADHD and managing file organization is genuinely difficult. This system
 ## 🏗️ **System Architecture**
 
 ```
-📁 AI File Organizer v3.1 - Intelligent Learning Organizer (Phase 1 & 2 COMPLETE)/
+📁 AI File Organizer v3.1 - Intelligent Learning Organizer (Phase 1, 2 & 3a COMPLETE)/
 ├── 🧠 Vector Database (ChromaDB)         # Semantic search engine
 ├── 📧 Email Integration (.emlx files)    # macOS Mail integration
 ├── 📄 Document Processing               # PDFs, DOCX, scripts
@@ -63,10 +63,11 @@ User has ADHD and managing file organization is genuinely difficult. This system
 ├── 🌊 File Streaming Service            # On-demand cloud file access
 ├── 🔄 Background Sync Service           # Continuous synchronization
 ├── 🔍 Smart Search Interface           # Natural language queries (local + cloud)
+├── 🌐 Modern Web Interface (React)     # Glassmorphic UI with search and triage
 ├── 🍎 AppleScript GUI                  # Native macOS integration
 ├── 🤔 Interactive Classification       # Asks questions until 85% confident
 ├── 🛡️ Easy Rollback System             # Complete file operation safety net
-├── 🗂️ Intelligent Organization         # Auto-categorization with learning
+├── 🗂️ Hierarchical Organization        # Project → Episode → Media Type structure
 ├── 🎓 Phase 1 Core Intelligence (OPERATIONAL)
 │   ├── Universal Adaptive Learning      # Learns from all user interactions
 │   ├── 4-Level Confidence System       # NEVER/MINIMAL/SMART/ALWAYS modes
@@ -74,11 +75,15 @@ User has ADHD and managing file organization is genuinely difficult. This system
 │   ├── Emergency Space Protection      # Proactive disk management
 │   ├── Interactive Batch Processor     # Multi-file handling with preview
 │   └── Automated Deduplication Service # Intelligent duplicate detection
-└── 🔮 Phase 2 Vision Integration (OPERATIONAL)
-    ├── Vision Analyzer (vision_analyzer.py) # Gemini Vision API integration
-    ├── Visual Pattern Learning          # Learns from image/video classifications
-    ├── Screenshot Understanding         # Analyzes UI screenshots and designs
-    └── Entertainment Media Analysis     # Photos, videos, creative content
+├── 🔮 Phase 2 Vision Integration (OPERATIONAL)
+│   ├── Vision Analyzer (vision_analyzer.py) # Gemini Vision API integration
+│   ├── Visual Pattern Learning          # Learns from image/video classifications
+│   ├── Screenshot Understanding         # Analyzes UI screenshots and designs
+│   └── Entertainment Media Analysis     # Photos, videos, creative content
+└── 🎬 Phase 3a VEO Prompt Builder (OPERATIONAL)
+    ├── VEO Prompt Generator            # Transform video clips into VEO 3.1 JSON
+    ├── Shot Analysis System            # Camera movement, lighting, mood detection
+    └── Hierarchical Library Organization # Project/episode-based video organization
 ```
 
 ### Key Components:
@@ -90,12 +95,20 @@ User has ADHD and managing file organization is genuinely difficult. This system
 - **email_extractor.py**: Reads macOS Mail for unified search
 - **interactive_classifier.py**: Asks questions until 85% confident, learns preferences
 - **interactive_organizer.py**: Main organization workflow with questioning
+- **hierarchical_organizer.py**: 5-level deep folder structure (Project → Episode → Media Type)
 - **easy_rollback_system.py**: Complete rollback safety net for all file operations
 - **Enhanced_Search_GUI.applescript**: Native Mac search interface
 - **content_extractor.py**: Handles PDFs, DOCX, text files
 - **staging_monitor.py**: Auto-organizes new files
 - **gdrive_streamer.py**: On-demand file streaming from Google Drive
 - **background_sync_service.py**: Continuous local/cloud synchronization
+
+**Modern Web Interface (frontend_v2/):**
+- **Search.tsx**: Full-featured semantic search page with natural language queries
+- **Triage.tsx**: File review center with confidence scores and hierarchical inputs
+- **Organize.tsx**: Drag-and-drop file organization interface
+- **ClassificationPreview.tsx**: Real-time AI classification preview with hierarchical path display
+- **Glassmorphic UI**: Beautiful, ADHD-friendly design with visual confidence indicators
 
 **Phase 1 Core Intelligence (OPERATIONAL - October 24, 2025):**
 - **universal_adaptive_learning.py**: Learns from all user interactions and corrections (1,087 lines)
@@ -139,8 +152,40 @@ pip install -r requirements.txt      # Core dependencies (PyPDF2, chromadb, etc)
 # Start web server
 python main.py  # Runs FastAPI server on http://localhost:8000
 
+# Frontend development (optional - static build included)
+cd frontend_v2
+npm install
+npm run dev  # Development server on http://localhost:5173
+
 # Deactivate venv when done
 deactivate
+```
+
+### API Endpoints (FastAPI)
+```bash
+# System Health & Status
+GET  /health                          # Health check
+GET  /api/system/status               # Real-time system statistics
+
+# Search & Discovery
+GET  /api/search?q={query}            # Semantic search with natural language
+GET  /api/search?q={query}&mode=fast  # Fast keyword search
+
+# File Organization & Triage
+GET  /api/triage/scan                 # Trigger manual triage scan (returns files immediately)
+GET  /api/triage/files_to_review      # Get files pending review (cached results)
+POST /api/triage/classify             # Classify file with optional project/episode
+     Body: {
+       "file_path": "/path/to/file.mp4",
+       "confirmed_category": "creative",
+       "project": "The_Papers_That_Dream",  # Optional
+       "episode": "Episode_02"              # Optional
+     }
+
+# File Operations
+POST /api/upload                      # Upload and classify file
+POST /api/open_file                   # Open file in default application
+     Body: {"file_path": "/path/to/file"}
 ```
 
 ### Testing Commands
@@ -268,8 +313,21 @@ Use templates from `TODO_TEMPLATES_AGENT_INTEGRATION.py` for automatic agent int
 
 ## 🚀 **How to Use**
 
-### Quick Search (GUI):
-1. Double-click "Enhanced AI Search.app" 
+### Modern Web Interface (Recommended):
+1. Start server: `python main.py`
+2. Open browser: `http://localhost:8000`
+3. **Search Page**: Natural language queries across all files
+   - Example: "Client Name contracts", "creative project audio", "VEO prompts"
+   - View relevance scores, file metadata, and reasoning
+   - One-click file opening and path copying
+4. **Triage Center**: Review AI classifications with confidence scores
+   - Manual scan trigger (no auto-refresh lag)
+   - Optional hierarchical organization (Project → Episode)
+   - Color-coded confidence indicators
+5. **Organize Page**: Drag-and-drop file organization with live preview
+
+### Quick Search (Legacy AppleScript GUI):
+1. Double-click "Enhanced AI Search.app"
 2. Type natural language: "Client Name contracts"
 3. Choose search mode: Fast/Semantic/Auto
 4. Get results with context and reasoning
@@ -359,8 +417,32 @@ python easy_rollback_system.py --today
 ### Service Architecture (FastAPI)
 - **SystemService**: Manages system status and Google Drive integration
 - **SearchService**: Handles semantic and keyword search queries
-- **TriageService**: Manages low-confidence file reviews
-- **Web Frontend**: Glassmorphic UI in `/frontend` directory
+- **TriageService**: Manages low-confidence file reviews with hierarchical classification
+- **Web Frontend**: Modern React UI in `/frontend_v2` directory with Search, Triage, and Organize pages
+
+### Hierarchical Organization System (NEW - October 31, 2025)
+The system now supports 5-level deep folder organization for creative projects:
+
+**Folder Structure:**
+```
+01_ACTIVE_PROJECTS/
+  └── Creative_Projects/
+      └── The_Papers_That_Dream/          # Level 3: Project
+          └── Episode_02_AttentionIsland/  # Level 4: Episode
+              ├── Video/                   # Level 5: Media Type
+              ├── Audio/
+              ├── Images/
+              ├── Scripts/
+              └── JSON_Prompts/
+```
+
+**Features:**
+- **Automatic Detection**: Detects project and episode from filenames
+  - "papers_that_dream_ep02_scene1.mp4" → The_Papers_That_Dream/Episode_02/Video/
+- **Manual Override**: Optional project/episode inputs in web UI
+- **Media Type Classification**: Automatically organizes by file type (Video, Audio, Images, etc.)
+- **Intelligent Suggestions**: `hierarchical_organizer.py` provides complete path recommendations
+- **Full Integration**: Works with Triage, Organize, and Classification systems
 
 ### Audio-AI-Organizer Inspired Features (Target Implementation)
 
@@ -620,6 +702,39 @@ descriptors = {
 - ✅ Entertainment industry context understanding
 - ✅ Production-ready for daily use
 
+## 🌐 **Web Interface Updates (October 31, 2025)**
+
+**MAJOR IMPROVEMENTS**: Modern React web interface with Search, Triage, and Organize functionality.
+
+### **New Features:**
+
+1. **Search Page (NEW)** - `/frontend_v2/src/pages/Search.tsx`
+   - Full natural language semantic search interface
+   - Example query buttons for quick searches
+   - Relevance scoring with visual indicators
+   - One-click file opening and path copying
+   - Integration with GoogleDriveLibrarian backend
+
+2. **Triage Page (CRITICAL BUG FIXES)**
+   - **Fixed**: Infinite spinner issue from expensive 10-second auto-refresh
+   - **Changed**: Manual scan trigger only (no auto-fetch on page load)
+   - **Fixed**: Data structure mismatch between backend and frontend
+   - **Improved**: Backend now returns proper `TriageFile` format with nested `classification` object
+   - **Added**: Scan results caching to prevent unnecessary refetches
+   - **Added**: Optional project/episode inputs for hierarchical organization
+
+3. **Hierarchical Organization Integration**
+   - Project and episode input fields in Triage and Organize pages
+   - Real-time hierarchical path preview in ClassificationPreview component
+   - Backend support via `ClassificationRequest` model
+   - Full integration with `hierarchical_organizer.py`
+
+### **API Improvements:**
+- Updated `ClassificationRequest` Pydantic model with optional `project` and `episode` fields
+- Modified `TriageService.classify_file()` to support hierarchical paths
+- Fixed data structure consistency between frontend TypeScript and backend Python
+- Scan endpoint now returns files immediately instead of triggering background fetch
+
 ## 🎬 **Phase 3a Implementation Status (COMPLETE - October 28, 2025)**
 
 **MAJOR MILESTONE ACHIEVED**: VEO Reverse Prompt Builder (MVP) - Transform video clips into VEO 3.1 JSON descriptions.
@@ -777,7 +892,9 @@ This isn't just a file organizer - it's an accessibility tool that makes informa
 
 ---
 
-*Last updated: 2025-10-25*
-*Version: 3.1 - Phase 1 & 2 COMPLETE*
+*Last updated: 2025-10-31*
+*Version: 3.2 - Phase 1, 2 & 3a COMPLETE + Web Interface Improvements*
 *Phase 1: Intelligent Learning Organizer (7,154 lines)*
 *Phase 2: Computer Vision Integration with Gemini Vision API*
+*Phase 3a: VEO Prompt Builder MVP*
+*Web Updates: Search Page, Triage Fixes, Hierarchical Organization*
