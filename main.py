@@ -4,7 +4,8 @@ FastAPI Hello World Application
 Basic boilerplate for a FastAPI web application
 """
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, UploadFile, File
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -14,9 +15,11 @@ import os
 import asyncio
 import logging
 from pathlib import Path
+from typing import Optional
 
 # Import our services
 from api.services import SystemService, SearchService, TriageService
+from api.rollback_service import RollbackService
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -26,6 +29,8 @@ logger = logging.getLogger(__name__)
 class ClassificationRequest(BaseModel):
     file_path: str
     confirmed_category: str
+    project: Optional[str] = None  # Optional hierarchical organization
+    episode: Optional[str] = None  # Optional episode-level organization
 
 class OpenFileRequest(BaseModel):
     path: str
@@ -35,6 +40,18 @@ app = FastAPI(
     title="AI File Organizer API",
     description="FastAPI application for AI File Organizer system",
     version="1.0.0"
+)
+
+# Add CORS middleware to allow frontend on localhost:5173 to access API
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",  # Vite dev server
+        "http://127.0.0.1:5173",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Mount static files for the web interface
@@ -49,8 +66,12 @@ print("DEBUG: Initializing SearchService...")
 search_service = SearchService()
 print("DEBUG: SearchService initialized.")
 
+print("DEBUG: Initializing RollbackService...")
+rollback_service = RollbackService()
+print("DEBUG: RollbackService initialized.")
+
 print("DEBUG: Initializing TriageService...")
-triage_service = TriageService()
+triage_service = TriageService(rollback_service=rollback_service)
 print("DEBUG: TriageService initialized.")
 
 # Background scanning tasks
@@ -119,6 +140,12 @@ async def get_system_status():
     """Get current system status including file counts and last run time"""
     return system_service.get_status()
 
+@app.post("/api/system/emergency_cleanup")
+async def emergency_cleanup():
+    """Emergency cleanup: Move large files from Downloads to Google Drive"""
+    result = system_service.emergency_cleanup()
+    return result
+
 @app.get("/api/search")
 async def search_files(q: str = Query(..., description="Search query", min_length=1)):
     """
@@ -181,19 +208,74 @@ async def trigger_triage_scan():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to trigger scan: {str(e)}")
 
+@app.post("/api/triage/upload")
+async def upload_file(file: UploadFile = File(...)):
+    """
+    Upload and classify a file
+
+    Args:
+        file: Uploaded file
+
+    Returns:
+        JSON response with classification results
+    """
+    try:
+        # Save file temporarily
+        temp_dir = Path.home() / "Downloads"
+        file_path = temp_dir / file.filename
+
+        # Write uploaded file
+        with open(file_path, "wb") as buffer:
+            content = await file.read()
+            buffer.write(content)
+
+        logger.info(f"File uploaded: {file_path}")
+
+        # Classify the file using triage service
+        classification = triage_service.get_classification(str(file_path))
+
+        # Return classification result
+        return {
+            "file_id": str(hash(file.filename)),
+            "file_name": file.filename,
+            "file_path": str(file_path),  # Add file_path for classification API
+            "classification": {
+                "category": classification.get("suggested_category", "Unknown"),
+                "confidence": classification.get("confidence", 0.5),
+                "reasoning": classification.get("reasoning", "File analyzed"),
+                "needs_review": classification.get("confidence", 0.5) < 0.85
+            },
+            "status": "pending_review" if classification.get("confidence", 0.5) < 0.85 else "organized",
+            "destination_path": str(file_path),
+            "operation_id": 0
+        }
+
+    except Exception as e:
+        logger.error(f"File upload failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
+
 @app.post("/api/triage/classify")
 async def classify_file(request: ClassificationRequest):
     """
-    Classify a file with user-confirmed category
-    
+    Classify a file with user-confirmed category and optional hierarchical organization
+
     Args:
-        request: Classification request containing file_path and confirmed_category
-        
+        request: Classification request containing:
+            - file_path: Path to the file
+            - confirmed_category: User-confirmed category
+            - project: Optional project name for hierarchical organization
+            - episode: Optional episode name for hierarchical organization
+
     Returns:
-        JSON response with classification status
+        JSON response with classification status and hierarchical metadata
     """
     try:
-        result = triage_service.classify_file(request.file_path, request.confirmed_category)
+        result = triage_service.classify_file(
+            file_path=request.file_path,
+            confirmed_category=request.confirmed_category,
+            project=request.project,
+            episode=request.episode
+        )
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Classification failed: {str(e)}")
@@ -263,6 +345,59 @@ async def open_file(request: OpenFileRequest):
             status_code=500, 
             detail=f"Unexpected error opening file: {str(e)}"
         )
+
+# Rollback API endpoints
+@app.get("/api/rollback/operations")
+async def get_rollback_operations(
+    days: int = Query(7, description="Number of days to look back"),
+    today_only: bool = Query(False, description="Show only today's operations"),
+    search: Optional[str] = Query(None, description="Search term to filter operations")
+):
+    """
+    Get file operations that can be rolled back
+
+    Args:
+        days: Number of days to look back (default: 7)
+        today_only: Only show today's operations (default: False)
+        search: Optional search term
+
+    Returns:
+        JSON response with list of operations
+    """
+    operations = rollback_service.get_operations(days=days, today_only=today_only, search=search)
+    return {
+        "operations": operations,
+        "count": len(operations)
+    }
+
+@app.post("/api/rollback/undo/{operation_id}")
+async def undo_operation(operation_id: int):
+    """
+    Undo a specific file operation
+
+    Args:
+        operation_id: ID of the operation to undo
+
+    Returns:
+        JSON response with success status
+    """
+    result = rollback_service.undo_operation(operation_id)
+    if not result["success"]:
+        raise HTTPException(status_code=400, detail=result["message"])
+    return result
+
+@app.post("/api/rollback/undo-today")
+async def undo_today():
+    """
+    Emergency undo: Rollback all operations from today
+
+    Returns:
+        JSON response with count and status
+    """
+    result = rollback_service.undo_today()
+    if not result["success"] and result["count"] == 0:
+        raise HTTPException(status_code=404, detail="No operations found to undo")
+    return result
 
 if __name__ == "__main__":
     # Run the application directly with python main.py
