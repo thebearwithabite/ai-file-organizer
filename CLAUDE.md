@@ -146,7 +146,8 @@ source venv/bin/activate  # On macOS/Linux
 # OR: venv\Scripts\activate  # On Windows
 
 # Install Python dependencies
-pip install -r requirements_v3.txt  # Main requirements for v3 system
+pip install -r requirements_v3.txt   # Main requirements for v3 system
+pip install -r requirements_cloud.txt # Google Drive integration (REQUIRED)
 pip install -r requirements.txt      # Core dependencies (PyPDF2, chromadb, etc)
 
 # Start web server

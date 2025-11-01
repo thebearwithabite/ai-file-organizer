@@ -24,6 +24,7 @@ source venv/bin/activate  # On macOS/Linux
 
 # Install dependencies
 pip install -r requirements_v3.txt
+pip install -r requirements_cloud.txt  # Google Drive integration
 
 # Start the system
 python main.py
@@ -34,6 +35,7 @@ python main.py
 git clone https://github.com/thebearwithabite/ai-file-organizer
 cd ai-file-organizer
 pip install -r requirements_v3.txt
+pip install -r requirements_cloud.txt  # Google Drive integration
 python main.py
 ```
 
