@@ -183,6 +183,21 @@ POST /api/triage/classify             # Classify file with optional project/epis
        "episode": "Episode_02"              # Optional
      }
 
+# Settings & Learning System
+GET  /api/settings/learning-stats     # Get universal adaptive learning statistics
+     Response: {
+       "total_learning_events": 1523,
+       "image_events": 342,
+       "video_events": 156,
+       "audio_events": 89,
+       "document_events": 936,
+       "unique_categories_learned": 12,
+       "most_common_category": "creative",
+       "top_confidence_average": 0.87,
+       "media_type_breakdown": {...},
+       "category_distribution": {...}
+     }
+
 # File Operations
 POST /api/upload                      # Upload and classify file
 POST /api/open_file                   # Open file in default application
@@ -730,11 +745,23 @@ descriptors = {
    - Backend support via `ClassificationRequest` model
    - Full integration with `hierarchical_organizer.py`
 
+4. **Settings Page with Learning Stats (Sprint 2.5 - COMPLETE)**
+   - **Dynamic Learning Statistics UI** - Real-time system learning metrics
+   - **Three Main Stats Cards**: Total events, unique categories, average confidence
+   - **Media Type Breakdown**: Visual display of images/videos/audio/documents
+   - **Most Common Category**: Shows top learned category with icon
+   - **Animated Progress Bar**: Visual confidence score display
+   - **Number Formatting**: Thousands separators for large numbers
+   - **Loading States**: Spinner during data fetch
+   - **Empty State Handling**: Helpful messages when no learning data exists
+   - **API Integration**: GET `/api/settings/learning-stats` endpoint
+
 ### **API Improvements:**
 - Updated `ClassificationRequest` Pydantic model with optional `project` and `episode` fields
 - Modified `TriageService.classify_file()` to support hierarchical paths
 - Fixed data structure consistency between frontend TypeScript and backend Python
 - Scan endpoint now returns files immediately instead of triggering background fetch
+- **NEW**: Added `/api/settings/learning-stats` endpoint for learning system statistics
 
 ## 🎬 **Phase 3a Implementation Status (COMPLETE - October 28, 2025)**
 
@@ -893,9 +920,10 @@ This isn't just a file organizer - it's an accessibility tool that makes informa
 
 ---
 
-*Last updated: 2025-10-31*
-*Version: 3.2 - Phase 1, 2 & 3a COMPLETE + Web Interface Improvements*
+*Last updated: 2025-11-03*
+*Version: 3.2.1 - Phase 1, 2 & 3a COMPLETE + Web Interface Improvements + Sprint 2.5*
 *Phase 1: Intelligent Learning Organizer (7,154 lines)*
 *Phase 2: Computer Vision Integration with Gemini Vision API*
 *Phase 3a: VEO Prompt Builder MVP*
 *Web Updates: Search Page, Triage Fixes, Hierarchical Organization*
+*Sprint 2.5: Learning Stats API & UI Integration (COMPLETE)*
