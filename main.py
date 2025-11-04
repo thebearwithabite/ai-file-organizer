@@ -169,7 +169,9 @@ async def search_files(q: str = Query(..., description="Search query", min_lengt
             "count": len(results)
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
+        # Security: Log detailed error internally, return generic message to user
+        logger.error(f"Search operation failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="An error occurred while performing the search. Please try again later.")
 
 @app.get("/api/triage/files_to_review")
 async def get_files_to_review():
@@ -190,7 +192,9 @@ async def get_files_to_review():
             "message": f"Found {len(files)} files requiring review"
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get files for review: {str(e)}")
+        # Security: Log detailed error internally, return generic message to user
+        logger.error(f"Failed to retrieve files for review: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="An error occurred while retrieving files for review. Please try again later.")
 
 @app.post("/api/triage/trigger_scan")
 async def trigger_triage_scan():
@@ -207,7 +211,9 @@ async def trigger_triage_scan():
         result = triage_service.trigger_scan()
         return result
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to trigger scan: {str(e)}")
+        # Security: Log detailed error internally, return generic message to user
+        logger.error(f"Failed to trigger triage scan: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="An error occurred while triggering the scan. Please try again later.")
 
 @app.post("/api/triage/upload")
 async def upload_file(file: UploadFile = File(...)):
