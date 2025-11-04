@@ -1,0 +1,9 @@
+site_name: AI File Organizer Docs
+nav:
+  - Home: index.md
+  - Usage Guide: usage.md
+  - API Reference: ../API_DOCUMENTATION.md
+theme:
+  name: material
+repo_url: https://github.com/thebearwithabite/ai-file-organizer
+repo_name: GitHub
