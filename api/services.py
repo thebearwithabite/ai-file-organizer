@@ -15,6 +15,7 @@ from gdrive_librarian import GoogleDriveLibrarian
 from unified_classifier import UnifiedClassificationService
 from gdrive_integration import get_ai_organizer_root
 from hierarchical_organizer import HierarchicalOrganizer
+from security_utils import validate_path_within_base
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -312,7 +313,23 @@ class TriageService:
                 self.base_dir / "99_TEMP_PROCESSING" / "Manual_Review"
             ]
 
-            logger.info("TriageService initialized with classification engine")
+            # Security: Validate all staging areas are within allowed base directories
+            # This prevents path traversal if staging areas ever become user-configurable
+            validated_staging_areas = []
+            user_home = Path.home()
+
+            for area in self.staging_areas:
+                # Validate each staging area is within either user home or base_dir
+                is_in_home = validate_path_within_base(area, user_home)
+                is_in_base = validate_path_within_base(area, self.base_dir) if self.base_dir else False
+
+                if is_in_home or is_in_base:
+                    validated_staging_areas.append(area)
+                else:
+                    logger.warning(f"Skipping invalid staging area (outside safe directories): {area}")
+
+            self.staging_areas = validated_staging_areas
+            logger.info(f"TriageService initialized with {len(self.staging_areas)} validated staging areas")
 
         except Exception as e:
             logger.error(f"Failed to initialize TriageService: {e}")
