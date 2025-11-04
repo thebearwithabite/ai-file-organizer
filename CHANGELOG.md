@@ -5,6 +5,60 @@ All notable changes to the AI File Organizer project will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.1] - 2025-11-03
+
+### Added - Sprint 2.5: Learning Stats API & UI Integration (COMPLETE)
+
+#### Backend Implementation (100% Complete)
+- **universal_adaptive_learning.py**: Added `get_learning_statistics()` method (lines 1291-1364)
+  - Returns 10 key metrics: `total_learning_events`, `image_events`, `video_events`, `audio_events`, `document_events`, `unique_categories_learned`, `most_common_category`, `top_confidence_average`, `media_type_breakdown`, `category_distribution`
+  - Handles empty database states gracefully
+  - Uses Counter for efficient aggregation
+  - Provides detailed category distribution statistics
+
+- **main.py**: Implemented GET `/api/settings/learning-stats` endpoint (lines 161-181)
+  - FastAPI endpoint returning JSON statistics
+  - Error handling with proper logging
+  - Initialized `learning_system` at startup (lines 80-82)
+  - Returns comprehensive learning metrics for frontend consumption
+
+- **tests/test_learning_stats.py**: Comprehensive test suite (312 lines)
+  - 9/9 tests passing (100% success rate)
+  - Tests endpoint response shape and data types
+  - Tests empty database handling
+  - Tests media type filtering accuracy
+  - Tests malformed event handling
+  - Tests confidence score calculations
+  - Tests category distribution logic
+
+#### Frontend Implementation (100% Complete)
+- **frontend_v2/src/pages/Settings.tsx**: Dynamic learning stats UI
+  - Added `LearningStats` TypeScript interface
+  - `useEffect` hook fetches from API on component mount
+  - Three main statistics cards with staggered fade-in animations:
+    - Total Learning Events (with thousands separator)
+    - Unique Categories Learned
+    - Average Confidence Score (with animated progress bar)
+  - Media Type Breakdown section with visual icons:
+    - Images (Camera icon)
+    - Videos (Film icon)
+    - Audio (Music icon)
+    - Documents (File icon)
+  - Most Common Category display with category icon
+  - Loading state with spinner animation
+  - Empty state with helpful "Start organizing files" message
+  - Number formatting with `.toLocaleString()` for readability
+  - Toast error notifications for failed API calls
+
+### Technical Details
+- **API Contract**: GET `/api/settings/learning-stats` returns JSON with 10 metrics
+- **Error Handling**: Backend returns 500 with error message on failure
+- **State Management**: Frontend uses React Query for caching and loading states
+- **Performance**: Efficient Counter-based aggregation in backend
+- **Testing**: 100% test coverage for learning stats functionality
+
+---
+
 ## [3.2.0] - 2025-10-31
 
 ### Added - Hierarchical Organization System

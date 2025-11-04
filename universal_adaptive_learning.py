@@ -74,24 +74,27 @@ class UniversalAdaptiveLearning:
     """
     
     def __init__(self, base_dir: str = None):
+        # Set up logging FIRST (required by all _load_* methods)
+        self.logger = logging.getLogger(__name__)
+
         # Use Google Drive integration as primary storage root
         self.base_dir = Path(base_dir) if base_dir else get_ai_organizer_root()
-        
+
         # Learning system files
         self.learning_dir = self.base_dir / "04_METADATA_SYSTEM" / "adaptive_learning"
         self.learning_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # Persistent storage files
         self.learning_events_file = self.learning_dir / "learning_events.pkl"
         self.patterns_file = self.learning_dir / "discovered_patterns.pkl"
         self.preferences_file = self.learning_dir / "user_preferences.pkl"
         self.stats_file = self.learning_dir / "learning_stats.json"
-        
+
         # Database for quick queries - use local storage for SQLite (cloud sync conflicts)
         local_db_dir = Path.home() / ".ai_file_organizer" / "databases"
         local_db_dir.mkdir(parents=True, exist_ok=True)
         self.db_path = local_db_dir / "adaptive_learning.db"
-        
+
         # Load existing data
         self.learning_events: List[LearningEvent] = self._load_learning_events()
         self.patterns: Dict[str, AdaptivePattern] = self._load_patterns()
@@ -122,9 +125,6 @@ class UniversalAdaptiveLearning:
         
         # Initialize database
         self._init_database()
-        
-        # Set up logging
-        self.logger = logging.getLogger(__name__)
 
     def _init_database(self):
         """Initialize SQLite database for fast pattern and preference queries"""
@@ -399,8 +399,142 @@ class UniversalAdaptiveLearning:
         self._update_preferences_from_event(learning_event)
         
         self.logger.info(f"Recorded learning event: {event_type} for {Path(file_path).name}")
-        
+
         return event_id
+
+    def record_classification(self,
+                            file_path: str,
+                            predicted_category: str,
+                            confidence: float,
+                            features: Dict[str, Any],
+                            media_type: str = 'unknown') -> str:
+        """
+        Record a classification event from multimodal sources (images, videos, audio, etc.)
+
+        This method supports classification from:
+        - Static images (media_type='image')
+        - Video clips (media_type='video')
+        - Audio files (media_type='audio')
+        - Documents (media_type='document')
+
+        Args:
+            file_path: Path to the classified file
+            predicted_category: Predicted category from classifier
+            confidence: Confidence score (0.0-1.0)
+            features: Dict of extracted features
+            media_type: Type of media ('image', 'video', 'audio', 'document', etc.)
+
+        Returns:
+            Event ID for this classification
+        """
+
+        # Build original prediction dict
+        original_prediction = {
+            'category': predicted_category,
+            'confidence': confidence,
+            'media_type': media_type
+        }
+
+        # Build context with media_type and features
+        context = {
+            'media_type': media_type,
+            'features': features,
+            'source': features.get('source', 'unknown'),
+            'file_extension': Path(file_path).suffix.lower()
+        }
+
+        # Update visual patterns for images/videos
+        if media_type in ['image', 'video']:
+            self._update_visual_patterns_from_classification(
+                file_path=file_path,
+                category=predicted_category,
+                features=features
+            )
+
+        # Update audio patterns for audio files
+        elif media_type == 'audio':
+            self._update_audio_patterns_from_classification(
+                file_path=file_path,
+                category=predicted_category,
+                features=features
+            )
+
+        # Record the classification as a learning event
+        # Use 'ai_classification' as event_type to distinguish from user corrections
+        event_id = self.record_learning_event(
+            event_type='ai_classification',
+            file_path=file_path,
+            original_prediction=original_prediction,
+            user_action={'accepted': True, 'category': predicted_category},
+            confidence_before=confidence,
+            context=context
+        )
+
+        self.logger.info(
+            f"Recorded {media_type} classification: {predicted_category} "
+            f"({confidence:.2f}) for {Path(file_path).name}"
+        )
+
+        return event_id
+
+    def _store_visual_patterns(self,
+                              category: str,
+                              features: Dict[str, Any],
+                              media_type: str,
+                              confidence: float):
+        """Store visual patterns from image/video analysis for future learning"""
+
+        # Update visual pattern storage
+        if 'visual_objects' in features:
+            self.visual_patterns['objects_detected'][category].extend(features['visual_objects'])
+
+        if 'scene_type' in features:
+            self.visual_patterns['scene_types'][category].append(features['scene_type'])
+
+        if 'keywords' in features:
+            self.visual_patterns['visual_keywords'][category].extend(features['keywords'])
+
+        # For screenshots, track UI context
+        if category == 'screenshot' and 'content_type' in features:
+            self.visual_patterns['screenshot_contexts'][category].append(features['content_type'])
+
+        # Track category frequency
+        self.visual_patterns['category_frequencies'][category] += 1
+
+        # Save visual patterns periodically
+        if sum(self.visual_patterns['category_frequencies'].values()) % 10 == 0:
+            with open(self.visual_patterns_file, 'wb') as f:
+                pickle.dump(self.visual_patterns, f)
+
+    def _store_audio_patterns(self,
+                             category: str,
+                             features: Dict[str, Any],
+                             confidence: float):
+        """Store audio patterns from audio analysis for future learning"""
+
+        # Update audio pattern storage
+        if 'bpm' in features:
+            self.audio_patterns['bpm_ranges'][category].append(features['bpm'])
+
+        if 'mood' in features:
+            self.audio_patterns['moods'][category].append(features['mood'])
+
+        if 'content_type' in features:
+            self.audio_patterns['content_types'][category].append(features['content_type'])
+
+        if 'energy' in features:
+            self.audio_patterns['energy_levels'][category].append(features['energy'])
+
+        if 'keywords' in features:
+            self.audio_patterns['audio_keywords'][category].extend(features['keywords'])
+
+        # Track category frequency
+        self.audio_patterns['category_frequencies'][category] += 1
+
+        # Save audio patterns periodically
+        if sum(self.audio_patterns['category_frequencies'].values()) % 10 == 0:
+            with open(self.audio_patterns_file, 'wb') as f:
+                pickle.dump(self.audio_patterns, f)
 
     def _discover_patterns_from_event(self, event: LearningEvent):
         """Discover new patterns from a learning event"""
@@ -1015,69 +1149,6 @@ class UniversalAdaptiveLearning:
         keywords = [word for word in words if word not in stop_words]
         return keywords[:10]  # Return top 10 keywords
 
-    def record_classification(self,
-                            file_path: str,
-                            predicted_category: str,
-                            confidence: float,
-                            features: Dict[str, Any] = None) -> str:
-        """
-        Record a classification for learning system integration.
-        Used by audio, vision, and document classifiers to build pattern library.
-
-        Args:
-            file_path: Path to the classified file
-            predicted_category: Category predicted by classifier
-            confidence: Confidence score (0.0-1.0)
-            features: Feature dictionary (keywords, visual_objects, audio_features, etc.)
-
-        Returns:
-            Event ID
-        """
-
-        # Create a learning event from the classification
-        original_prediction = {
-            "category": predicted_category,
-            "confidence": confidence,
-            "features": features or {}
-        }
-
-        # For initial classifications (no user correction yet),
-        # user_action is same as prediction
-        user_action = {
-            "target_category": predicted_category
-        }
-
-        # Create context from features
-        context = features or {}
-
-        # Record as a learning event
-        event_id = self.record_learning_event(
-            event_type="classification",
-            file_path=file_path,
-            original_prediction=original_prediction,
-            user_action=user_action,
-            confidence_before=confidence,
-            context=context
-        )
-
-        # Update visual patterns if this is a visual file
-        if features and ('visual_objects' in features or 'keywords' in features):
-            self._update_visual_patterns_from_classification(
-                file_path,
-                predicted_category,
-                features
-            )
-
-        # Update audio patterns if this is an audio file
-        if features and ('bpm' in features or 'mood' in features or 'audio_features' in features):
-            self._update_audio_patterns_from_classification(
-                file_path,
-                predicted_category,
-                features
-            )
-
-        return event_id
-
     def _update_visual_patterns_from_classification(self,
                                                    file_path: str,
                                                    category: str,
@@ -1215,6 +1286,81 @@ class UniversalAdaptiveLearning:
                 "newest_event": max([e.timestamp for e in self.learning_events]).isoformat() if self.learning_events else None,
                 "oldest_event": min([e.timestamp for e in self.learning_events]).isoformat() if self.learning_events else None
             }
+        }
+
+    def get_learning_statistics(self) -> Dict[str, Any]:
+        """
+        Get statistics for the learning system suitable for API exposure.
+
+        Returns detailed statistics about learning events broken down by media type,
+        categories, and confidence metrics.
+
+        Returns:
+            Dict with keys:
+                - total_learning_events: Total number of events
+                - image_events: Count of image-origin events
+                - video_events: Count of video-origin events
+                - audio_events: Count of audio-origin events
+                - document_events: Count of document-origin events
+                - unique_categories_learned: Number of unique categories
+                - most_common_category: Most frequently seen category
+                - top_confidence_average: Average confidence of top 10 events
+                - media_type_breakdown: Dict mapping media_type to count
+                - category_distribution: Dict mapping category to count (top 10)
+        """
+
+        if not self.learning_events:
+            return {
+                "total_learning_events": 0,
+                "image_events": 0,
+                "video_events": 0,
+                "audio_events": 0,
+                "document_events": 0,
+                "unique_categories_learned": 0,
+                "most_common_category": None,
+                "top_confidence_average": 0.0,
+                "media_type_breakdown": {},
+                "category_distribution": {}
+            }
+
+        # Count events by media_type
+        media_type_counts = Counter()
+        categories = Counter()
+        confidences = []
+
+        for event in self.learning_events:
+            # Extract media_type from context (added in Sprint 2.0 Task 2.4)
+            if event.context and 'media_type' in event.context:
+                media_type = event.context['media_type']
+                media_type_counts[media_type] += 1
+
+            # Extract category from original_prediction
+            if event.original_prediction and 'category' in event.original_prediction:
+                category = event.original_prediction['category']
+                categories[category] += 1
+
+            # Collect confidence scores
+            confidences.append(event.confidence_before)
+
+        # Calculate top confidence average (top 10 events by confidence)
+        top_confidences = sorted(confidences, reverse=True)[:10]
+        top_confidence_avg = sum(top_confidences) / len(top_confidences) if top_confidences else 0.0
+
+        # Get most common category
+        most_common = categories.most_common(1)
+        most_common_category = most_common[0][0] if most_common else None
+
+        return {
+            "total_learning_events": len(self.learning_events),
+            "image_events": media_type_counts.get('image', 0),
+            "video_events": media_type_counts.get('video', 0),
+            "audio_events": media_type_counts.get('audio', 0),
+            "document_events": media_type_counts.get('document', 0),
+            "unique_categories_learned": len(categories),
+            "most_common_category": most_common_category,
+            "top_confidence_average": round(top_confidence_avg, 2),
+            "media_type_breakdown": dict(media_type_counts),
+            "category_distribution": dict(categories.most_common(10))
         }
 
     def cleanup_old_data(self, days_to_keep: int = 90):

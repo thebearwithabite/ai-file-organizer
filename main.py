@@ -20,7 +20,9 @@ from typing import Optional
 # Import our services
 from api.services import SystemService, SearchService, TriageService
 from api.rollback_service import RollbackService
+from api.veo_api import router as veo_router, clip_router
 from security_utils import sanitize_filename, validate_path_within_base
+from universal_adaptive_learning import UniversalAdaptiveLearning
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -74,6 +76,15 @@ print("DEBUG: RollbackService initialized.")
 print("DEBUG: Initializing TriageService...")
 triage_service = TriageService(rollback_service=rollback_service)
 print("DEBUG: TriageService initialized.")
+
+print("DEBUG: Initializing UniversalAdaptiveLearning...")
+learning_system = UniversalAdaptiveLearning()
+print("DEBUG: UniversalAdaptiveLearning initialized.")
+
+# Include VEO API routers (Sprint 2.0)
+app.include_router(veo_router)
+app.include_router(clip_router)
+print("DEBUG: VEO API routers included.")
 
 # Background scanning tasks
 @app.on_event("startup")
@@ -146,6 +157,28 @@ async def emergency_cleanup():
     """Emergency cleanup: Move large files from Downloads to Google Drive"""
     result = system_service.emergency_cleanup()
     return result
+
+@app.get("/api/settings/learning-stats")
+async def get_learning_stats():
+    """
+    Get learning system statistics for display in Settings UI.
+
+    Returns detailed statistics about:
+    - Total learning events
+    - Breakdown by media type (image/video/audio/document)
+    - Unique categories learned
+    - Most common category
+    - Average confidence of top events
+
+    Returns:
+        JSON with learning statistics
+    """
+    try:
+        stats = learning_system.get_learning_statistics()
+        return stats
+    except Exception as e:
+        logger.error(f"Failed to get learning statistics: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to retrieve learning statistics")
 
 @app.get("/api/search")
 async def search_files(q: str = Query(..., description="Search query", min_length=1)):

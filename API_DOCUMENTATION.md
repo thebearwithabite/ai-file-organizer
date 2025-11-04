@@ -11,9 +11,10 @@ AI File Organizer v3.2 - FastAPI REST API Reference
 1. [System Health & Status](#system-health--status)
 2. [Search & Discovery](#search--discovery)
 3. [File Organization & Triage](#file-organization--triage)
-4. [File Operations](#file-operations)
-5. [Data Models](#data-models)
-6. [Error Handling](#error-handling)
+4. [Settings & Learning System](#settings--learning-system)
+5. [File Operations](#file-operations)
+6. [Data Models](#data-models)
+7. [Error Handling](#error-handling)
 
 ---
 
@@ -263,6 +264,97 @@ The system creates a 5-level folder structure:
 
 ---
 
+## Settings & Learning System
+
+### Get Learning Statistics
+
+Retrieve comprehensive statistics from the Universal Adaptive Learning System.
+
+**Endpoint**: `GET /api/settings/learning-stats`
+
+**Response**:
+```json
+{
+  "total_learning_events": 1523,
+  "image_events": 342,
+  "video_events": 156,
+  "audio_events": 89,
+  "document_events": 936,
+  "unique_categories_learned": 12,
+  "most_common_category": "creative",
+  "top_confidence_average": 0.87,
+  "media_type_breakdown": {
+    "images": 342,
+    "videos": 156,
+    "audio": 89,
+    "documents": 936
+  },
+  "category_distribution": {
+    "creative": 456,
+    "entertainment": 287,
+    "financial": 134,
+    "development": 98,
+    "audio": 89,
+    "image": 342,
+    "text_document": 117
+  }
+}
+```
+
+**Response Fields**:
+| Field | Type | Description |
+|-------|------|-------------|
+| `total_learning_events` | integer | Total number of learning events recorded |
+| `image_events` | integer | Number of image classification learning events |
+| `video_events` | integer | Number of video classification learning events |
+| `audio_events` | integer | Number of audio classification learning events |
+| `document_events` | integer | Number of document classification learning events |
+| `unique_categories_learned` | integer | Number of distinct categories the system has learned |
+| `most_common_category` | string | Most frequently learned category |
+| `top_confidence_average` | number | Average confidence score across all learning events (0-1) |
+| `media_type_breakdown` | object | Breakdown of events by media type |
+| `category_distribution` | object | Distribution of events by category |
+
+**Status Codes**:
+- `200 OK`: Statistics retrieved successfully
+- `500 Internal Server Error`: Failed to retrieve statistics
+
+**Example Request**:
+```bash
+curl http://localhost:8000/api/settings/learning-stats
+```
+
+**Notes**:
+- Returns statistics from `universal_adaptive_learning.py`
+- Uses efficient Counter-based aggregation
+- Handles empty database gracefully (returns zeros)
+- Updated in real-time as system learns from user interactions
+- Includes both media type and category breakdowns
+- Confidence scores are averaged across all learning events
+
+**Empty Database Response**:
+```json
+{
+  "total_learning_events": 0,
+  "image_events": 0,
+  "video_events": 0,
+  "audio_events": 0,
+  "document_events": 0,
+  "unique_categories_learned": 0,
+  "most_common_category": "None",
+  "top_confidence_average": 0.0,
+  "media_type_breakdown": {
+    "images": 0,
+    "videos": 0,
+    "audio": 0,
+    "documents": 0
+  },
+  "category_distribution": {}
+}
+```
+
+---
+
 ## File Operations
 
 ### Upload File
@@ -406,6 +498,30 @@ interface HierarchicalMetadata {
 }
 ```
 
+### LearningStats
+
+```typescript
+interface LearningStats {
+  total_learning_events: number           // Total number of learning events
+  image_events: number                   // Image classification events
+  video_events: number                   // Video classification events
+  audio_events: number                   // Audio classification events
+  document_events: number                // Document classification events
+  unique_categories_learned: number      // Number of distinct categories
+  most_common_category: string          // Most frequently learned category
+  top_confidence_average: number        // Average confidence score (0-1)
+  media_type_breakdown: {
+    images: number
+    videos: number
+    audio: number
+    documents: number
+  }
+  category_distribution: {
+    [category: string]: number          // Category name to event count mapping
+  }
+}
+```
+
 ---
 
 ## Error Handling
@@ -511,5 +627,5 @@ API versioning follows the main project version. Breaking changes will increment
 
 ---
 
-*Last Updated: October 31, 2025*
-*Version: 3.2.0*
+*Last Updated: November 3, 2025*
+*Version: 3.2.1*
