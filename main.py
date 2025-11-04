@@ -20,6 +20,7 @@ from typing import Optional
 # Import our services
 from api.services import SystemService, SearchService, TriageService
 from api.rollback_service import RollbackService
+from security_utils import sanitize_filename, validate_path_within_base
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -220,16 +221,22 @@ async def upload_file(file: UploadFile = File(...)):
         JSON response with classification results
     """
     try:
-        # Save file temporarily
+        # Save file temporarily with sanitized filename (security: prevent path traversal)
         temp_dir = Path.home() / "Downloads"
-        file_path = temp_dir / file.filename
+        safe_filename = sanitize_filename(file.filename, fallback_prefix="upload")
+        file_path = temp_dir / safe_filename
+
+        # Validate the final path is within Downloads directory
+        if not validate_path_within_base(file_path, temp_dir):
+            logger.error(f"Path validation failed for upload: {file.filename}")
+            raise HTTPException(status_code=400, detail="Invalid filename")
 
         # Write uploaded file
         with open(file_path, "wb") as buffer:
             content = await file.read()
             buffer.write(content)
 
-        logger.info(f"File uploaded: {file_path}")
+        logger.info(f"File uploaded (sanitized): {file_path}")
 
         # Classify the file using triage service
         classification = triage_service.get_classification(str(file_path))

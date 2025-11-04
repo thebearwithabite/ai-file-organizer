@@ -11,6 +11,11 @@ from pydantic import BaseModel
 from typing import List, Dict, Any
 import sqlite3, json, logging
 from pathlib import Path
+import sys
+
+# Add parent directory to path for security_utils import
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from security_utils import sanitize_filename, validate_path_within_base
 
 DB_PATH = Path(__file__).resolve().parents[1] / "04_METADATA_SYSTEM" / "metadata.db"
 app = FastAPI(title="AI File Organizer – Library API")
@@ -74,7 +79,18 @@ def get_clip(clip_id: int):
 @app.get("/api/manifest/{project}")
 def get_manifest(project: str):
     """Return the manifest and continuity data for a project."""
-    manifest_path = Path(f"./05_VEO_PROMPTS/{project}_manifest.json")
+    # Security: Sanitize project parameter to prevent path traversal
+    safe_project = sanitize_filename(project, fallback_prefix="project")
+
+    # Construct path with sanitized filename
+    base_dir = Path("./05_VEO_PROMPTS").resolve()
+    manifest_path = base_dir / f"{safe_project}_manifest.json"
+
+    # Validate the path is within the VEO_PROMPTS directory
+    if not validate_path_within_base(manifest_path, base_dir):
+        logger.error(f"Path validation failed for manifest: {project}")
+        raise HTTPException(status_code=400, detail="Invalid project name")
+
     if not manifest_path.exists():
         raise HTTPException(status_code=404, detail="Manifest not found")
     return json.loads(manifest_path.read_text())
