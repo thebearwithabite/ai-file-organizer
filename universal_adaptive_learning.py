@@ -397,7 +397,10 @@ class UniversalAdaptiveLearning:
         
         # Update preferences
         self._update_preferences_from_event(learning_event)
-        
+
+        # Save learning data to disk immediately to ensure persistence across instances
+        self.save_all_data()
+
         self.logger.info(f"Recorded learning event: {event_type} for {Path(file_path).name}")
 
         return event_id
@@ -1308,6 +1311,9 @@ class UniversalAdaptiveLearning:
                 - media_type_breakdown: Dict mapping media_type to count
                 - category_distribution: Dict mapping category to count (top 10)
         """
+
+        # Reload learning events from disk to get latest data from all instances
+        self.learning_events = self._load_learning_events()
 
         if not self.learning_events:
             return {
