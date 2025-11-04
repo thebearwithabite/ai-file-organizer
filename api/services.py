@@ -16,6 +16,7 @@ from unified_classifier import UnifiedClassificationService
 from gdrive_integration import get_ai_organizer_root
 from hierarchical_organizer import HierarchicalOrganizer
 from security_utils import validate_path_within_base
+from universal_adaptive_learning import UniversalAdaptiveLearning
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -304,6 +305,9 @@ class TriageService:
             # Store rollback service for operation tracking
             self.rollback_service = rollback_service
 
+            # Initialize learning system for adaptive learning from user classifications
+            self.learning_system = UniversalAdaptiveLearning()
+
             # Common staging areas where unorganized files are found
             self.staging_areas = [
                 Path.home() / "Downloads",
@@ -553,10 +557,10 @@ class TriageService:
             original_confidence = classification_result.get('confidence', 0.0) if isinstance(classification_result, dict) else getattr(classification_result, 'confidence', 0.0)
             suggested_filename = classification_result.get('suggested_filename', file_obj.name) if isinstance(classification_result, dict) else getattr(classification_result, 'suggested_filename', file_obj.name)
 
-            # --- Learning Step (Future Implementation) ---
+            # --- Learning Step: Will record classification after successful file move ---
             logger.info(f"User classification for '{file_path}':")
             logger.info(f"  AI Analysis: {original_category} ({original_confidence:.2f}) -> User Confirmed: {confirmed_category}")
-            # TODO: Implement learning from user corrections in future updates
+            # Learning event will be recorded after file move completes successfully
 
             # --- Hierarchical File Organization ---
             # Use hierarchical organizer to build deep folder structure
@@ -616,6 +620,40 @@ class TriageService:
                     logger.info(f"Recorded rollback operation ID: {operation_id}")
                 except Exception as e:
                     logger.warning(f"Failed to record rollback operation: {e}")
+
+            # --- Record Learning Event for Adaptive Learning System ---
+            try:
+                # Determine media type from file extension
+                ext = file_obj.suffix.lower()
+                if ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.bmp', '.heic', '.heif']:
+                    media_type = 'image'
+                elif ext in ['.mp4', '.mov', '.avi', '.mkv', '.webm', '.flv', '.m4v', '.wmv']:
+                    media_type = 'video'
+                elif ext in ['.mp3', '.wav', '.flac', '.aac', '.ogg', '.m4a', '.wma', '.aiff']:
+                    media_type = 'audio'
+                elif ext in ['.pdf', '.doc', '.docx', '.txt', '.rtf', '.odt', '.pages', '.md']:
+                    media_type = 'document'
+                else:
+                    media_type = 'unknown'
+
+                # Record the classification event with rich context
+                self.learning_system.record_classification(
+                    file_path=str(new_file_path),
+                    predicted_category=original_category,
+                    confidence=original_confidence,
+                    features={
+                        'user_confirmed': confirmed_category,
+                        'original_filename': original_name,
+                        'hierarchy_project': hierarchy_metadata.get('project', 'N/A'),
+                        'hierarchy_episode': hierarchy_metadata.get('episode', 'N/A'),
+                        'hierarchy_level': hierarchy_metadata.get('hierarchy_level', 0),
+                        'media_type_detected': hierarchy_metadata.get('media_type', 'N/A')
+                    },
+                    media_type=media_type
+                )
+                logger.info(f"✅ Learning event recorded: {original_category} ({original_confidence:.2f}) → {confirmed_category} [{media_type}]")
+            except Exception as e:
+                logger.warning(f"Failed to record learning event: {e}")
 
             return {
                 "status": "success",
