@@ -34,6 +34,31 @@ Clarify exactly what the `AdaptiveBackgroundMonitor` does, which folders it watc
 - Does not auto-start unless triggered by FastAPI startup event
 - Health status available only in logs, not via API
 
+### Safety Rules (v3.2) 🛡️
+
+**7-Day Cooldown Period:**
+- Auto-organization of detected files is **deferred for 7 days** after creation or last modification
+- During that period, the monitor only **observes and records metadata**
+- Files are logged immediately but NOT moved automatically
+- This prevents the system from "fighting" the user during active work
+
+**Auto-Move Criteria:**
+- File must be **7+ days old** (no modifications in last 7 days)
+- Classification confidence must be **≥ 0.85**
+- User has not manually moved/renamed the file during cooldown
+- Only then may the monitor trigger automatic organization
+
+**Rollback Protection:**
+- All auto-moves go through `log_file_op()` for complete rollback safety
+- User can undo any automatic organization via rollback system
+- Monitor never deletes files, only moves them to organized locations
+
+**ADHD-Friendly Design:**
+- Prevents anxiety from "files vanishing while I'm working on them"
+- Gives user time to rename, edit, or manually organize without interference
+- Transparent logging shows what will happen before it happens
+- Easy undo if automation makes a mistake
+
 ---
 
 ## Intended Behavior (v3.3 / upcoming) 🎯

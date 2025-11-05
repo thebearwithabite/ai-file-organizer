@@ -57,7 +57,12 @@ class AdaptiveFileHandler(FileSystemEventHandler):
             })
     
     def on_created(self, event):
-        """Handle file creation events"""
+        """
+        Handle file creation events
+
+        NOTE: Files are observed immediately but NOT auto-organized.
+        See _handle_new_file_with_cooldown() for 7-day safety rule.
+        """
         if not event.is_directory:
             self.event_queue.put({
                 'type': 'created',
@@ -839,8 +844,58 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
         
         # Save learning data
         self.learning_system.save_all_data()
-        
+
         self.logger.info("Adaptive monitoring stopped")
+
+    def _handle_new_file_with_cooldown(self, path: Path) -> bool:
+        """
+        Handle new file with 7-day cooldown safety rule
+
+        NOTE: This is a placeholder for Sprint 3.3 implementation.
+        See docs/Adaptive_Monitor_Spec.md "Safety Rules" section.
+
+        SAFETY RULES (v3.2+):
+        1. Detect & log new files instantly
+        2. Record event (path, category prediction, confidence, timestamp)
+        3. Wait 7 days of inactivity before auto-organizing
+        4. Only auto-move if confidence ≥ 0.85
+        5. All moves go through log_file_op() for rollback safety
+
+        Args:
+            path: Path to new/detected file
+
+        Returns:
+            bool: True if file was organized, False if deferred
+
+        Example implementation:
+            ```python
+            # Record observation immediately
+            self.learning_system.record_observation(path)
+
+            # Check file age
+            age_days = (datetime.now() - path.stat().st_mtime).days
+            if age_days < 7:
+                self.logger.info(f"⏳ Deferring move for {path.name} ({age_days}d old)")
+                return False
+
+            # Check if should auto-move
+            result = self.unified_classifier.classify(str(path))
+            if result['confidence'] >= 0.85:
+                # Move file with rollback protection
+                self.rollback_system.log_file_op(
+                    operation='move',
+                    source=str(path),
+                    destination=destination_path,
+                    metadata={'confidence': result['confidence']}
+                )
+                shutil.move(str(path), destination_path)
+                return True
+
+            return False
+            ```
+        """
+        # TODO: Implement 7-day cooldown logic in Sprint 3.3
+        pass
 
 # Testing and CLI interface
 def main():
