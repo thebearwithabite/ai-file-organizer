@@ -35,6 +35,9 @@ class ClassificationRequest(BaseModel):
     project: Optional[str] = None  # Optional hierarchical organization
     episode: Optional[str] = None  # Optional episode-level organization
 
+class ScanFolderRequest(BaseModel):
+    folder_path: str
+
 class OpenFileRequest(BaseModel):
     path: str
 
@@ -180,6 +183,104 @@ async def get_learning_stats():
         logger.error(f"Failed to get learning statistics: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to retrieve learning statistics")
 
+@app.get("/api/settings/database-stats")
+async def get_database_stats():
+    """
+    Get database statistics including record counts and storage information.
+
+    Returns:
+        JSON with database statistics including:
+        - Total rollback operations
+        - Recent operations count (last 7 days)
+        - Database file sizes
+        - Growth metrics
+    """
+    try:
+        import sqlite3
+        from pathlib import Path
+        import os
+        from datetime import datetime, timedelta
+
+        stats = {}
+
+        # Rollback database statistics
+        rollback_db = Path.home() / ".ai_organizer_config" / "rollback.db"
+        if rollback_db.exists():
+            conn = sqlite3.connect(str(rollback_db))
+            cursor = conn.cursor()
+
+            # Total operations
+            cursor.execute("SELECT COUNT(*) FROM file_operations")
+            stats["total_operations"] = cursor.fetchone()[0]
+
+            # Operations in last 7 days
+            seven_days_ago = (datetime.now() - timedelta(days=7)).isoformat()
+            cursor.execute("SELECT COUNT(*) FROM file_operations WHERE timestamp >= ?", (seven_days_ago,))
+            stats["recent_operations"] = cursor.fetchone()[0]
+
+            # Operations today
+            today = datetime.now().date().isoformat()
+            cursor.execute("SELECT COUNT(*) FROM file_operations WHERE DATE(timestamp) = ?", (today,))
+            stats["today_operations"] = cursor.fetchone()[0]
+
+            # Database size
+            stats["rollback_db_size_mb"] = round(rollback_db.stat().st_size / (1024 * 1024), 2)
+
+            conn.close()
+        else:
+            stats["total_operations"] = 0
+            stats["recent_operations"] = 0
+            stats["today_operations"] = 0
+            stats["rollback_db_size_mb"] = 0
+
+        # ChromaDB statistics (vector database for semantic search)
+        chroma_db = Path.home() / ".ai_organizer_config" / "chroma_db"
+        if chroma_db.exists():
+            total_size = sum(f.stat().st_size for f in chroma_db.rglob('*') if f.is_file())
+            stats["vector_db_size_mb"] = round(total_size / (1024 * 1024), 2)
+        else:
+            stats["vector_db_size_mb"] = 0
+
+        # Learning events database
+        learning_db = Path.home() / ".ai_organizer_config" / "learning_events.db"
+        if learning_db.exists():
+            conn = sqlite3.connect(str(learning_db))
+            cursor = conn.cursor()
+
+            # Total learning events
+            cursor.execute("SELECT COUNT(*) FROM learning_events")
+            stats["total_learning_events_db"] = cursor.fetchone()[0]
+
+            # Learning events in last 7 days
+            cursor.execute("SELECT COUNT(*) FROM learning_events WHERE timestamp >= ?", (seven_days_ago,))
+            stats["recent_learning_events"] = cursor.fetchone()[0]
+
+            # Database size
+            stats["learning_db_size_mb"] = round(learning_db.stat().st_size / (1024 * 1024), 2)
+
+            conn.close()
+        else:
+            stats["total_learning_events_db"] = 0
+            stats["recent_learning_events"] = 0
+            stats["learning_db_size_mb"] = 0
+
+        # Total database footprint
+        stats["total_db_size_mb"] = round(
+            stats["rollback_db_size_mb"] +
+            stats["vector_db_size_mb"] +
+            stats["learning_db_size_mb"],
+            2
+        )
+
+        # Activity metrics
+        stats["avg_operations_per_day"] = round(stats["recent_operations"] / 7, 1) if stats["recent_operations"] > 0 else 0
+        stats["avg_learning_per_day"] = round(stats["recent_learning_events"] / 7, 1) if stats["recent_learning_events"] > 0 else 0
+
+        return stats
+    except Exception as e:
+        logger.error(f"Failed to get database statistics: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to retrieve database statistics")
+
 @app.get("/api/search")
 async def search_files(q: str = Query(..., description="Search query", min_length=1)):
     """
@@ -247,6 +348,47 @@ async def trigger_triage_scan():
         # Security: Log detailed error internally, return generic message to user
         logger.error(f"Failed to trigger triage scan: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="An error occurred while triggering the scan. Please try again later.")
+
+@app.post("/api/triage/scan_folder")
+async def scan_custom_folder(request: ScanFolderRequest):
+    """
+    Scan a custom folder for files needing review (any folder, not just Downloads)
+
+    This endpoint allows users to organize ANY folder through the triage center,
+    with all the same features: classification, nested categories, adaptive learning, etc.
+
+    Args:
+        request: ScanFolderRequest containing folder_path
+
+    Returns:
+        JSON response with scan results including:
+        - status: "success" or "error"
+        - message: Human-readable message
+        - files_found: Number of files found
+        - files: List of files with classifications
+        - folder_scanned: The folder that was scanned
+        - total_files_scanned: Total number of files examined
+    """
+    try:
+        # Validate folder path is provided and not empty
+        if not request.folder_path or not request.folder_path.strip():
+            raise HTTPException(status_code=400, detail="Folder path cannot be empty")
+
+        # Call the triage service to scan the custom folder
+        result = triage_service.scan_custom_folder(request.folder_path.strip())
+
+        # Check if the scan encountered an error
+        if result.get("status") == "error":
+            raise HTTPException(status_code=400, detail=result.get("message", "Scan failed"))
+
+        return result
+
+    except HTTPException:
+        raise  # Re-raise HTTP exceptions
+    except Exception as e:
+        # Security: Log detailed error internally, return generic message to user
+        logger.error(f"Failed to scan custom folder '{request.folder_path}': {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="An error occurred while scanning the folder. Please try again later.")
 
 @app.post("/api/triage/upload")
 async def upload_file(file: UploadFile = File(...)):
