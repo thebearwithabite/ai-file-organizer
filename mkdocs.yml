@@ -1,9 +1,75 @@
-site_name: AI File Organizer Docs
+site_name: AI File Organizer
+site_description: Intelligent file organization with computer vision, audio analysis, and adaptive learning
+site_author: AI File Organizer Team
+repo_url: https://github.com/thebearwithabite/ai-file-organizer
+repo_name: GitHub
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - search.suggest
+    - search.highlight
+    - toc.integrate
+
 nav:
   - Home: index.md
   - Usage Guide: usage.md
-  - API Reference: ../API_DOCUMENTATION.md
-theme:
-  name: material
-repo_url: https://github.com/thebearwithabite/ai-file-organizer
-repo_name: GitHub
+  - Getting Started:
+      - Installation: getting-started/installation.md
+      - Gemini Vision Setup: getting-started/gemini-vision-setup.md
+      - Audio Analysis Guide: getting-started/audio-analysis-guide.md
+  - Guides:
+      - API Documentation: guides/api-documentation.md
+      - Rollback & Startup: guides/rollback-and-startup.md
+      - Performance Optimization: guides/performance-optimization.md
+  - Implementation Phases:
+      - Phase 1 - Core Intelligence: phases/phase-1.md
+      - Phase 2a - Vision Integration: phases/phase-2a-vision.md
+      - Phase 2b - Integration: phases/phase-2b-integration.md
+      - Phase 2c - Audio Analysis: phases/phase-2c-audio.md
+      - Phase 3a - VEO System: phases/phase-3a-veo.md
+      - Phase 3 - Specification: phases/phase-3-spec.md
+  - Development:
+      - Changelog: development/changelog.md
+      - Dev Changelog: development/dev-changelog.md
+      - Sprint 2.5 Summary: development/sprint-2.5.md
+      - Week 1 Summary: development/week1-summary.md
+
+markdown_extensions:
+  - admonition
+  - codehilite
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - toc:
+      permalink: true
+      toc_depth: 3
+  - attr_list
+  - md_in_html
+  - def_list
+
+plugins:
+  - search
+  - tags
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/thebearwithabite/ai-file-organizer
+  version:
+    provider: mike
