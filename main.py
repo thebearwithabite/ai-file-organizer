@@ -30,6 +30,9 @@ from security_utils import sanitize_filename, validate_path_within_base
 from universal_adaptive_learning import UniversalAdaptiveLearning
 from easy_rollback_system import ensure_rollback_db
 from adaptive_background_monitor import AdaptiveBackgroundMonitor
+from confidence_system import ADHDFriendlyConfidenceSystem, ConfidenceLevel
+from automated_deduplication_service import AutomatedDeduplicationService
+from emergency_space_protection import EmergencySpaceProtection
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -47,6 +50,9 @@ class ScanFolderRequest(BaseModel):
 
 class OpenFileRequest(BaseModel):
     path: str
+
+class ConfidenceModeRequest(BaseModel):
+    mode: str  # "NEVER", "MINIMAL", "SMART", or "ALWAYS"
 
 # Create FastAPI application instance
 app = FastAPI(
@@ -90,6 +96,18 @@ print("DEBUG: TriageService initialized.")
 print("DEBUG: Initializing UniversalAdaptiveLearning...")
 learning_system = UniversalAdaptiveLearning()
 print("DEBUG: UniversalAdaptiveLearning initialized.")
+
+print("DEBUG: Initializing ADHDFriendlyConfidenceSystem...")
+confidence_system = ADHDFriendlyConfidenceSystem()
+print("DEBUG: ADHDFriendlyConfidenceSystem initialized.")
+
+print("DEBUG: Initializing AutomatedDeduplicationService...")
+deduplication_service = AutomatedDeduplicationService()
+print("DEBUG: AutomatedDeduplicationService initialized.")
+
+print("DEBUG: Initializing EmergencySpaceProtection...")
+space_protection = EmergencySpaceProtection()
+print("DEBUG: EmergencySpaceProtection initialized.")
 
 # Global state for background monitor
 background_monitor = None
@@ -348,6 +366,158 @@ async def get_database_stats():
     except Exception as e:
         logger.error(f"Failed to get database statistics: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to retrieve database statistics")
+
+@app.get("/api/settings/confidence-mode")
+async def get_confidence_mode():
+    """
+    Get current confidence mode setting
+
+    Returns:
+        JSON with current confidence mode and statistics
+    """
+    try:
+        # Get current mode from user config
+        current_mode = confidence_system.user_config.get("default_level", "SMART")
+
+        # Get confidence statistics
+        stats = confidence_system.get_confidence_stats()
+
+        return {
+            "status": "success",
+            "message": f"Current confidence mode: {current_mode}",
+            "data": {
+                "current_mode": current_mode,
+                "available_modes": ["NEVER", "MINIMAL", "SMART", "ALWAYS"],
+                "mode_descriptions": {
+                    "NEVER": "Never move automatically, always ask (0% confidence threshold)",
+                    "MINIMAL": "Minimal questions, quick decisions (40% confidence threshold)",
+                    "SMART": "Smart suggestions with confirmation (70% confidence threshold)",
+                    "ALWAYS": "Move automatically when very confident (100% confidence threshold)"
+                },
+                "statistics": stats
+            }
+        }
+    except Exception as e:
+        logger.error(f"Failed to get confidence mode: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to retrieve confidence mode")
+
+@app.post("/api/settings/confidence-mode")
+async def set_confidence_mode(request: ConfidenceModeRequest):
+    """
+    Set confidence mode setting
+
+    Args:
+        request: ConfidenceModeRequest containing new mode (NEVER, MINIMAL, SMART, or ALWAYS)
+
+    Returns:
+        JSON with success status and new mode
+    """
+    try:
+        # Validate mode
+        valid_modes = ["NEVER", "MINIMAL", "SMART", "ALWAYS"]
+        mode = request.mode.upper()
+
+        if mode not in valid_modes:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid mode '{request.mode}'. Must be one of: {', '.join(valid_modes)}"
+            )
+
+        # Update user config
+        confidence_system.user_config["default_level"] = mode
+        confidence_system.save_user_config()
+
+        logger.info(f"Confidence mode changed to: {mode}")
+
+        return {
+            "status": "success",
+            "message": f"Confidence mode set to {mode}",
+            "data": {
+                "new_mode": mode,
+                "description": {
+                    "NEVER": "Never move automatically, always ask",
+                    "MINIMAL": "Minimal questions, quick decisions",
+                    "SMART": "Smart suggestions with confirmation",
+                    "ALWAYS": "Move automatically when very confident"
+                }[mode]
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to set confidence mode: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to set confidence mode")
+
+@app.get("/api/system/deduplicate")
+async def scan_for_duplicates():
+    """
+    Scan for duplicate files across the system
+
+    Returns:
+        JSON with duplicate scan results including:
+        - status: success or error
+        - message: Human-readable message
+        - data: Duplicate statistics and threat information
+    """
+    try:
+        # Get deduplication service statistics
+        stats = deduplication_service.get_service_stats()
+
+        logger.info(f"Duplicate scan requested - returning current statistics")
+
+        return {
+            "status": "success",
+            "message": f"Deduplication statistics retrieved",
+            "data": {
+                "service_stats": stats,
+                "monitoring_active": deduplication_service.monitoring_active,
+                "config": {
+                    "real_time_enabled": deduplication_service.config["real_time_enabled"],
+                    "proactive_scanning": deduplication_service.config["proactive_scanning"],
+                    "emergency_threshold": deduplication_service.config["emergency_threshold"]
+                }
+            }
+        }
+    except Exception as e:
+        logger.error(f"Failed to scan for duplicates: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to scan for duplicates")
+
+@app.get("/api/system/space-protection")
+async def get_space_protection_status():
+    """
+    Get disk space protection status and statistics
+
+    Returns:
+        JSON with space protection status including:
+        - status: success or error
+        - message: Human-readable message
+        - data: Disk usage statistics, emergency details, and protection settings
+    """
+    try:
+        # Get protection statistics
+        stats = space_protection.get_protection_stats()
+
+        # Force emergency check to get current disk status
+        emergency_check = space_protection.force_emergency_check()
+
+        return {
+            "status": "success",
+            "message": "Space protection status retrieved",
+            "data": {
+                "protection_stats": stats,
+                "current_emergency_check": emergency_check,
+                "monitoring_active": space_protection.monitoring_active,
+                "config": {
+                    "warning_threshold": space_protection.config["warning_threshold"],
+                    "critical_threshold": space_protection.config["critical_threshold"],
+                    "emergency_threshold": space_protection.config["emergency_threshold"],
+                    "target_free_space": space_protection.config["target_free_space"]
+                }
+            }
+        }
+    except Exception as e:
+        logger.error(f"Failed to get space protection status: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to get space protection status")
 
 @app.get("/api/search")
 async def search_files(q: str = Query(..., description="Search query", min_length=1)):
