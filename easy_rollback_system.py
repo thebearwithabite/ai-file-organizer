@@ -38,6 +38,80 @@ except ImportError:
     GOOGLE_DRIVE_AVAILABLE = False
     print("⚠️  Google Drive API not available. Local rollback only.")
 
+# ==============================================================================
+# ROLLBACK DATABASE SCHEMA (Single Source of Truth)
+# ==============================================================================
+
+ROLLBACK_SCHEMA_SQL = """
+CREATE TABLE IF NOT EXISTS file_operations (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  timestamp TEXT NOT NULL,             -- ISO8601
+  action TEXT NOT NULL,                -- 'move' | 'rename' | 'delete' | 'restore'
+  src_path TEXT,                       -- NULL for deletes
+  dst_path TEXT,                       -- NULL for deletes
+  confidence REAL,                     -- optional
+  details TEXT                         -- JSON: {"category": "...", "notes": "..."}
+);
+CREATE INDEX IF NOT EXISTS idx_file_operations_time ON file_operations(timestamp);
+CREATE INDEX IF NOT EXISTS idx_file_operations_src ON file_operations(src_path);
+CREATE INDEX IF NOT EXISTS idx_file_operations_dst ON file_operations(dst_path);
+"""
+
+def ensure_rollback_db() -> Path:
+    """
+    Ensure rollback database exists with proper schema.
+
+    This function is idempotent and safe to call at any time.
+    Creates ~/.ai_organizer_config/rollback.db if it doesn't exist.
+
+    Returns:
+        Path: Path to the rollback database
+    """
+    db_path = Path.home() / ".ai_organizer_config" / "rollback.db"
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    with sqlite3.connect(db_path) as conn:
+        conn.executescript(ROLLBACK_SCHEMA_SQL)
+    return db_path
+
+# ==============================================================================
+# HELPER FUNCTIONS
+# ==============================================================================
+
+def log_file_op(action: str, src_path: Optional[str] = None, dst_path: Optional[str] = None,
+                confidence: Optional[float] = None, details: Optional[Dict[str, Any]] = None) -> int:
+    """
+    Log a file operation to the rollback database.
+
+    Args:
+        action: Operation type ('move', 'rename', 'delete', 'restore')
+        src_path: Source file path (optional for deletes)
+        dst_path: Destination file path (optional for deletes)
+        confidence: Classification confidence (optional)
+        details: Additional details as dict (optional)
+
+    Returns:
+        int: Operation ID
+    """
+    db = ensure_rollback_db()
+    with sqlite3.connect(db) as conn:
+        cursor = conn.execute(
+            """INSERT INTO file_operations (timestamp, action, src_path, dst_path, confidence, details)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (
+                datetime.now().isoformat(timespec="seconds"),
+                action,
+                str(src_path) if src_path else None,
+                str(dst_path) if dst_path else None,
+                float(confidence) if confidence is not None else None,
+                json.dumps(details) if details else None,
+            ),
+        )
+        return cursor.lastrowid
+
+# ==============================================================================
+# LEGACY CLASSES (Backwards Compatibility)
+# ==============================================================================
+
 @dataclass
 class FileOperation:
     """Represents a file operation that can be rolled back"""

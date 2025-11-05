@@ -23,6 +23,7 @@ from api.rollback_service import RollbackService
 from api.veo_api import router as veo_router, clip_router
 from security_utils import sanitize_filename, validate_path_within_base
 from universal_adaptive_learning import UniversalAdaptiveLearning
+from easy_rollback_system import ensure_rollback_db
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -96,6 +97,13 @@ async def startup_event():
     Non-blocking startup - schedule initial scan after 30-second delay.
     This keeps server startup fast while still catching existing Downloads files.
     """
+    # Initialize rollback database first
+    try:
+        ensure_rollback_db()
+        logger.info("✅ Rollback DB ready")
+    except Exception as e:
+        logger.exception("Failed to initialize rollback DB: %s", e)
+
     logger.info("🚀 Server started - scheduling initial Downloads scan in 30 seconds...")
     asyncio.create_task(delayed_initial_scan())
     asyncio.create_task(periodic_downloads_scan())
