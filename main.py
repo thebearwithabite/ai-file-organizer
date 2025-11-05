@@ -203,30 +203,39 @@ async def get_database_stats():
 
         stats = {}
 
+        # Calculate time periods (used by multiple database queries)
+        seven_days_ago = (datetime.now() - timedelta(days=7)).isoformat()
+        today = datetime.now().date().isoformat()
+
         # Rollback database statistics
         rollback_db = Path.home() / ".ai_organizer_config" / "rollback.db"
         if rollback_db.exists():
-            conn = sqlite3.connect(str(rollback_db))
-            cursor = conn.cursor()
+            try:
+                conn = sqlite3.connect(str(rollback_db))
+                cursor = conn.cursor()
 
-            # Total operations
-            cursor.execute("SELECT COUNT(*) FROM file_operations")
-            stats["total_operations"] = cursor.fetchone()[0]
+                # Total operations
+                cursor.execute("SELECT COUNT(*) FROM file_operations")
+                stats["total_operations"] = cursor.fetchone()[0]
 
-            # Operations in last 7 days
-            seven_days_ago = (datetime.now() - timedelta(days=7)).isoformat()
-            cursor.execute("SELECT COUNT(*) FROM file_operations WHERE timestamp >= ?", (seven_days_ago,))
-            stats["recent_operations"] = cursor.fetchone()[0]
+                # Operations in last 7 days
+                cursor.execute("SELECT COUNT(*) FROM file_operations WHERE timestamp >= ?", (seven_days_ago,))
+                stats["recent_operations"] = cursor.fetchone()[0]
 
-            # Operations today
-            today = datetime.now().date().isoformat()
-            cursor.execute("SELECT COUNT(*) FROM file_operations WHERE DATE(timestamp) = ?", (today,))
-            stats["today_operations"] = cursor.fetchone()[0]
+                # Operations today
+                cursor.execute("SELECT COUNT(*) FROM file_operations WHERE DATE(timestamp) = ?", (today,))
+                stats["today_operations"] = cursor.fetchone()[0]
 
-            # Database size
-            stats["rollback_db_size_mb"] = round(rollback_db.stat().st_size / (1024 * 1024), 2)
+                # Database size
+                stats["rollback_db_size_mb"] = round(rollback_db.stat().st_size / (1024 * 1024), 2)
 
-            conn.close()
+                conn.close()
+            except sqlite3.OperationalError:
+                # Database exists but table doesn't exist yet - treat as empty
+                stats["total_operations"] = 0
+                stats["recent_operations"] = 0
+                stats["today_operations"] = 0
+                stats["rollback_db_size_mb"] = 0
         else:
             stats["total_operations"] = 0
             stats["recent_operations"] = 0
@@ -244,21 +253,27 @@ async def get_database_stats():
         # Learning events database
         learning_db = Path.home() / ".ai_organizer_config" / "learning_events.db"
         if learning_db.exists():
-            conn = sqlite3.connect(str(learning_db))
-            cursor = conn.cursor()
+            try:
+                conn = sqlite3.connect(str(learning_db))
+                cursor = conn.cursor()
 
-            # Total learning events
-            cursor.execute("SELECT COUNT(*) FROM learning_events")
-            stats["total_learning_events_db"] = cursor.fetchone()[0]
+                # Total learning events
+                cursor.execute("SELECT COUNT(*) FROM learning_events")
+                stats["total_learning_events_db"] = cursor.fetchone()[0]
 
-            # Learning events in last 7 days
-            cursor.execute("SELECT COUNT(*) FROM learning_events WHERE timestamp >= ?", (seven_days_ago,))
-            stats["recent_learning_events"] = cursor.fetchone()[0]
+                # Learning events in last 7 days
+                cursor.execute("SELECT COUNT(*) FROM learning_events WHERE timestamp >= ?", (seven_days_ago,))
+                stats["recent_learning_events"] = cursor.fetchone()[0]
 
-            # Database size
-            stats["learning_db_size_mb"] = round(learning_db.stat().st_size / (1024 * 1024), 2)
+                # Database size
+                stats["learning_db_size_mb"] = round(learning_db.stat().st_size / (1024 * 1024), 2)
 
-            conn.close()
+                conn.close()
+            except sqlite3.OperationalError:
+                # Database exists but table doesn't exist yet - treat as empty
+                stats["total_learning_events_db"] = 0
+                stats["recent_learning_events"] = 0
+                stats["learning_db_size_mb"] = 0
         else:
             stats["total_learning_events_db"] = 0
             stats["recent_learning_events"] = 0
