@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { CheckCircle, XCircle, RefreshCw, FileText, AlertTriangle, Sparkles } from 'lucide-react'
+import { CheckCircle, XCircle, RefreshCw, FileText, AlertTriangle, Sparkles, FolderOpen, Clock } from 'lucide-react'
 import { api } from '../services/api'
 import { toast } from 'sonner'
 
@@ -22,6 +22,28 @@ export default function Triage() {
   const [selectedCategory, setSelectedCategory] = useState<Record<string, string>>({})
   const [projectInput, setProjectInput] = useState<Record<string, string>>({})
   const [episodeInput, setEpisodeInput] = useState<Record<string, string>>({})
+  const [customFolderPath, setCustomFolderPath] = useState('')
+  const [recentFolders, setRecentFolders] = useState<string[]>([])
+  const [currentScanMode, setCurrentScanMode] = useState<'downloads' | 'custom'>('downloads')
+
+  // Load recent folders from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('recentTriageFolders')
+    if (saved) {
+      try {
+        setRecentFolders(JSON.parse(saved))
+      } catch {
+        setRecentFolders([])
+      }
+    }
+  }, [])
+
+  // Save recent folders to localStorage whenever they change
+  const addRecentFolder = (folderPath: string) => {
+    const updated = [folderPath, ...recentFolders.filter(f => f !== folderPath)].slice(0, 5)
+    setRecentFolders(updated)
+    localStorage.setItem('recentTriageFolders', JSON.stringify(updated))
+  }
 
   const { data, isLoading } = useQuery({
     queryKey: ['triage-files'],
@@ -33,6 +55,7 @@ export default function Triage() {
     mutationFn: api.triggerTriageScan,
     onSuccess: (scanResult) => {
       toast.success(`Scan complete! Found ${scanResult.files_found} files for review`)
+      setCurrentScanMode('downloads')
       // Update the query cache with the scan results instead of refetching
       queryClient.setQueryData(['triage-files'], scanResult)
     },
@@ -40,6 +63,36 @@ export default function Triage() {
       toast.error('Failed to trigger scan')
     },
   })
+
+  const scanFolderMutation = useMutation({
+    mutationFn: (folderPath: string) => api.scanCustomFolder(folderPath),
+    onSuccess: (scanResult) => {
+      const folderName = scanResult.folder_scanned?.split('/').pop() || 'folder'
+      toast.success(`Scan complete! Found ${scanResult.files_found} files in ${folderName}`)
+
+      // Add to recent folders
+      if (scanResult.folder_scanned) {
+        addRecentFolder(scanResult.folder_scanned)
+      }
+
+      setCurrentScanMode('custom')
+      // Update the query cache with the scan results
+      queryClient.setQueryData(['triage-files'], scanResult)
+    },
+    onError: (error: Error) => {
+      toast.error('Failed to scan folder', {
+        description: error.message,
+      })
+    },
+  })
+
+  const handleScanCustomFolder = () => {
+    if (!customFolderPath.trim()) {
+      toast.error('Please enter a folder path')
+      return
+    }
+    scanFolderMutation.mutate(customFolderPath.trim())
+  }
 
   const classifyMutation = useMutation({
     mutationFn: ({ filePath, category, project, episode }: {
@@ -99,20 +152,97 @@ export default function Triage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-white">Triage Center</h1>
-          <p className="text-white/60 mt-1">Review and classify files with low confidence scores</p>
+      <div>
+        <h1 className="text-3xl font-bold text-white">Triage Center</h1>
+        <p className="text-white/60 mt-1">Review and classify files with low confidence scores</p>
+      </div>
+
+      {/* Folder Selector Section */}
+      <div className="bg-white/[0.07] backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-glass">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="p-2 bg-primary/20 rounded-lg">
+            <FolderOpen size={20} className="text-primary" />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold text-white">Choose Scan Source</h2>
+            <p className="text-sm text-white/60">Scan Downloads or organize any custom folder</p>
+          </div>
         </div>
 
-        <button
-          onClick={() => scanMutation.mutate()}
-          disabled={scanMutation.isPending}
-          className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <RefreshCw size={16} className={scanMutation.isPending ? 'animate-spin' : ''} />
-          {scanMutation.isPending ? 'Scanning...' : 'Scan Now'}
-        </button>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Downloads Scan */}
+          <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-medium text-white">Downloads Folder</span>
+              {currentScanMode === 'downloads' && (
+                <span className="text-xs px-2 py-1 bg-primary/20 text-primary rounded-full">Active</span>
+              )}
+            </div>
+            <p className="text-xs text-white/50 mb-4">Scan standard staging areas (Downloads, Desktop)</p>
+            <button
+              onClick={() => scanMutation.mutate()}
+              disabled={scanMutation.isPending}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <RefreshCw size={16} className={scanMutation.isPending ? 'animate-spin' : ''} />
+              {scanMutation.isPending ? 'Scanning...' : 'Scan Downloads'}
+            </button>
+          </div>
+
+          {/* Custom Folder Scan */}
+          <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-medium text-white">Custom Folder</span>
+              {currentScanMode === 'custom' && (
+                <span className="text-xs px-2 py-1 bg-primary/20 text-primary rounded-full">Active</span>
+              )}
+            </div>
+            <div className="space-y-3">
+              <input
+                type="text"
+                value={customFolderPath}
+                onChange={(e) => setCustomFolderPath(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleScanCustomFolder()}
+                placeholder="/Users/username/Documents/FolderName"
+                className="w-full px-3 py-2 bg-white/5 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 placeholder:text-white/30"
+              />
+              <button
+                onClick={handleScanCustomFolder}
+                disabled={scanFolderMutation.isPending}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-success hover:bg-success/90 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <FolderOpen size={16} />
+                {scanFolderMutation.isPending ? 'Scanning...' : 'Scan Folder'}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Recent Folders */}
+        {recentFolders.length > 0 && (
+          <div className="mt-4 pt-4 border-t border-white/10">
+            <div className="flex items-center gap-2 mb-3">
+              <Clock size={14} className="text-white/60" />
+              <span className="text-xs font-medium text-white/60">Recent Folders</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {recentFolders.map((folder, index) => (
+                <button
+                  key={index}
+                  onClick={() => {
+                    setCustomFolderPath(folder)
+                    scanFolderMutation.mutate(folder)
+                  }}
+                  disabled={scanFolderMutation.isPending}
+                  className="px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-xs text-white/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed truncate max-w-xs"
+                  title={folder}
+                >
+                  {folder.split('/').slice(-2).join('/')}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Stats Banner */}

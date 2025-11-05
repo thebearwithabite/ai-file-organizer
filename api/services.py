@@ -443,7 +443,7 @@ class TriageService:
     def trigger_scan(self) -> Dict[str, Any]:
         """
         Triggers a new scan for files needing review and returns them.
-        
+
         Returns:
             A dictionary containing the files found for review.
         """
@@ -462,6 +462,151 @@ class TriageService:
                 "status": "error",
                 "message": "An error occurred during the scan.",
                 "error": str(e)
+            }
+
+    def scan_custom_folder(self, folder_path: str) -> Dict[str, Any]:
+        """
+        Scan a custom folder for files needing review (any folder, not just staging areas).
+
+        This method allows users to organize ANY folder through the triage center,
+        with all the same features: classification, nested categories, adaptive learning, etc.
+
+        Args:
+            folder_path: Absolute path to the folder to scan
+
+        Returns:
+            Dictionary with status, message, files_found count, and files list
+        """
+        logger.info(f"Custom folder scan triggered for: {folder_path}")
+
+        try:
+            # Validate that the path exists and is a directory
+            folder = Path(folder_path)
+
+            if not folder.exists():
+                return {
+                    "status": "error",
+                    "message": f"Folder does not exist: {folder_path}",
+                    "files_found": 0,
+                    "files": []
+                }
+
+            if not folder.is_dir():
+                return {
+                    "status": "error",
+                    "message": f"Path is not a directory: {folder_path}",
+                    "files_found": 0,
+                    "files": []
+                }
+
+            # Security: Validate path is within user's home directory or AI Organizer root
+            user_home = Path.home()
+            is_in_home = validate_path_within_base(folder, user_home)
+            is_in_base = validate_path_within_base(folder, self.base_dir) if self.base_dir else False
+
+            if not (is_in_home or is_in_base):
+                logger.warning(f"Security: Attempted to scan folder outside safe directories: {folder_path}")
+                return {
+                    "status": "error",
+                    "message": "Security: Can only scan folders within your home directory or AI Organizer directory",
+                    "files_found": 0,
+                    "files": []
+                }
+
+            # Supported file extensions (from interactive_batch_processor.py)
+            supported_extensions = {
+                '.pdf', '.docx', '.doc', '.txt', '.md', '.pages', '.rtf',
+                '.jpg', '.png', '.gif', '.jpeg', '.mp4', '.mov', '.avi',
+                '.mp3', '.wav', '.m4a', '.flac', '.ogg', '.aiff',
+                '.ipynb', '.json', '.csv', '.xlsx'
+            }
+
+            files_for_review = []
+            confidence_threshold = 0.85  # ADHD-friendly threshold
+
+            # Scan folder recursively for files
+            logger.info(f"Scanning {folder_path} recursively for supported files...")
+            file_count = 0
+            total_scanned = 0
+
+            for file_path in folder.rglob('*'):
+                # Skip directories and hidden files
+                if not file_path.is_file() or file_path.name.startswith('.'):
+                    continue
+
+                # Skip files with unsupported extensions
+                if file_path.suffix.lower() not in supported_extensions:
+                    continue
+
+                total_scanned += 1
+
+                # Skip very large files to avoid processing delays (PERFORMANCE OPTIMIZATION)
+                try:
+                    file_size_bytes = file_path.stat().st_size
+                    file_size_mb = file_size_bytes / (1024 * 1024)
+
+                    # 10MB limit for faster processing
+                    if file_size_mb > 10:
+                        logger.info(f"Skipping {file_path.name} ({file_size_mb:.1f}MB) - too large for auto-processing")
+                        continue
+                except (OSError, PermissionError):
+                    continue
+
+                # Limit to 50 files for UI responsiveness (can be increased if needed)
+                if file_count >= 50:
+                    logger.info(f"Reached limit of 50 files for custom folder scan")
+                    break
+
+                try:
+                    # Use the unified classification service for intelligent content analysis
+                    result = self.classifier.classify_file(file_path)
+
+                    # Handle both dict and object result formats
+                    confidence = result.get('confidence', 0.0) if isinstance(result, dict) else getattr(result, 'confidence', 0.0)
+                    category = result.get('category', 'unknown') if isinstance(result, dict) else getattr(result, 'category', 'unknown')
+                    reasoning = result.get('reasoning', []) if isinstance(result, dict) else getattr(result, 'reasoning', [])
+
+                    # Include ALL files (not just low confidence) for custom folder scan
+                    # This allows user to review and organize entire folders
+                    files_for_review.append({
+                        "file_id": str(hash(str(file_path))),
+                        "file_name": file_path.name,
+                        "file_path": str(file_path),
+                        "classification": {
+                            "category": category,
+                            "confidence": round(confidence, 2),
+                            "reasoning": reasoning if isinstance(reasoning, str) else str(reasoning),
+                            "needs_review": confidence < confidence_threshold
+                        },
+                        "status": "pending_review" if confidence < confidence_threshold else "ready"
+                    })
+                    file_count += 1
+
+                except Exception as e:
+                    logger.warning(f"Error classifying {file_path}: {e}")
+                    continue
+
+            logger.info(f"Custom folder scan complete: {file_count} files found (out of {total_scanned} scanned)")
+
+            # Sort by confidence (lowest first for files needing review)
+            files_for_review.sort(key=lambda x: x['classification']['confidence'])
+
+            return {
+                "status": "success",
+                "message": f"Scan complete. Found {file_count} files in {folder_path}",
+                "files_found": file_count,
+                "files": files_for_review,
+                "folder_scanned": str(folder_path),
+                "total_files_scanned": total_scanned
+            }
+
+        except Exception as e:
+            logger.error(f"Error during custom folder scan: {e}", exc_info=True)
+            return {
+                "status": "error",
+                "message": f"An error occurred during the scan: {str(e)}",
+                "files_found": 0,
+                "files": []
             }
 
     def get_classification(self, file_path: str) -> Dict[str, Any]:
