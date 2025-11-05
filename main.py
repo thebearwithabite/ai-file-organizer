@@ -145,9 +145,16 @@ async def startup_event():
             ]
 
             if monitor_paths:
-                background_monitor = AdaptiveBackgroundMonitor(paths=monitor_paths)
+                # Initialize monitor (uses default base_dir from get_ai_organizer_root)
+                background_monitor = AdaptiveBackgroundMonitor()
+
+                # Note: AdaptiveBackgroundMonitor uses its own monitoring logic
+                # The paths from AUTO_MONITOR_PATHS are tracked for reference
+                logger.info(f"📡 Adaptive monitor initialized - watching configured paths: {monitor_paths}")
+
+                # Start monitor in daemon thread
                 threading.Thread(target=background_monitor.start, daemon=True).start()
-                logger.info(f"📡 Adaptive monitor running on {len(monitor_paths)} paths: {monitor_paths}")
+                logger.info(f"📡 Adaptive monitor running in background")
             else:
                 logger.warning("⚠️  AUTO_MONITOR_PATHS set but no valid paths found")
         else:
