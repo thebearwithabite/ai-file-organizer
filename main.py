@@ -14,8 +14,13 @@ import subprocess
 import os
 import asyncio
 import logging
+import threading
 from pathlib import Path
 from typing import Optional
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Import our services
 from api.services import SystemService, SearchService, TriageService
@@ -24,6 +29,7 @@ from api.veo_api import router as veo_router, clip_router
 from security_utils import sanitize_filename, validate_path_within_base
 from universal_adaptive_learning import UniversalAdaptiveLearning
 from easy_rollback_system import ensure_rollback_db
+from adaptive_background_monitor import AdaptiveBackgroundMonitor
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -85,6 +91,10 @@ print("DEBUG: Initializing UniversalAdaptiveLearning...")
 learning_system = UniversalAdaptiveLearning()
 print("DEBUG: UniversalAdaptiveLearning initialized.")
 
+# Global state for background monitor
+background_monitor = None
+monitor_paths = []
+
 # Include VEO API routers (Sprint 2.0)
 app.include_router(veo_router)
 app.include_router(clip_router)
@@ -97,12 +107,35 @@ async def startup_event():
     Non-blocking startup - schedule initial scan after 30-second delay.
     This keeps server startup fast while still catching existing Downloads files.
     """
+    global background_monitor, monitor_paths
+
     # Initialize rollback database first
     try:
         ensure_rollback_db()
         logger.info("✅ Rollback DB ready")
     except Exception as e:
         logger.exception("Failed to initialize rollback DB: %s", e)
+
+    # Initialize adaptive background monitor
+    try:
+        paths_str = os.getenv("AUTO_MONITOR_PATHS", "")
+        if paths_str.strip():
+            monitor_paths = [
+                os.path.expanduser(p.strip())
+                for p in paths_str.split(",")
+                if p.strip()
+            ]
+
+            if monitor_paths:
+                background_monitor = AdaptiveBackgroundMonitor(paths=monitor_paths)
+                threading.Thread(target=background_monitor.start, daemon=True).start()
+                logger.info(f"📡 Adaptive monitor running on {len(monitor_paths)} paths: {monitor_paths}")
+            else:
+                logger.warning("⚠️  AUTO_MONITOR_PATHS set but no valid paths found")
+        else:
+            logger.info("ℹ️  Adaptive monitor disabled (no AUTO_MONITOR_PATHS configured)")
+    except Exception as e:
+        logger.exception("Failed to start background monitor: %s", e)
 
     logger.info("🚀 Server started - scheduling initial Downloads scan in 30 seconds...")
     asyncio.create_task(delayed_initial_scan())
@@ -168,6 +201,18 @@ async def emergency_cleanup():
     """Emergency cleanup: Move large files from Downloads to Google Drive"""
     result = system_service.emergency_cleanup()
     return result
+
+@app.get("/api/system/monitor-status")
+async def get_monitor_status():
+    """Get background monitor status for health checking and debugging"""
+    global background_monitor, monitor_paths
+
+    return {
+        "status": "running" if background_monitor is not None else "disabled",
+        "paths": monitor_paths if monitor_paths else [],
+        "count": len(monitor_paths) if monitor_paths else 0,
+        "enabled": background_monitor is not None
+    }
 
 @app.get("/api/settings/learning-stats")
 async def get_learning_stats():
