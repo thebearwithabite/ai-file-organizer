@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Service Label -->
+    <key>Label</key>
+    <string>com.aifileorganizer.adaptivemonitor</string>
+
+    <!-- Program to Run -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/ryanthomson/Github/ai-file-organizer/start_adaptive_monitor.sh</string>
+    </array>
+
+    <!-- Working Directory -->
+    <key>WorkingDirectory</key>
+    <string>/Users/ryanthomson/Github/ai-file-organizer</string>
+
+    <!-- Run at Load (Login) -->
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- Keep Alive - Restart if it crashes -->
+    <key>KeepAlive</key>
+    <dict>
+        <!-- Restart if process exits for any reason -->
+        <key>SuccessfulExit</key>
+        <false/>
+        <key>Crashed</key>
+        <true/>
+    </dict>
+
+    <!-- Throttle restarts (wait 60 seconds between automatic restarts) -->
+    <key>ThrottleInterval</key>
+    <integer>60</integer>
+
+    <!-- Standard Output/Error Logging -->
+    <key>StandardOutPath</key>
+    <string>/Users/ryanthomson/Library/Logs/ai-organizer-monitor-stdout.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/ryanthomson/Library/Logs/ai-organizer-monitor-stderr.log</string>
+
+    <!-- Environment Variables -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+
+    <!-- Session Type -->
+    <key>SessionCreate</key>
+    <true/>
+</dict>
+</plist>

@@ -158,6 +158,25 @@ export const api = {
     return await response.json()
   },
 
+  scanCustomFolder: async (folderPath: string) => {
+    const response = await fetch(`${API_BASE}/api/triage/scan_folder`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        folder_path: folderPath,
+      }),
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.detail || 'Failed to scan folder')
+    }
+
+    return await response.json()
+  },
+
   searchFiles: async (query: string) => {
     const response = await fetch(`${API_BASE}/api/search?q=${encodeURIComponent(query)}`)
     if (!response.ok) throw new Error('Failed to search files')
