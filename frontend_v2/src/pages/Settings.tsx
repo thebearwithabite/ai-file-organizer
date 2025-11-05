@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, FolderOpen, Trash2, Edit2, Save, X, Brain, Target, TrendingUp, Image, Video, Music, FileText, Award } from 'lucide-react'
+import { Plus, FolderOpen, Trash2, Edit2, Save, X, Brain, Target, TrendingUp, Image, Video, Music, FileText, Award, Database, HardDrive, Activity } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface Category {
@@ -23,6 +23,20 @@ interface LearningStats {
   category_distribution: Record<string, number>
 }
 
+interface DatabaseStats {
+  total_operations: number
+  recent_operations: number
+  today_operations: number
+  rollback_db_size_mb: number
+  vector_db_size_mb: number
+  total_learning_events_db: number
+  recent_learning_events: number
+  learning_db_size_mb: number
+  total_db_size_mb: number
+  avg_operations_per_day: number
+  avg_learning_per_day: number
+}
+
 export default function Settings() {
   const [categories, setCategories] = useState<Category[]>([
     { id: '1', name: 'Entertainment', path: '01_ACTIVE_PROJECTS/Entertainment_Industry', color: 'bg-purple-500', description: 'Industry contracts and talent management' },
@@ -41,6 +55,10 @@ export default function Settings() {
   // Learning statistics state
   const [learningStats, setLearningStats] = useState<LearningStats | null>(null)
   const [isLoadingStats, setIsLoadingStats] = useState(true)
+
+  // Database statistics state
+  const [databaseStats, setDatabaseStats] = useState<DatabaseStats | null>(null)
+  const [isLoadingDbStats, setIsLoadingDbStats] = useState(true)
 
   const colorOptions = [
     'bg-red-500', 'bg-orange-500', 'bg-amber-500', 'bg-yellow-500',
@@ -70,6 +88,28 @@ export default function Settings() {
     }
 
     fetchLearningStats()
+  }, [])
+
+  // Fetch database statistics on component mount
+  useEffect(() => {
+    const fetchDatabaseStats = async () => {
+      try {
+        setIsLoadingDbStats(true)
+        const response = await fetch('http://localhost:8000/api/settings/database-stats')
+        if (!response.ok) {
+          throw new Error('Failed to fetch database statistics')
+        }
+        const data = await response.json()
+        setDatabaseStats(data)
+      } catch (error) {
+        console.error('Error fetching database stats:', error)
+        toast.error('Failed to load database statistics')
+      } finally {
+        setIsLoadingDbStats(false)
+      }
+    }
+
+    fetchDatabaseStats()
   }, [])
 
   // Helper function to format numbers with thousands separators
@@ -234,6 +274,114 @@ export default function Settings() {
             <div className="text-white/60 text-lg font-medium mb-2">No learning events recorded yet</div>
             <div className="text-white/40 text-sm max-w-md mx-auto">
               Start organizing files to help the AI learn your preferences. The system will track classifications and improve over time.
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Database Statistics */}
+      <div className="bg-white/[0.07] backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-glass animate-fade-in">
+        <div className="flex items-center gap-2 mb-4">
+          <Database size={20} className="text-cyan-400" />
+          <h2 className="text-xl font-semibold text-white">Database Statistics</h2>
+        </div>
+
+        {isLoadingDbStats ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400"></div>
+          </div>
+        ) : databaseStats ? (
+          <>
+            {/* Main Stats Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div className="bg-white/5 rounded-lg p-4 animate-fade-in">
+                <div className="flex items-center gap-2 mb-2">
+                  <Activity size={16} className="text-cyan-400" />
+                  <div className="text-sm text-white/60">Total Operations</div>
+                </div>
+                <div className="text-3xl font-bold text-white">{formatNumber(databaseStats.total_operations)}</div>
+                <div className="text-xs text-white/40 mt-1">File movements tracked</div>
+              </div>
+
+              <div className="bg-white/5 rounded-lg p-4 animate-fade-in" style={{ animationDelay: '100ms' }}>
+                <div className="flex items-center gap-2 mb-2">
+                  <TrendingUp size={16} className="text-success" />
+                  <div className="text-sm text-white/60">Recent Activity</div>
+                </div>
+                <div className="text-3xl font-bold text-white">{formatNumber(databaseStats.recent_operations)}</div>
+                <div className="text-xs text-white/40 mt-1">Last 7 days</div>
+              </div>
+
+              <div className="bg-white/5 rounded-lg p-4 animate-fade-in" style={{ animationDelay: '200ms' }}>
+                <div className="flex items-center gap-2 mb-2">
+                  <HardDrive size={16} className="text-purple-400" />
+                  <div className="text-sm text-white/60">Storage Used</div>
+                </div>
+                <div className="text-3xl font-bold text-white">{databaseStats.total_db_size_mb} MB</div>
+                <div className="text-xs text-white/40 mt-1">Total database size</div>
+              </div>
+            </div>
+
+            {/* Database Breakdown */}
+            <div className="mb-6">
+              <div className="text-sm font-medium text-white/80 mb-3">Database Breakdown</div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="bg-white/5 rounded-lg p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-xs text-white/60">Rollback DB</div>
+                    <div className="text-xs font-mono text-cyan-400">{databaseStats.rollback_db_size_mb} MB</div>
+                  </div>
+                  <div className="text-sm font-bold text-white">{formatNumber(databaseStats.total_operations)} records</div>
+                </div>
+
+                <div className="bg-white/5 rounded-lg p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-xs text-white/60">Learning DB</div>
+                    <div className="text-xs font-mono text-cyan-400">{databaseStats.learning_db_size_mb} MB</div>
+                  </div>
+                  <div className="text-sm font-bold text-white">{formatNumber(databaseStats.total_learning_events_db)} records</div>
+                </div>
+
+                <div className="bg-white/5 rounded-lg p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-xs text-white/60">Vector DB</div>
+                    <div className="text-xs font-mono text-cyan-400">{databaseStats.vector_db_size_mb} MB</div>
+                  </div>
+                  <div className="text-sm font-bold text-white">Semantic search</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Activity Metrics */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="bg-white/5 rounded-lg p-3">
+                <div className="text-xs text-white/60 mb-1">Today's Operations</div>
+                <div className="text-2xl font-bold text-white">{formatNumber(databaseStats.today_operations)}</div>
+              </div>
+
+              <div className="bg-white/5 rounded-lg p-3">
+                <div className="text-xs text-white/60 mb-1">Avg Operations/Day</div>
+                <div className="text-2xl font-bold text-white">{databaseStats.avg_operations_per_day}</div>
+              </div>
+
+              <div className="bg-white/5 rounded-lg p-3">
+                <div className="text-xs text-white/60 mb-1">Avg Learning/Day</div>
+                <div className="text-2xl font-bold text-white">{databaseStats.avg_learning_per_day}</div>
+              </div>
+            </div>
+
+            <div className="mt-4 p-3 bg-cyan-500/10 border border-cyan-500/20 rounded-lg">
+              <div className="text-sm text-cyan-400">
+                <strong>Performance:</strong> All databases are optimized for fast lookups. Rollback history enables complete operation safety.
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="py-12 text-center">
+            <Database size={48} className="mx-auto text-white/20 mb-4" />
+            <div className="text-white/60 text-lg font-medium mb-2">No database statistics available</div>
+            <div className="text-white/40 text-sm max-w-md mx-auto">
+              Database statistics will appear once the system starts processing files.
             </div>
           </div>
         )}
