@@ -1,232 +1,147 @@
-# 🧭 **Sprint 3.2 — Full Wiring Pass**
+---
+title: "Sprint 3.2 — Full Wiring Pass"
+date: 2025-11-04
+status: In Progress
+phase: 3.2
+owner: user
+---
 
-**Goal:** Make the system fully self-contained and "actually learning" by connecting all backend learning hooks, background monitors, and missing UI toggles.
+# 🧭 Sprint 3.2 — Full Wiring Pass
 
-**Status:** 🚧 In Progress
+**Objective:**
+Finalize the backend integration and UI wiring needed to make the system *self-learning*, *auto-monitoring*, and *feature-complete* between CLI and web.
 
 ---
 
-## 🎯 OBJECTIVE
+## ✅ Context Summary
 
-Bring AI File Organizer v3.1 to functional parity between CLI and UI:
-
-* ✅ Fix empty database issues (learning + rollback)
-* ✅ Ensure background automation runs continuously
-* ✅ Expose critical CLI features through clean UI controls
-* ✅ Eliminate ADHD friction points: missing toggles, invisible automation, silent failures
+- Fixed `/api/settings/database-stats` to return zeros instead of 500s on fresh installs.
+- Next: auto-create missing tables, hook up learning event recording, and enable background monitor.
+- This sprint completes backend prerequisites for the ADHD-friendly UI sprint that follows.
 
 ---
 
-## ⚙️ BACKEND TASKS
+## ⚙️ Backend Tasks
 
-### 1 — **Learning Hook Integration**
-
-**Status:** ⏳ Pending
+### 1. Learning Hook Integration
 **Files:** `api/services.py`, `universal_adaptive_learning.py`
 
-On every classification confirmation in `TriageService.classify_file()` or `confirm_classification()`, call:
+Hook the learning system into every confirmed classification:
 
 ```python
 learning_system.record_classification(
     file_path=path,
     predicted_category=suggested_category,
     confirmed_category=user_choice,
-    confidence=confidence_score
+    confidence=confidence_score,
 )
 ```
 
-If DB missing → auto-initialize (`learning_events.db`).
-
-**Acceptance Test:**
-- Move ≥ 1 file through triage
-- `/api/settings/learning-stats` should show non-zero counts
+Auto-init `learning_events.db` if missing.
+**Test:** Move a file → `/api/settings/learning-stats` increments counters.
 
 ---
 
-### 2 — **Rollback DB Auto-Init**
+### 2. Rollback DB Auto-Init
 
-**Status:** 🔄 Partially Complete
 **Files:** `easy_rollback_system.py`, `main.py`
 
-**✅ Completed:**
-- Added error handling for missing tables in stats endpoint (commit 36a8071)
-- Endpoint now returns zeros instead of 500 errors
-
-**⏳ Still Needed:**
-- On startup, verify/create `rollback.db` with `file_operations` table
-- Add helper:
+Create helper:
 
 ```python
-def ensure_rollback_tables():
-    conn.execute("""CREATE TABLE IF NOT EXISTS file_operations (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        timestamp TEXT NOT NULL,
-        operation_type TEXT NOT NULL,
-        source_path TEXT NOT NULL,
-        destination_path TEXT,
-        file_name TEXT NOT NULL,
-        metadata TEXT
-    )""")
+def ensure_rollback_tables(conn):
+    conn.execute("""CREATE TABLE IF NOT EXISTS file_operations (...columns...)""")
 ```
 
-- Call in `main.py` on app init
-
-**Acceptance Test:**
-Fresh install → `/api/settings/database-stats` returns 0-values (not error) ✅
+Call on startup.
+**Test:** Fresh install → `/api/settings/database-stats` returns valid zeros, no error.
 
 ---
 
-### 3 — **Launch Adaptive Background Monitor on Server Start**
+### 3. Background Monitor Auto-Start
 
-**Status:** ⏳ Pending
 **Files:** `adaptive_background_monitor.py`, `main.py`
-
-Import and start in daemon thread:
 
 ```python
 from adaptive_background_monitor import AdaptiveBackgroundMonitor
 threading.Thread(target=AdaptiveBackgroundMonitor.start, daemon=True).start()
 ```
 
-Make path configurable via `.env` or `config.json` (`AUTO_MONITOR_PATHS`).
-
-**Acceptance Test:**
-- Logs show: `INFO: AdaptiveBackgroundMonitor started (watching …)`
-- File drops into Downloads → auto-classified
+Optional config: `AUTO_MONITOR_PATHS` in `.env`
+**Test:** Log shows monitor startup; dropping file in staging triggers auto-classification.
 
 ---
 
-### 4 — **New API Endpoints**
+### 4. API Endpoints
 
-**Status:** ⏳ Pending
+| Endpoint                        | Description           | Backend Bind                                  |
+| ------------------------------- | --------------------- | --------------------------------------------- |
+| `/api/settings/confidence-mode` | GET/POST current mode | `confidence_system.get/set()`                 |
+| `/api/system/deduplicate`       | Scan for duplicates   | `automated_deduplication_service.scan()`      |
+| `/api/system/space-protection`  | Disk status / cleanup | `emergency_space_protection.status/protect()` |
 
-| Endpoint                        | Action   | Backend Binding                                 | Status | Notes                  |
-| ------------------------------- | -------- | ----------------------------------------------- | ------ | ---------------------- |
-| `/api/settings/confidence-mode` | GET/POST | `confidence_system.get()/set()`                 | ⏳      | Toggle current mode    |
-| `/api/system/deduplicate`       | POST     | `automated_deduplication_service.scan()`        | ⏳      | Return duplicates list |
-| `/api/system/space-protection`  | GET/POST | `emergency_space_protection.status()/protect()` | ⏳      | Show / trigger cleanup |
-
-Return JSON payloads with `{status,message,data}`.
-
-**Acceptance Test:**
-All three endpoints return 200 and correct keys in response.
+All return `{status, message, data}`.
 
 ---
 
-## 🖥 FRONTEND TASKS
+## 🖥 Frontend Tasks
 
-### 5 — **Settings Page: Confidence Mode Switcher**
+### 5. Settings → Confidence Mode Switcher
 
-**Status:** ⏳ Pending
-**Files:** `frontend_v2/src/pages/Settings.tsx`
+Dropdown with modes (Never, Minimal, Smart, Always).
+Sync to `/api/settings/confidence-mode`.
 
-- Add dropdown with four modes (`Never`, `Minimal`, `Smart`, `Always`)
-- Fetch & POST to `/api/settings/confidence-mode`
-- Show color indicator (🟥 Never → 🟩 Always)
+### 6. New Duplicates Page
 
-**Acceptance Test:**
-Switching modes updates backend config + toast confirmation.
+List duplicate groups, allow safe clean-up via API.
+Integrate safe recycler for undo.
 
----
+### 7. Dashboard → Disk Space Widget
 
-### 6 — **Duplicates Dashboard**
+Fetch `/api/system/space-protection`.
+Visual gauge + "Free Up Space" button.
 
-**Status:** ⏳ Pending
-**Files:** `frontend_v2/src/pages/Duplicates.tsx` (new)
+### 8. Settings → Rollback Panel
 
-- Fetch from `/api/system/deduplicate`
-- Display duplicate groups: filename, path, size, preview
-- Buttons: **"Keep 1 / Clean Others"**, **"View In Finder"**
-- Confirm → POST clean action (moves to safe recycler)
-
-**Acceptance Test:**
-Run scan → list shows groups → click Clean → toast success → files gone.
+Fetch rollback history, show Undo buttons.
+Hook into new `/api/rollback` endpoints.
 
 ---
 
-### 7 — **Disk Space Widget (Dashboard)**
+## 🧩 Acceptance Criteria
 
-**Status:** ⏳ Pending
-**Files:** `frontend_v2/src/pages/Dashboard.tsx`
-
-- Add horizontal bar indicator using `/api/system/space-protection`
-- Color-code thresholds (🟢 <80%, 🟡 80-95%, 🔴 >95%)
-- Add **"Free Up Space"** button → POST protect
-
-**Acceptance Test:**
-At >90%, shows alert; click button reduces usage % in follow-up call.
-
----
-
-### 8 — **Rollback History Panel**
-
-**Status:** ⏳ Pending
-**Files:** `frontend_v2/src/pages/Settings.tsx` (after Database Stats section)
-
-- Fetch `/api/rollback/list` (later added to backend)
-- Table columns: Time | Action | File | Undo Button
-- On Undo → POST `/api/rollback/undo/<id>`
-
-**Acceptance Test:**
-Click Undo → file returns to original path; toast shows "Restored".
+| # | Scenario               | Expected Result               |
+| - | ---------------------- | ----------------------------- |
+| 1 | Organize file via UI   | Learning stats increment      |
+| 2 | Switch confidence mode | Config persists + toast       |
+| 3 | Disk usage >95%        | Alert + cleanup reduces usage |
+| 4 | Duplicate scan         | Groups display + safe delete  |
+| 5 | Rollback panel         | Undo restores file            |
+| 6 | Background monitor     | Auto-classifies new files     |
 
 ---
 
-## 🔄 DEVOPS / CONFIG
+## 🧱 Next Steps
 
-### 9 — **Autostart Sequence**
-
-**Status:** ⏳ Pending
-
-- Ensure `.ai_organizer_config` folder exists at launch
-- Add startup log:
-
-```
-✅ System Ready: Learning + Rollback DBs initialized | Monitor active
-```
+1. Commit existing database-stats fix ✅
+2. Implement **Tasks 1-3** (learning hooks + auto-init + monitor)
+3. Verify stats update and monitor logs
+4. Then start **Frontend Sprint 3.3 — UI Integration and Controls**
 
 ---
 
-## ✅ DELIVERABLES
-
-- [ ] Updated `main.py` with auto-init + monitor thread
-- [ ] New API routes (3)
-- [ ] Updated Settings.tsx (UI switcher + rollback panel + space widget)
-- [ ] New Duplicates page
-- [ ] Confirmed learning writes and database stats no longer zero
-
----
-
-## 🧩 ACCEPTANCE CRITERIA
-
-| Test # | Scenario                                              | Expected Result | Status |
-| ------ | ----------------------------------------------------- | --------------- | ------ |
-| 1      | Organize a file via UI → Learning stats increment     | ✅               | ⏳      |
-| 2      | Switch confidence mode → Persistent change in config  | ✅               | ⏳      |
-| 3      | Disk usage > 95% → UI alert + cleanup works           | ✅               | ⏳      |
-| 4      | Duplicate scan shows groups → Safe delete works       | ✅               | ⏳      |
-| 5      | Rollback history panel lists ops → Undo restores file | ✅               | ⏳      |
-| 6      | Adaptive monitor auto-classifies new files            | ✅               | ⏳      |
-
----
-
-## 📝 PROGRESS LOG
+## 📝 Progress Log
 
 ### 2025-11-05
 - ✅ **Fixed database stats endpoint** (commit 36a8071)
   - Added try/except for missing tables
   - Endpoint now gracefully returns zeros for fresh installations
   - No more 500 errors when tables don't exist yet
+- ✅ **Created Sprint 3.2 directive** (commit d9028c5)
+  - Comprehensive sprint plan with 9 tasks
+  - Acceptance criteria and progress tracking
+  - Updated with enhanced formatting (YAML front matter)
 
 ---
 
-## 🔗 RELATED DOCUMENTS
-
-- [CLAUDE.md](/CLAUDE.md) - System architecture overview
-- [Phase 1 Implementation](/docs/Phase_1_Implementation.md)
-- [Phase 2 Vision Integration](/docs/Phase_2_Vision_Integration.md)
-
----
-
-**Last Updated:** 2025-11-05
-**Sprint Lead:** Claude Code AI Assistant
+*Logged by Claude (backend agent) · Drafted by user · Reviewed by Max (system supervisor)*
