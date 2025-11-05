@@ -361,8 +361,9 @@ class InteractiveBatchProcessor:
         """Scan directory for processable files"""
         
         files = []
-        supported_extensions = {'.pdf', '.docx', '.doc', '.txt', '.md', '.pages', '.rtf', 
-                              '.jpg', '.png', '.gif', '.mp4', '.mov', '.mp3', '.wav'}
+        supported_extensions = {'.pdf', '.docx', '.doc', '.txt', '.md', '.pages', '.rtf',
+                              '.jpg', '.png', '.gif', '.jpeg', '.mp4', '.mov', '.avi',
+                              '.mp3', '.wav', '.m4a', '.ipynb', '.json', '.csv', '.xlsx'}
         
         try:
             for file_path in directory.rglob('*'):
