@@ -7,7 +7,8 @@ import {
   Film,
   Eye,
   RotateCcw,
-  Settings
+  Settings,
+  Copy
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
 
@@ -18,6 +19,7 @@ const navItems = [
   { to: '/search', icon: Search, label: 'Search' },
   { to: '/veo', icon: Film, label: 'VEO Studio' },
   { to: '/analysis', icon: Eye, label: 'Analysis' },
+  { to: '/duplicates', icon: Copy, label: 'Duplicates' },
   { to: '/rollback', icon: RotateCcw, label: 'Rollback Center', highlight: true },
   { to: '/settings', icon: Settings, label: 'Settings' },
 ]
