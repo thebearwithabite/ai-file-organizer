@@ -24,7 +24,7 @@ export default function Search() {
   const [query, setQuery] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ['search', searchQuery],
     queryFn: () => api.searchFiles(searchQuery),
     enabled: searchQuery.length > 0,
