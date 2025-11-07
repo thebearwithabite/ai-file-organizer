@@ -8,6 +8,7 @@ import VeoStudio from './pages/VeoStudio'
 import Analysis from './pages/Analysis'
 import RollbackCenter from './pages/RollbackCenter'
 import Settings from './pages/Settings'
+import Duplicates from './pages/Duplicates'
 
 export default function App() {
   return (
@@ -21,6 +22,7 @@ export default function App() {
           <Route path="veo" element={<VeoStudio />} />
           <Route path="analysis" element={<Analysis />} />
           <Route path="rollback" element={<RollbackCenter />} />
+          <Route path="duplicates" element={<Duplicates />} />
           <Route path="settings" element={<Settings />} />
         </Route>
       </Routes>
