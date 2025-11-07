@@ -65,3 +65,40 @@ export interface RollbackOperation {
   notes: string
   google_drive_id?: string
 }
+
+export type ConfidenceMode = 'never' | 'minimal' | 'smart' | 'always'
+
+export interface ConfidenceModeResponse {
+  mode: ConfidenceMode
+}
+
+export interface SpaceProtectionStatus {
+  used_percent: number
+  free_gb: number
+  total_gb: number
+  threshold_85: boolean
+  threshold_95: boolean
+  status: 'healthy' | 'warning' | 'critical'
+}
+
+export interface DuplicateGroup {
+  group_id: string
+  files: {
+    path: string
+    size: number
+    modified: string
+  }[]
+  total_size: number
+}
+
+export interface DuplicatesResponse {
+  groups: DuplicateGroup[]
+}
+
+export interface MonitorStatus {
+  status: 'active' | 'paused'
+  paths: string[]
+  last_event: string | null
+  events_processed: number
+  uptime_seconds: number
+}

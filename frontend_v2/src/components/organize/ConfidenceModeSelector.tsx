@@ -40,7 +40,7 @@ export default function ConfidenceModeSelector() {
   const [selectedMode, setSelectedMode] = useState('smart')
 
   const { mutate: updateMode } = useMutation({
-    mutationFn: api.updateConfidenceMode,
+    mutationFn: (mode: string) => api.setConfidenceMode(mode as any),
     onSuccess: () => {
       toast.success('Confidence mode updated')
     },

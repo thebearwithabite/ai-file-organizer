@@ -3,7 +3,17 @@
  * Backend runs on http://localhost:8000
  */
 
-import type { SystemStatus, LearningStats, FileOperation, ClassificationResult } from '../types/api'
+import type {
+  SystemStatus,
+  LearningStats,
+  FileOperation,
+  ClassificationResult,
+  ConfidenceModeResponse,
+  ConfidenceMode,
+  SpaceProtectionStatus,
+  DuplicatesResponse,
+  MonitorStatus
+} from '../types/api'
 
 const API_BASE = 'http://localhost:8000'
 
@@ -69,9 +79,68 @@ export const api = {
     return await response.json()
   },
 
-  updateConfidenceMode: async (mode: string) => {
-    // TODO: Implement backend endpoint
-    return { success: true, mode }
+  // Confidence Mode endpoints
+  getConfidenceMode: async (): Promise<ConfidenceModeResponse> => {
+    const response = await fetch(`${API_BASE}/api/settings/confidence-mode`)
+    if (!response.ok) throw new Error('Failed to fetch confidence mode')
+    return await response.json()
+  },
+
+  setConfidenceMode: async (mode: ConfidenceMode): Promise<ConfidenceModeResponse> => {
+    const response = await fetch(`${API_BASE}/api/settings/confidence-mode`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ mode }),
+    })
+    if (!response.ok) throw new Error('Failed to update confidence mode')
+    return await response.json()
+  },
+
+  // Disk Space Protection endpoints
+  getSpaceProtection: async (): Promise<SpaceProtectionStatus> => {
+    const response = await fetch(`${API_BASE}/api/system/space-protection`)
+    if (!response.ok) throw new Error('Failed to fetch space protection status')
+    return await response.json()
+  },
+
+  triggerSpaceProtection: async () => {
+    const response = await fetch(`${API_BASE}/api/system/space-protection`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ action: 'protect' }),
+    })
+    if (!response.ok) throw new Error('Failed to trigger space protection')
+    return await response.json()
+  },
+
+  // Duplicates endpoints
+  getDuplicates: async (): Promise<DuplicatesResponse> => {
+    const response = await fetch(`${API_BASE}/api/system/deduplicate`)
+    if (!response.ok) throw new Error('Failed to fetch duplicates')
+    return await response.json()
+  },
+
+  cleanDuplicates: async (groupId: string, keepIndex: number) => {
+    const response = await fetch(`${API_BASE}/api/system/deduplicate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ group_id: groupId, keep_index: keepIndex }),
+    })
+    if (!response.ok) throw new Error('Failed to clean duplicates')
+    return await response.json()
+  },
+
+  // Monitor Status endpoint
+  getMonitorStatus: async (): Promise<MonitorStatus> => {
+    const response = await fetch(`${API_BASE}/api/system/monitor-status`)
+    if (!response.ok) throw new Error('Failed to fetch monitor status')
+    return await response.json()
   },
 
   emergencyCleanup: async () => {
