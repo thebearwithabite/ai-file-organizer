@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { Plus, FolderOpen, Trash2, Edit2, Save, X, Brain, Target, TrendingUp, Image, Video, Music, FileText, Award, Database, HardDrive, Activity } from 'lucide-react'
 import { toast } from 'sonner'
+import ConfidenceModeSwitcher from '../components/settings/ConfidenceModeSwitcher'
+import RollbackPanel from '../components/settings/RollbackPanel'
 
 interface Category {
   id: string
@@ -153,6 +155,12 @@ export default function Settings() {
         <h1 className="text-3xl font-bold text-white">Settings</h1>
         <p className="text-white/60 mt-1">Configure categories and learning preferences</p>
       </div>
+
+      {/* Confidence Mode Switcher */}
+      <ConfidenceModeSwitcher />
+
+      {/* Rollback History Panel */}
+      <RollbackPanel />
 
       {/* Learning Statistics */}
       <div className="bg-white/[0.07] backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-glass animate-fade-in">
