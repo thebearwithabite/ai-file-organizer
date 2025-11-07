@@ -1,9 +1,10 @@
 ---
 title: "Sprint 3.3 — UI Integration & Controls"
 date: 2025-11-05
-status: Planned
+status: Complete
 phase: 3.3
 owner: Ryan Thomson
+completed: 2025-11-07
 ---
 
 # 🎨 Sprint 3.3 — UI Integration & Controls
@@ -121,15 +122,15 @@ Sprint 3.3 now surfaces these features in the UI.
 
 ---
 
-## 🧱 Commit Log (placeholder)
+## 🧱 Commit Log
 | Commit | Message | Status |
 |---------|----------|--------|
-| ( ) | `feat: Sprint 3.3 Task 1 — Confidence Mode UI` | ⬜ |
-| ( ) | `feat: Sprint 3.3 Task 2 — Disk Space Widget` | ⬜ |
-| ( ) | `feat: Sprint 3.3 Task 3 — Duplicates Page` | ⬜ |
-| ( ) | `feat: Sprint 3.3 Task 4 — Rollback Panel` | ⬜ |
-| ( ) | `feat: Sprint 3.3 Task 5 — Monitor Status Widget` | ⬜ |
-| ( ) | `style: Sprint 3.3 Task 6 — QoL Polish` | ⬜ |
+| 3f96e0e | `feat: Sprint 3.3 Task 1 — Confidence Mode UI` | ✅ |
+| 2c5441b | `feat: Sprint 3.3 Task 2 — Disk Space Widget` | ✅ |
+| 47885bf | `feat: Sprint 3.3 Task 3 — Duplicates Page` | ✅ |
+| f0b3959 | `feat: Sprint 3.3 Task 4 — Rollback Panel` | ✅ |
+| 11f838e | `feat: Sprint 3.3 Task 5 — Monitor Status Widget` | ✅ |
+| ef33327 | `style: Sprint 3.3 Task 6 — QoL Polish` | ✅ |
 
 ---
 
