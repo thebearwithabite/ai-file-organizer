@@ -48,6 +48,93 @@ Navigate to **http://localhost:8000** for the modern web interface with:
 
 ---
 
+## 🔧 **Local Environment Setup**
+
+### Prerequisites
+- Python 3.8+ with pip
+- Git for version control
+- (Optional) TruffleHog, detect-secrets for security scanning
+
+### Clean Install Steps
+
+1. **Clone and setup virtual environment:**
+```bash
+git clone https://github.com/thebearwithabite/ai-file-organizer
+cd ai-file-organizer
+
+# Create virtual environment (recommended)
+python3 -m venv venv
+source venv/bin/activate  # macOS/Linux
+# OR: venv\Scripts\activate  # Windows
+```
+
+2. **Install Python dependencies:**
+```bash
+pip install -r requirements_v3.txt
+pip install -r requirements_cloud.txt  # For Google Drive integration
+pip install pytest pytest-asyncio httpx  # For testing
+pip install detect-secrets  # For PII/secrets scanning
+```
+
+3. **Configure environment variables:**
+```bash
+# Copy example environment file
+cp .env.example .env
+
+# Edit .env to set your paths (optional)
+# AUTO_MONITOR_PATHS=~/Downloads,~/Desktop
+# AUTO_MONITOR_INTERVAL=5
+```
+
+4. **Verify installation:**
+```bash
+# Run comprehensive validation suite
+./scripts/run_all_tests.sh
+
+# This runs:
+# - Integration tests (pytest)
+# - PII/secrets scan (detect-secrets)
+# - Python syntax checks
+```
+
+5. **Start the server:**
+```bash
+python main.py
+# Navigate to http://localhost:8000
+```
+
+### Security & Testing
+
+**One-Command Validation:**
+```bash
+./scripts/run_all_tests.sh
+```
+
+This validation script automatically runs:
+- Integration tests for all API endpoints
+- PII/secrets scanning with detect-secrets
+- Python syntax validation
+- Git pre-push hooks verification
+
+**Security Tools (Optional but Recommended):**
+```bash
+# Install TruffleHog for verified secrets detection
+brew install trufflesecurity/trufflehog/trufflehog
+
+# Install git-secrets for additional protection
+brew install git-secrets
+```
+
+**Pre-Push Hooks:**
+The repository includes git pre-push hooks that automatically scan for:
+- Verified secrets (TruffleHog)
+- Personal identifiers (detect-secrets)
+- Sensitive data patterns (git-secrets)
+
+These hooks run automatically on `git push` to prevent accidental exposure.
+
+---
+
 ## ✅ **What Actually Works Today**
 
 Based on verified codebase analysis (October 31, 2025):
