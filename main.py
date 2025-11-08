@@ -229,14 +229,26 @@ async def emergency_cleanup():
 
 @app.get("/api/system/monitor-status")
 async def get_monitor_status():
-    """Get background monitor status for health checking and debugging"""
+    """
+    Get background monitor status for health checking and debugging
+
+    Returns:
+        JSON with monitor status in {status, message, data} format
+    """
     global background_monitor, monitor_paths
 
+    is_running = background_monitor is not None
+    path_count = len(monitor_paths) if monitor_paths else 0
+
     return {
-        "status": "running" if background_monitor is not None else "disabled",
-        "paths": monitor_paths if monitor_paths else [],
-        "count": len(monitor_paths) if monitor_paths else 0,
-        "enabled": background_monitor is not None
+        "status": "success",
+        "message": f"Monitor is {'running' if is_running else 'disabled'} - watching {path_count} paths",
+        "data": {
+            "monitor_status": "running" if is_running else "disabled",
+            "monitored_paths": monitor_paths if monitor_paths else [],
+            "path_count": path_count,
+            "enabled": is_running
+        }
     }
 
 @app.get("/api/settings/learning-stats")
@@ -489,6 +501,61 @@ async def scan_for_duplicates():
         logger.error(f"Failed to scan for duplicates: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to scan for duplicates")
 
+@app.post("/api/system/deduplicate")
+async def perform_deduplication_cleanup():
+    """
+    Perform safe duplicate cleanup with rollback protection
+
+    Returns:
+        JSON with cleanup results including:
+        - status: success or error
+        - message: Human-readable message
+        - data: Duplicates removed, space freed, and rollback information
+    """
+    try:
+        # Get current stats before cleanup
+        before_stats = deduplication_service.get_service_stats()
+
+        # Check if there are any active threats to process
+        active_threats = before_stats.get("active_threats", 0)
+
+        if active_threats == 0:
+            return {
+                "status": "success",
+                "message": "No duplicates found to clean up",
+                "data": {
+                    "duplicates_removed": 0,
+                    "space_freed_mb": 0,
+                    "service_stats": before_stats
+                }
+            }
+
+        # Process all threats in the queue
+        # This will automatically handle cleanup with rollback protection
+        deduplication_service._process_threats()
+
+        # Get updated stats after cleanup
+        after_stats = deduplication_service.get_service_stats()
+
+        duplicates_removed = after_stats["service_stats"]["duplicates_removed"]
+        space_freed = after_stats["service_stats"]["space_saved_mb"]
+
+        return {
+            "status": "success",
+            "message": f"Cleanup completed - {duplicates_removed} duplicates removed, {space_freed:.1f} MB freed",
+            "data": {
+                "duplicates_removed": duplicates_removed,
+                "space_freed_mb": space_freed,
+                "threats_detected": after_stats["service_stats"]["threats_detected"],
+                "threats_resolved": after_stats["service_stats"]["threats_resolved"],
+                "rollback_available": True,
+                "service_stats": after_stats
+            }
+        }
+    except Exception as e:
+        logger.error(f"Failed to perform deduplication cleanup: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to perform deduplication cleanup")
+
 @app.get("/api/system/space-protection")
 async def get_space_protection_status():
     """
@@ -525,6 +592,65 @@ async def get_space_protection_status():
     except Exception as e:
         logger.error(f"Failed to get space protection status: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to get space protection status")
+
+@app.post("/api/system/space-protection")
+async def trigger_space_cleanup():
+    """
+    Trigger emergency space cleanup
+
+    Returns:
+        JSON with cleanup results including:
+        - status: success or error
+        - message: Human-readable message
+        - data: Space freed, files processed, and cleanup details
+    """
+    try:
+        # Force emergency check first
+        emergency_check = space_protection.force_emergency_check()
+
+        if emergency_check["emergencies_detected"] == 0:
+            return {
+                "status": "success",
+                "message": "No cleanup needed - disk space is healthy",
+                "data": {
+                    "space_freed_gb": 0,
+                    "files_processed": 0,
+                    "emergency_check": emergency_check
+                }
+            }
+
+        # Get the first emergency and handle it
+        emergency = space_protection.current_emergencies[0] if space_protection.current_emergencies else None
+
+        if not emergency:
+            return {
+                "status": "success",
+                "message": "No active emergencies to handle",
+                "data": {
+                    "space_freed_gb": 0,
+                    "files_processed": 0
+                }
+            }
+
+        # Handle the emergency (this triggers cleanup internally)
+        space_protection._handle_space_emergency(emergency)
+
+        # Get updated stats after cleanup
+        updated_stats = space_protection.get_protection_stats()
+
+        return {
+            "status": "success",
+            "message": f"Cleanup completed - {updated_stats['protection_stats']['space_recovered_gb']:.1f} GB freed",
+            "data": {
+                "space_freed_gb": updated_stats['protection_stats']['space_recovered_gb'],
+                "files_offloaded": updated_stats['protection_stats']['files_offloaded'],
+                "emergency_resolved": emergency.severity,
+                "protection_stats": updated_stats
+            }
+        }
+    except Exception as e:
+        logger.error(f"Failed to trigger space cleanup: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to trigger space cleanup")
 
 @app.get("/api/search")
 async def search_files(q: str = Query(..., description="Search query", min_length=1)):
@@ -795,13 +921,30 @@ async def get_rollback_operations(
         search: Optional search term
 
     Returns:
-        JSON response with list of operations
+        JSON response with list of operations in {status, message, data} format
     """
-    operations = rollback_service.get_operations(days=days, today_only=today_only, search=search)
-    return {
-        "operations": operations,
-        "count": len(operations)
-    }
+    try:
+        operations = rollback_service.get_operations(days=days, today_only=today_only, search=search)
+
+        time_range = "today" if today_only else f"last {days} days"
+        message = f"Found {len(operations)} operations from {time_range}"
+        if search:
+            message += f" matching '{search}'"
+
+        return {
+            "status": "success",
+            "message": message,
+            "data": {
+                "operations": operations,
+                "count": len(operations),
+                "days": days,
+                "today_only": today_only,
+                "search_term": search
+            }
+        }
+    except Exception as e:
+        logger.error(f"Failed to get rollback operations: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to retrieve rollback operations")
 
 @app.post("/api/rollback/undo/{operation_id}")
 async def undo_operation(operation_id: int):
@@ -812,12 +955,27 @@ async def undo_operation(operation_id: int):
         operation_id: ID of the operation to undo
 
     Returns:
-        JSON response with success status
+        JSON response with success status in {status, message, data} format
     """
-    result = rollback_service.undo_operation(operation_id)
-    if not result["success"]:
-        raise HTTPException(status_code=400, detail=result["message"])
-    return result
+    try:
+        result = rollback_service.undo_operation(operation_id)
+
+        if not result["success"]:
+            raise HTTPException(status_code=400, detail=result["message"])
+
+        return {
+            "status": "success",
+            "message": result["message"],
+            "data": {
+                "operation_id": operation_id,
+                "rollback_successful": True
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to undo operation {operation_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to undo operation")
 
 @app.post("/api/rollback/undo-today")
 async def undo_today():
@@ -825,12 +983,27 @@ async def undo_today():
     Emergency undo: Rollback all operations from today
 
     Returns:
-        JSON response with count and status
+        JSON response with count and status in {status, message, data} format
     """
-    result = rollback_service.undo_today()
-    if not result["success"] and result["count"] == 0:
-        raise HTTPException(status_code=404, detail="No operations found to undo")
-    return result
+    try:
+        result = rollback_service.undo_today()
+
+        if not result["success"] and result["count"] == 0:
+            raise HTTPException(status_code=404, detail="No operations found to undo")
+
+        return {
+            "status": "success" if result["success"] else "partial",
+            "message": result["message"],
+            "data": {
+                "operations_undone": result["count"],
+                "rollback_successful": result["success"]
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to undo today's operations: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to undo today's operations")
 
 if __name__ == "__main__":
     # Run the application directly with python main.py
