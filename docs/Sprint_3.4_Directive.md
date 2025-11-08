@@ -62,13 +62,20 @@ Output → `docs/API_Endpoints.md`.
 
 ---
 
-### Task 4 — Deployment Prep
-- Add `Dockerfile` for backend + frontend
-- Add `docker-compose.yml` for full stack
-- Update `.env.example` (clean of any tokens)
-- Create `init.sh` to bootstrap DBs and run safety checks
-- Implement PII/secret scanner pre-push hook
-  (`.git/hooks/pre-push` → `detect-secrets scan`)
+### Task 4 — Security & Environment Hardening
+**Goal:** Ensure the development environment and commit history are clean, reproducible, and private without requiring Docker.
+
+**Deliverables:**
+- Verify `.env.example` includes all required variables but no secrets
+- Add/confirm `.git/hooks/pre-push` PII scanner (TruffleHog + detect-secrets + git-secrets)
+- Run full repository sweep for identifiers (`Ryan Thomson`, `ryanthomson`, `Finn`, `client`, `contract`, `invoice`)
+- Add `scripts/run_all_tests.sh` for one-command local validation (runs pytest, PII scan, and lint)
+- Document clean-install steps in `README.md` under "Local Environment Setup"
+
+**Acceptance:**
+1. Running `./scripts/run_all_tests.sh` prints ✅ for all subsystems
+2. No detected PII or secrets across repo
+3. New developers can clone, create venv, and run backend/frontend without Docker
 
 ---
 
@@ -86,8 +93,8 @@ Output → `docs/API_Endpoints.md`.
 | 1 | All API routes respond | curl/httpx | ✅ 200 OK + structured JSON |
 | 2 | Integration tests | pytest suite | ✅ All pass |
 | 3 | Docs generated | docs/API_Endpoints.md exists | ✅ |
-| 4 | Docker stack builds | docker-compose up | ✅ |
-| 5 | Pre-push PII scan | hook blocks unsafe commits | ✅ |
+| 4 | Security & environment hardening | ./scripts/run_all_tests.sh | ✅ All checks pass |
+| 5 | Performance & regression tests | 1000 files + latency < 150ms | ✅ v3.4.0-rc1 tagged |
 
 ---
 
@@ -105,7 +112,7 @@ Output → `docs/API_Endpoints.md`.
 | ( ) | `feat: Sprint 3.4 Task 1 — Finalize Endpoints` | ⬜ |
 | ( ) | `test: Sprint 3.4 Task 2 — Integration Suite` | ⬜ |
 | ( ) | `docs: Generate API Docs and OpenAPI Spec` | ⬜ |
-| ( ) | `build: Add Docker and Pre-Push PII Scanner` | ⬜ |
+| ( ) | `security: Add PII scanner and environment hardening` | ⬜ |
 | ( ) | `perf: Load Test and v3.4.0-rc1 tag` | ⬜ |
 
 ---
