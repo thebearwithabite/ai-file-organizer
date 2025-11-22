@@ -30,4 +30,21 @@ env/
 .idea/
 
 # AI Organizer local config
-.ai_organizer_config/SECURITY_FIXES_NEEDED.md
+.ai_organizer_config/
+*.pkl
+
+# Personal/dev utility scripts (not for public repo)
+audacity_gdrive_uploader.py
+scrub_personal_info.py
+validate_pii_scrubbing.py
+test_audacity_upload_setup.py
+audacity_upload_report_*.json
+
+# Test output directories
+test_veo_output/
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# Legacy audio organizer source
+audio_organizer_source/
