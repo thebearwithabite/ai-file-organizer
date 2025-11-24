@@ -30,4 +30,64 @@ env/
 .idea/
 
 # AI Organizer local config
-.ai_organizer_config/SECURITY_FIXES_NEEDED.md
+.ai_organizer_config/
+
+# Screenshots and media files (move to docs/assets/)
+*.png
+*.jpg
+*.jpeg
+*.gif
+# Exception: Keep documented assets
+!docs/assets/**
+!frontend_v2/public/**
+!frontend_v2/src/assets/**
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+.eggs/
+
+# Test artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+.hypothesis/
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+.#*
+
+# OS specific
+Thumbs.db
+Desktop.ini
+
+# Report files and investigation logs
+*_report_*.json
+*_REPORT_*.json
+INVESTIGATION_REPORT_*.json
+audacity_*_report_*.json
+
+# CSV logs (may contain PII)
+*.csv
+# Exception: Keep template CSVs
+!*_template.csv
+
+# Node modules
+node_modules/
+frontend/node_modules/
+frontend_v2/node_modules/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Compiled frontend
+frontend_v2/dist/
+frontend_v2/build/SECURITY_FIXES_NEEDED.md
