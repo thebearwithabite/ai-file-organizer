@@ -31,7 +31,7 @@ from dataclasses import dataclass
 project_dir = Path(__file__).parent
 sys.path.insert(0, str(project_dir))
 
-from gdrive_integration import get_ai_organizer_root
+from gdrive_integration import get_ai_organizer_root, get_metadata_root
 from universal_adaptive_learning import UniversalAdaptiveLearning
 from confidence_system import ADHDFriendlyConfidenceSystem
 from easy_rollback_system import EasyRollbackSystem
@@ -79,7 +79,7 @@ class EmergencySpaceProtection:
         self.rollback_system = EasyRollbackSystem()
         
         # Space protection database
-        self.protection_db_path = self.base_dir / "04_METADATA_SYSTEM" / "space_protection.db"
+        self.protection_db_path = get_metadata_root() /  "space_protection.db"
         
         # Configuration
         self.config = {

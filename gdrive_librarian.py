@@ -27,6 +27,7 @@ from dataclasses import dataclass, asdict
 from datetime import datetime, timedelta
 from enum import Enum
 import logging
+from gdrive_integration import get_ai_organizer_root
 
 # Google API imports
 try:
@@ -147,7 +148,7 @@ class GoogleDriveLibrarian:
         # Hybrid search (local + semantic) - LAZY LOADED
         # Don't initialize HybridLibrarian here - it loads heavy SentenceTransformer model
         self._hybrid_librarian = None
-        self._hybrid_librarian_base_dir = str(Path.home() / "Documents")
+        self._hybrid_librarian_base_dir = str(get_ai_organizer_root())
         
         # Background sync service
         self.sync_service = None

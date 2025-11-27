@@ -17,6 +17,24 @@ from dataclasses import dataclass
 from datetime import datetime
 import json
 
+# Load .env.local if it exists (simple manual loader, no dependencies)
+def _load_env_file(env_path: Path):
+    """Load environment variables from .env file"""
+    if env_path.exists():
+        with open(env_path, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#') and '=' in line:
+                    key, value = line.split('=', 1)
+                    # Remove quotes if present
+                    value = value.strip('"').strip("'")
+                    os.environ[key] = value
+
+# Try to load .env.local from project root
+_project_root = Path(__file__).parent
+_env_local = _project_root / '.env.local'
+_load_env_file(_env_local)
+
 @dataclass
 class DriveStatus:
     """Google Drive status information"""
@@ -41,18 +59,11 @@ class GoogleDriveIntegration:
     """
     
     def __init__(self):
-        self.user_email = "user@example.com"
-        self.base_drive_paths = [
-            Path(f"/Users/{os.getenv('USER', 'user')}/Library/CloudStorage/GoogleDrive-{self.user_email}/My Drive"),
-            Path(f"/Users/{os.getenv('USER', 'user')}/Library/CloudStorage/GoogleDrive-{self.user_email.replace('@', '-').replace('.', '-')}/My Drive"),
-        ]
-        
-        # Fallback paths
-        self.fallback_path = Path.home() / "Documents" / "AI_ORGANIZER_GDRIVE_FALLBACK"
-        
-        # Initialize drive connection
-        self.drive_root = self._detect_google_drive()
-        self.emergency_staging = self._setup_emergency_staging()
+        # DEPRECATED: Google Drive integration disabled
+        # System now uses local metadata only at /Users/ryanthomson/Documents/AI_METADATA_SYSTEM
+        self.drive_root = None
+        self.fallback_path = Path("/Users/ryanthomson/Documents")
+        self.emergency_staging = None
         
     def _detect_google_drive(self) -> Optional[Path]:
         """
@@ -163,11 +174,8 @@ class GoogleDriveIntegration:
             "industry_docs": root / "03_REFERENCE_LIBRARY" / "Industry_Documents",
             "templates": root / "03_REFERENCE_LIBRARY" / "Templates",
             
-            # Phase 4: Metadata System
-            "metadata_system": root / "04_METADATA_SYSTEM",
-            "vector_db": root / "04_METADATA_SYSTEM" / "vector_db",
-            "classification_logs": root / "04_METADATA_SYSTEM" / "classification_logs",
-            "user_preferences": root / "04_METADATA_SYSTEM" / "user_preferences.json",
+            # Phase 4: Metadata System - DEPRECATED, now at ~/Documents/AI_METADATA_SYSTEM
+            # Metadata directories are no longer created here
             
             # Phase 5: Processing Areas
             "temp_processing": root / "99_TEMP_PROCESSING",
@@ -177,27 +185,11 @@ class GoogleDriveIntegration:
         
         # Create all directories
         for name, path in structure.items():
-            if name != "user_preferences":  # Don't create the JSON file, just directory
-                path.mkdir(parents=True, exist_ok=True)
-                print(f"✅ Created: {name} -> {path}")
-        
-        # Create preferences file if it doesn't exist
-        prefs_file = structure["user_preferences"]
-        if not prefs_file.exists():
-            prefs_file.parent.mkdir(parents=True, exist_ok=True)
-            initial_prefs = {
-                "created": str(datetime.now()),
-                "version": "3.0",
-                "google_drive_root": str(root),
-                "category_preferences": {},
-                "person_preferences": {},
-                "project_preferences": {},
-                "keyword_boosts": {},
-                "decision_history": []
-            }
-            with open(prefs_file, 'w') as f:
-                json.dump(initial_prefs, f, indent=2)
-            print(f"✅ Created preferences: {prefs_file}")
+            path.mkdir(parents=True, exist_ok=True)
+            print(f"✅ Created: {name} -> {path}")
+
+        # Note: User preferences and metadata now managed at ~/Documents/AI_METADATA_SYSTEM
+        # This structure is for organizational folders only
         
         return structure
     
@@ -323,19 +315,30 @@ class GoogleDriveIntegration:
         
         return base_path
 
+def get_metadata_root() -> Path:
+    """
+    GLOBAL FUNCTION: Get metadata system root directory
+
+    HARDCODED to local metadata system - NO Google Drive dependencies.
+    This replaces all instances of get_metadata_root()
+
+    Returns:
+        Path: Local metadata system at ~/Documents/AI_METADATA_SYSTEM
+    """
+    return Path("/Users/ryanthomson/Documents/AI_METADATA_SYSTEM")
+
 def get_ai_organizer_root() -> Path:
     """
-    GLOBAL FUNCTION: Get AI File Organizer root directory
-    
-    This function should REPLACE all instances of:
-    - Path.home() / "Documents"
-    - "/Users/user/Documents"
-    
+    DEPRECATED: Use get_metadata_root() instead for metadata access.
+
+    This function maintained for backwards compatibility only.
+    The organizer no longer uses Google Drive - metadata is local.
+
     Returns:
-        Path: Google Drive root or fallback location
+        Path: Parent directory of metadata system
     """
-    gdrive = GoogleDriveIntegration()
-    return gdrive.get_ai_organizer_root()
+    # Return parent directory so existing code like base_dir / "04_METADATA_SYSTEM" still works
+    return Path("/Users/ryanthomson/Documents")
 
 def main():
     """Test the Google Drive integration"""

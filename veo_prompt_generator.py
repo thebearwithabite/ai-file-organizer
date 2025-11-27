@@ -22,7 +22,7 @@ import hashlib
 
 # Import vision analyzer for video analysis
 from vision_analyzer import VisionAnalyzer
-from gdrive_integration import get_ai_organizer_root
+from gdrive_integration import get_ai_organizer_root, get_metadata_root
 
 # VEO 3.1 Schema Template
 VEO_SCHEMA_TEMPLATE = {
@@ -121,7 +121,7 @@ class VEOPromptGenerator:
             output_dir: Directory to save generated JSON files
         """
         self.base_dir = Path(base_dir) if base_dir else get_ai_organizer_root()
-        self.db_path = Path(db_path) if db_path else self.base_dir / "04_METADATA_SYSTEM" / "metadata.db"
+        self.db_path = Path(db_path) if db_path else get_metadata_root() /  "metadata.db"
         self.output_dir = Path(output_dir) if output_dir else self.base_dir / "05_VEO_PROMPTS"
 
         # Create output directory

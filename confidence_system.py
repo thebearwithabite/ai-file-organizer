@@ -29,7 +29,7 @@ project_dir = Path(__file__).parent
 sys.path.insert(0, str(project_dir))
 
 from universal_adaptive_learning import UniversalAdaptiveLearning
-from gdrive_integration import get_ai_organizer_root
+from gdrive_integration import get_ai_organizer_root, get_metadata_root
 
 class ConfidenceLevel(Enum):
     """Confidence levels for ADHD-friendly interaction"""
@@ -66,7 +66,7 @@ class ADHDFriendlyConfidenceSystem:
         self.learning_system = UniversalAdaptiveLearning(str(self.base_dir))
         
         # Configuration file for user preferences
-        self.config_file = self.base_dir / "04_METADATA_SYSTEM" / "confidence_settings.json"
+        self.config_file = get_metadata_root() /  "confidence_settings.json"
         self.user_config = self._load_user_config()
         
         # Default confidence thresholds

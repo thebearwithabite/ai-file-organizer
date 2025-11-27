@@ -31,7 +31,7 @@ from hybrid_librarian import HybridLibrarian, EnhancedQueryResult
 from content_extractor import ContentExtractor
 from classification_engine import FileClassificationEngine
 from email_extractor import EmailExtractor
-from gdrive_integration import get_ai_organizer_root
+from gdrive_integration import get_ai_organizer_root, get_metadata_root
 
 @dataclass
 class DocumentChunk:
@@ -382,7 +382,7 @@ class VectorLibrarian:
         """Initialize ChromaDB for vector storage"""
         try:
             # Create persistent ChromaDB client
-            db_path = str(self.base_dir / "04_METADATA_SYSTEM" / "vector_db")
+            db_path = str(get_metadata_root() /  "vector_db")
             
             self.chroma_client = chromadb.PersistentClient(
                 path=db_path,
@@ -638,15 +638,18 @@ class VectorLibrarian:
                 relevance_score = similarity * 100
                 
                 # Create enhanced result
+                # Extract filename from path if not in metadata
+                filename = metadata.get('filename', Path(file_path).name)
+
                 result = EnhancedQueryResult(
                     file_path=file_path,
-                    filename=metadata['filename'],
+                    filename=filename,
                     relevance_score=relevance_score,
                     semantic_score=similarity,
                     matching_content=doc[:200] + "..." if len(doc) > 200 else doc,
                     file_category=metadata.get('file_category', 'unknown'),
                     tags=metadata.get('tags', '').split(',') if metadata.get('tags') else [],
-                    last_modified=datetime.fromisoformat(metadata['last_modified']),
+                    last_modified=datetime.fromisoformat(metadata.get('last_modified', datetime.now().isoformat())),
                     file_size=metadata.get('file_size', 0),
                     reasoning=[
                         f"Vector similarity: {similarity:.1%}",

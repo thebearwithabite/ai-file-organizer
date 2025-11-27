@@ -71,7 +71,8 @@ class AudioAnalyzer:
             self.client = OpenAI(api_key=openai_api_key)
         
         # Learning system files
-        metadata_dir = self.base_dir / "04_METADATA_SYSTEM"
+        from gdrive_integration import get_metadata_root
+        metadata_dir = get_metadata_root()
         self.learning_data_file = Path(learning_data_path) if learning_data_path else metadata_dir / "learning_data.pkl"
         self.discovered_categories_file = Path(categories_data_path) if categories_data_path else metadata_dir / "discovered_categories.json"
         

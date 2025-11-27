@@ -27,7 +27,7 @@ import logging
 project_dir = Path(__file__).parent
 sys.path.insert(0, str(project_dir))
 
-from gdrive_integration import get_ai_organizer_root
+from gdrive_integration import get_ai_organizer_root, get_metadata_root
 
 @dataclass
 class LearningEvent:
@@ -81,7 +81,7 @@ class UniversalAdaptiveLearning:
         self.base_dir = Path(base_dir) if base_dir else get_ai_organizer_root()
 
         # Learning system files
-        self.learning_dir = self.base_dir / "04_METADATA_SYSTEM" / "adaptive_learning"
+        self.learning_dir = get_metadata_root() /  "adaptive_learning"
         self.learning_dir.mkdir(parents=True, exist_ok=True)
 
         # Persistent storage files

@@ -12,7 +12,7 @@ from typing import Dict, List, Tuple, Optional
 from dataclasses import dataclass
 from datetime import datetime
 import mimetypes
-from gdrive_integration import get_ai_organizer_root
+from gdrive_integration import get_ai_organizer_root, get_metadata_root
 
 @dataclass
 class ClassificationResult:
@@ -35,7 +35,7 @@ class FileClassificationEngine:
     def __init__(self, base_dir: str = None):
         # Use Google Drive integration as primary storage root
         self.base_dir = Path(base_dir) if base_dir else get_ai_organizer_root()
-        self.rules_path = self.base_dir / "04_METADATA_SYSTEM" / "classification_rules.json"
+        self.rules_path = get_metadata_root() /  "classification_rules.json"
         
         # Load classification rules
         self._load_classification_rules()

@@ -32,8 +32,9 @@ from gemini_vision_adapter import (
 
 logger = logging.getLogger(__name__)
 
-# Database path
-DB_PATH = Path(__file__).resolve().parents[1] / "04_METADATA_SYSTEM" / "metadata.db"
+# Database path - local metadata system only
+from gdrive_integration import get_metadata_root
+DB_PATH = get_metadata_root() / "metadata.db"
 
 # Create routers
 router = APIRouter(prefix="/api/veo", tags=["veo"])

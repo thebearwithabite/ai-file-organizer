@@ -92,9 +92,8 @@ export default function MonitorStatusWidget() {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-lg ${
-              isActive ? 'bg-success/20' : 'bg-white/10'
-            }`}>
+            <div className={`p-2 rounded-lg ${isActive ? 'bg-success/20' : 'bg-white/10'
+              }`}>
               <Radio size={20} className={isActive ? 'text-success' : 'text-white/40'} />
             </div>
             <div>
@@ -121,7 +120,7 @@ export default function MonitorStatusWidget() {
                 className="flex items-center gap-2 p-2 bg-white/5 rounded-lg"
               >
                 <FolderOpen size={14} className="text-white/60 flex-shrink-0" />
-                <span className="text-xs text-white/80 font-mono truncate">
+                <span className="text-xs text-white/80 font-mono truncate" title={path}>
                   {path}
                 </span>
               </div>

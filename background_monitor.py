@@ -21,7 +21,7 @@ sys.path.insert(0, str(project_dir))
 from vector_librarian import VectorLibrarian
 from email_extractor import EmailExtractor
 from content_extractor import ContentExtractor
-from gdrive_integration import get_ai_organizer_root
+from gdrive_integration import get_ai_organizer_root, get_metadata_root
 
 # Set up logging
 logging.basicConfig(
@@ -41,8 +41,8 @@ class EnhancedBackgroundMonitor:
     Based on AudioAI organizer patterns but adapted for document management
     """
     
-    def __init__(self, base_dir: str = None):
-        self.base_dir = Path(base_dir) if base_dir else get_ai_organizer_root() / "04_METADATA_SYSTEM"
+    def __init__(self, base_dir: str = None, additional_watch_paths: List[str] = None):
+        self.base_dir = Path(base_dir) if base_dir else get_metadata_root()
         self.db_path = self.base_dir / "background_monitor.db"
         
         # Initialize components
@@ -52,6 +52,19 @@ class EnhancedBackgroundMonitor:
         
         # Monitoring configuration
         self.watch_directories = self._get_watch_directories()
+        
+        # Add additional paths
+        if additional_watch_paths:
+            for path_str in additional_watch_paths:
+                path = Path(path_str).expanduser()
+                if path.exists():
+                    name = path.name.lower().replace(' ', '_')
+                    self.watch_directories[name] = {
+                        'path': path,
+                        'priority': 'medium',
+                        'auto_organize': False
+                    }
+                    logger.info(f"Added custom watch path: {path}")
         self.supported_extensions = {'.pdf', '.docx', '.doc', '.txt', '.md', '.pages', '.rtf'}
         self.email_extensions = {'.emlx'}
         
@@ -212,8 +225,9 @@ class EnhancedBackgroundMonitor:
         if file_path.name.startswith('.') or file_path.name.startswith('~'):
             return False
         
-        # IMPORTANT: 7-day waiting period for Downloads and Desktop
+        # IMPORTANT: 7-day waiting period for Downloads and Desktop ONLY
         # Don't process files less than 7 days old to avoid interfering with active work
+        # EXCEPTION: 99_STAGING_EMERGENCY bypasses this rule - files there are processed immediately
         if directory_name in ['downloads', 'desktop']:
             try:
                 file_age_days = (time.time() - file_path.stat().st_mtime) / 86400  # Convert to days
@@ -221,6 +235,9 @@ class EnhancedBackgroundMonitor:
                     return False  # Skip files newer than 7 days
             except:
                 return False  # Skip if we can't determine age
+
+        # Emergency staging folder: process immediately regardless of age
+        # Files here were deliberately moved during emergencies and need immediate processing
         
         # Check if already processed and unchanged
         try:

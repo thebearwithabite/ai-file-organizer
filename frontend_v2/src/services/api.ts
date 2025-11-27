@@ -21,9 +21,9 @@ export const api = {
   getSystemStatus: async (): Promise<SystemStatus> => {
     const response = await fetch(`${API_BASE}/api/system/status`)
     if (!response.ok) throw new Error('Failed to fetch system status')
-    
+
     const data = await response.json()
-    
+
     // Transform backend response to frontend format
     return {
       google_drive: {
@@ -102,7 +102,8 @@ export const api = {
   getSpaceProtection: async (): Promise<SpaceProtectionStatus> => {
     const response = await fetch(`${API_BASE}/api/system/space-protection`)
     if (!response.ok) throw new Error('Failed to fetch space protection status')
-    return await response.json()
+    const json = await response.json()
+    return json.data
   },
 
   triggerSpaceProtection: async () => {
@@ -140,7 +141,17 @@ export const api = {
   getMonitorStatus: async (): Promise<MonitorStatus> => {
     const response = await fetch(`${API_BASE}/api/system/monitor-status`)
     if (!response.ok) throw new Error('Failed to fetch monitor status')
-    return await response.json()
+
+    const data = await response.json()
+
+    // Transform backend response to frontend format
+    return {
+      status: data.data?.enabled && data.data?.monitor_status === 'running' ? 'active' : 'paused',
+      paths: data.data?.monitored_paths || [],
+      last_event: null, // TODO: Backend needs to provide this
+      events_processed: 0, // TODO: Backend needs to provide this
+      uptime_seconds: 0, // TODO: Backend needs to provide this
+    }
   },
 
   emergencyCleanup: async () => {

@@ -62,53 +62,45 @@ class SystemService:
 
     def get_status(self) -> Dict[str, Any]:
         """
-        Get current system status from GoogleDriveLibrarian
+        Get current system status from local vector database
 
         Returns:
             Dict containing real system status information
         """
-        if SystemService._librarian_instance is None:
-            # Return fallback status when librarian failed to initialize
-            return {
-                "status": "error",
-                "message": "GoogleDriveLibrarian not initialized",
-                "error": SystemService._initialization_error,
-                "indexed_files": 0,
-                "files_in_staging": 0,
-                "last_run": None
-            }
-
-        # Ensure initialized before getting status
-        self._ensure_initialized()
-
         try:
-            # Get real status from GoogleDriveLibrarian
-            status = SystemService._librarian_instance.get_system_status()
-
-            # Safely access nested dictionaries
-            components = status.get("components", {})
-            auth_info = status.get("auth_info", {})
-            cache_info = components.get("cache", {})
-            metadata_info = components.get("metadata_store", {})
-            sync_info = components.get("sync_service", {})
+            # Get indexed file count from SearchService (local vector DB)
+            search_service = SearchService()
+            indexed_files = search_service.get_indexed_count()
 
             # Get disk space info
             disk_space = self.get_disk_space()
 
-            # Transform to API-friendly format
+            # Get metadata from local system
+            from gdrive_integration import get_metadata_root
+            metadata_path = get_metadata_root()
+
+            # Check if vector DB exists
+            vector_db_path = metadata_path / "vector_db"
+            vector_db_exists = vector_db_path.exists()
+
+            # Return local-only status
             return {
-                "indexed_files": metadata_info.get("total_files", 0),
-                "files_in_staging": cache_info.get("files_cached", 0),
-                "last_run": status.get("last_drive_scan", "N/A"),
-                "authentication_status": "authenticated" if status.get("authenticated") else "unauthenticated",
-                "google_drive_user": auth_info.get("user_name", "Unknown"),
-                "cache_size_mb": cache_info.get("size_mb", 0),
-                "sync_service_status": sync_info.get("status", "disabled"),
-                "disk_space": disk_space
+                "indexed_files": indexed_files,
+                "files_in_staging": 0,  # No staging in local-only mode
+                "last_run": None,  # Background monitor handles this
+                "authentication_status": "local-only",
+                "google_drive_user": "N/A",
+                "cache_size_mb": 0.0,
+                "sync_service_status": "disabled",
+                "disk_space": disk_space,
+                "metadata_path": str(metadata_path),
+                "vector_db_status": "operational" if vector_db_exists else "not_found"
             }
 
         except Exception as e:
             logger.error(f"Error getting system status: {e}")
+            import traceback
+            traceback.print_exc()
             return {
                 "status": "error",
                 "message": "Failed to retrieve system status",
@@ -227,64 +219,83 @@ class SystemService:
 
 
 class SearchService:
-    """Service class for search-related operations"""
+    """Service class for search-related operations - uses local vector database"""
+
+    # Class-level shared instance
+    _vector_librarian: Optional['VectorLibrarian'] = None
 
     def __init__(self):
-        """Initialize SearchService using the shared GoogleDriveLibrarian instance"""
-        # Use the same shared instance that SystemService created
-        self.librarian = SystemService._librarian_instance
-        self.system_service = SystemService()  # For accessing _ensure_initialized
+        """Initialize SearchService with local VectorLibrarian"""
+        if SearchService._vector_librarian is None:
+            try:
+                from vector_librarian import VectorLibrarian
+                logger.info("Initializing VectorLibrarian for local search...")
+                SearchService._vector_librarian = VectorLibrarian()
+                logger.info("VectorLibrarian initialized successfully")
+            except Exception as e:
+                logger.error(f"Failed to initialize VectorLibrarian: {e}")
+                SearchService._vector_librarian = None
 
-        if self.librarian is None:
-            logger.warning("SearchService initialized but GoogleDriveLibrarian is not available")
+        self.vector_librarian = SearchService._vector_librarian
 
-    def search(self, query: str) -> List[Dict[str, Any]]:
+    def search(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
         """
-        Perform search using GoogleDriveLibrarian
+        Perform search using local vector database
 
         Args:
             query: Search query string
+            limit: Maximum number of results to return
 
         Returns:
             List of search results as dictionaries
         """
-        if self.librarian is None:
-            logger.error("Cannot perform search: GoogleDriveLibrarian not initialized")
+        if self.vector_librarian is None:
+            logger.error("Cannot perform search: VectorLibrarian not initialized")
             return []
 
-        # Ensure initialized before searching (lazy initialization)
-        self.system_service._ensure_initialized()
-
         try:
-            # Call the search method on GoogleDriveLibrarian
-            results = self.librarian.search(query)
+            # Perform vector search on local ChromaDB
+            results = self.vector_librarian.vector_search(query, limit=limit)
 
-            # Convert results to API-friendly format
+            # Convert EnhancedQueryResult to API-friendly format
             api_results = []
             for result in results:
                 api_result = {
-                    "file_id": getattr(result, 'file_id', ''),
-                    "filename": getattr(result, 'filename', ''),
-                    "relevance_score": getattr(result, 'relevance_score', 0.0),
-                    "matching_content": getattr(result, 'matching_content', ''),
-                    "file_category": getattr(result, 'file_category', 'unknown'),
-                    "file_size": getattr(result, 'file_size', 0),
-                    "last_modified": str(getattr(result, 'last_modified', '')),
-                    "local_path": getattr(result, 'local_path', ''),
-                    "drive_path": getattr(result, 'drive_path', ''),
-                    "availability": getattr(result, 'availability', 'unknown'),
-                    "can_stream": getattr(result, 'can_stream', False),
-                    "sync_status": getattr(result, 'sync_status', 'unknown'),
-                    "reasoning": getattr(result, 'reasoning', [])
+                    "filename": result.filename,
+                    "file_path": result.file_path,
+                    "relevance_score": round(result.relevance_score, 2),
+                    "semantic_score": round(result.semantic_score, 4),
+                    "matching_content": result.matching_content,
+                    "file_category": result.file_category,
+                    "tags": result.tags,
+                    "file_size": result.file_size,
+                    "last_modified": result.last_modified.isoformat() if result.last_modified else None,
+                    "reasoning": result.reasoning,
+                    "content_summary": result.content_summary,
+                    "key_concepts": result.key_concepts or []
                 }
                 api_results.append(api_result)
 
-            logger.info(f"Search for '{query}' returned {len(api_results)} results")
+            logger.info(f"Local vector search for '{query}' returned {len(api_results)} results")
             return api_results
 
         except Exception as e:
-            logger.error(f"Error performing search for '{query}': {e}")
+            logger.error(f"Error performing local vector search for '{query}': {e}")
+            import traceback
+            traceback.print_exc()
             return []
+
+    def get_indexed_count(self) -> int:
+        """Get the number of documents in the local vector database"""
+        if self.vector_librarian is None or self.vector_librarian.collection is None:
+            return 0
+
+        try:
+            count = self.vector_librarian.collection.count()
+            return count
+        except Exception as e:
+            logger.error(f"Error getting indexed count: {e}")
+            return 0
 
 
 class TriageService:
@@ -314,7 +325,8 @@ class TriageService:
                 Path.home() / "Desktop",
                 self.base_dir / "99_TEMP_PROCESSING" / "Downloads_Staging",
                 self.base_dir / "99_TEMP_PROCESSING" / "Desktop_Staging",
-                self.base_dir / "99_TEMP_PROCESSING" / "Manual_Review"
+                self.base_dir / "99_TEMP_PROCESSING" / "Manual_Review",
+                self.base_dir / "99_STAGING_EMERGENCY"  # Emergency staging for bulk file dumps
             ]
 
             # Security: Validate all staging areas are within allowed base directories
@@ -432,7 +444,8 @@ class TriageService:
             logger.info(f"Found {len(files_for_review)} files requiring manual review")
 
             # Sort by confidence (lowest first - most urgent)
-            files_for_review.sort(key=lambda x: x['confidence'])
+            # FIX: Confidence is nested inside 'classification' dict
+            files_for_review.sort(key=lambda x: x['classification']['confidence'])
 
             return files_for_review
 

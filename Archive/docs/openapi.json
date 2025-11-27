@@ -1,0 +1,1069 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "AI File Organizer API",
+    "description": "FastAPI application for AI File Organizer system",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/api/veo/prompts": {
+      "get": {
+        "tags": [
+          "veo"
+        ],
+        "summary": "List Prompts",
+        "description": "Get list of stored VEO prompts with optional filtering.\n\nArgs:\n    media_type: Filter by media type ('image' or 'video')\n    limit: Maximum results (default 100, max 500)\n    search: Search term for filtering\n\nReturns:\n    List of VEO prompts",
+        "operationId": "list_prompts_api_veo_prompts_get",
+        "parameters": [
+          {
+            "name": "media_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by 'image' or 'video'",
+              "title": "Media Type"
+            },
+            "description": "Filter by 'image' or 'video'"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "description": "Maximum number of results",
+              "default": 100,
+              "title": "Limit"
+            },
+            "description": "Maximum number of results"
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Search file paths or categories",
+              "title": "Search"
+            },
+            "description": "Search file paths or categories"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/VEOPromptResponse"
+                  },
+                  "title": "Response List Prompts Api Veo Prompts Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "veo"
+        ],
+        "summary": "Create Prompt",
+        "description": "Create or update a VEO prompt from vision analysis.\n\nThis endpoint:\n1. Accepts normalized prompt input\n2. Stores in database (insert/update/skip based on confidence delta)\n3. Emits learning signal only for inserts and updates\n\nArgs:\n    prompt_input: VEO prompt data\n\nReturns:\n    Prompt with ID, action taken, and event_id",
+        "operationId": "create_prompt_api_veo_prompts_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VEOPromptInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/clip/{clip_id}/reanalyze": {
+      "post": {
+        "tags": [
+          "clips"
+        ],
+        "summary": "Reanalyze Clip",
+        "description": "Re-run Gemini Vision analysis on an existing clip.\n\nThis endpoint:\n1. Looks up the file path from clip_id\n2. Runs analyze_and_learn() from adapter\n3. Stores new analysis result\n4. Emits learning signal\n\nArgs:\n    clip_id: Database ID of the clip\n    request: Reanalysis options\n\nReturns:\n    New analysis result with updated prompt",
+        "operationId": "reanalyze_clip_api_clip__clip_id__reanalyze_post",
+        "parameters": [
+          {
+            "name": "clip_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Clip Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReanalyzeRequest",
+                "default": {
+                  "force": false
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/clip/{clip_id}": {
+      "get": {
+        "tags": [
+          "clips"
+        ],
+        "summary": "Get Clip",
+        "description": "Get details for a specific clip by ID.\n\nArgs:\n    clip_id: Database ID of the clip\n\nReturns:\n    Full prompt details including features",
+        "operationId": "get_clip_api_clip__clip_id__get",
+        "parameters": [
+          {
+            "name": "clip_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Clip Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/": {
+      "get": {
+        "summary": "Serve Web Interface",
+        "description": "Serve the main web interface",
+        "operationId": "serve_web_interface__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "summary": "Health Check",
+        "description": "Health check endpoint for monitoring",
+        "operationId": "health_check_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/system/status": {
+      "get": {
+        "summary": "Get System Status",
+        "description": "Get current system status including file counts and last run time",
+        "operationId": "get_system_status_api_system_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/system/emergency_cleanup": {
+      "post": {
+        "summary": "Emergency Cleanup",
+        "description": "Emergency cleanup: Move large files from Downloads to Google Drive",
+        "operationId": "emergency_cleanup_api_system_emergency_cleanup_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/system/monitor-status": {
+      "get": {
+        "summary": "Get Monitor Status",
+        "description": "Get background monitor status for health checking and debugging\n\nReturns:\n    JSON with monitor status in {status, message, data} format",
+        "operationId": "get_monitor_status_api_system_monitor_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings/learning-stats": {
+      "get": {
+        "summary": "Get Learning Stats",
+        "description": "Get learning system statistics for display in Settings UI.\n\nReturns detailed statistics about:\n- Total learning events\n- Breakdown by media type (image/video/audio/document)\n- Unique categories learned\n- Most common category\n- Average confidence of top events\n\nReturns:\n    JSON with learning statistics",
+        "operationId": "get_learning_stats_api_settings_learning_stats_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings/database-stats": {
+      "get": {
+        "summary": "Get Database Stats",
+        "description": "Get database statistics including record counts and storage information.\n\nReturns:\n    JSON with database statistics including:\n    - Total rollback operations\n    - Recent operations count (last 7 days)\n    - Database file sizes\n    - Growth metrics",
+        "operationId": "get_database_stats_api_settings_database_stats_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings/confidence-mode": {
+      "get": {
+        "summary": "Get Confidence Mode",
+        "description": "Get current confidence mode setting\n\nReturns:\n    JSON with current confidence mode and statistics",
+        "operationId": "get_confidence_mode_api_settings_confidence_mode_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Set Confidence Mode",
+        "description": "Set confidence mode setting\n\nArgs:\n    request: ConfidenceModeRequest containing new mode (NEVER, MINIMAL, SMART, or ALWAYS)\n\nReturns:\n    JSON with success status and new mode",
+        "operationId": "set_confidence_mode_api_settings_confidence_mode_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfidenceModeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/system/deduplicate": {
+      "get": {
+        "summary": "Scan For Duplicates",
+        "description": "Scan for duplicate files across the system\n\nReturns:\n    JSON with duplicate scan results including:\n    - status: success or error\n    - message: Human-readable message\n    - data: Duplicate statistics and threat information",
+        "operationId": "scan_for_duplicates_api_system_deduplicate_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Perform Deduplication Cleanup",
+        "description": "Perform safe duplicate cleanup with rollback protection\n\nReturns:\n    JSON with cleanup results including:\n    - status: success or error\n    - message: Human-readable message\n    - data: Duplicates removed, space freed, and rollback information",
+        "operationId": "perform_deduplication_cleanup_api_system_deduplicate_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/system/space-protection": {
+      "get": {
+        "summary": "Get Space Protection Status",
+        "description": "Get disk space protection status and statistics\n\nReturns:\n    JSON with space protection status including:\n    - status: success or error\n    - message: Human-readable message\n    - data: Disk usage statistics, emergency details, and protection settings",
+        "operationId": "get_space_protection_status_api_system_space_protection_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Trigger Space Cleanup",
+        "description": "Trigger emergency space cleanup\n\nReturns:\n    JSON with cleanup results including:\n    - status: success or error\n    - message: Human-readable message\n    - data: Space freed, files processed, and cleanup details",
+        "operationId": "trigger_space_cleanup_api_system_space_protection_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/search": {
+      "get": {
+        "summary": "Search Files",
+        "description": "Search for files using the AI File Organizer's search capabilities\n\nArgs:\n    q: Search query string (required, cannot be empty)\n    \nReturns:\n    JSON response with search results",
+        "operationId": "search_files_api_search_get",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Search query",
+              "title": "Q"
+            },
+            "description": "Search query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/triage/files_to_review": {
+      "get": {
+        "summary": "Get Files To Review",
+        "description": "Get list of files that require manual review due to low confidence categorization\n\nWARNING: This endpoint performs EXPENSIVE AI operations (vision analysis, audio analysis, etc.)\nand should only be called when the user explicitly requests a triage scan.\n\nReturns:\n    JSON response with files needing review",
+        "operationId": "get_files_to_review_api_triage_files_to_review_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/triage/trigger_scan": {
+      "post": {
+        "summary": "Trigger Triage Scan",
+        "description": "Manually trigger a triage scan for files needing review\n\nThis endpoint explicitly triggers the expensive scanning operation.\nUse this when the user navigates to the triage page or clicks \"Scan for files\".\n\nReturns:\n    JSON response with scan results",
+        "operationId": "trigger_triage_scan_api_triage_trigger_scan_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/triage/scan_folder": {
+      "post": {
+        "summary": "Scan Custom Folder",
+        "description": "Scan a custom folder for files needing review (any folder, not just Downloads)\n\nThis endpoint allows users to organize ANY folder through the triage center,\nwith all the same features: classification, nested categories, adaptive learning, etc.\n\nArgs:\n    request: ScanFolderRequest containing folder_path\n\nReturns:\n    JSON response with scan results including:\n    - status: \"success\" or \"error\"\n    - message: Human-readable message\n    - files_found: Number of files found\n    - files: List of files with classifications\n    - folder_scanned: The folder that was scanned\n    - total_files_scanned: Total number of files examined",
+        "operationId": "scan_custom_folder_api_triage_scan_folder_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScanFolderRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/triage/upload": {
+      "post": {
+        "summary": "Upload File",
+        "description": "Upload and classify a file\n\nArgs:\n    file: Uploaded file\n\nReturns:\n    JSON response with classification results",
+        "operationId": "upload_file_api_triage_upload_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_file_api_triage_upload_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/triage/classify": {
+      "post": {
+        "summary": "Classify File",
+        "description": "Classify a file with user-confirmed category and optional hierarchical organization\n\nArgs:\n    request: Classification request containing:\n        - file_path: Path to the file\n        - confirmed_category: User-confirmed category\n        - project: Optional project name for hierarchical organization\n        - episode: Optional episode name for hierarchical organization\n\nReturns:\n    JSON response with classification status and hierarchical metadata",
+        "operationId": "classify_file_api_triage_classify_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClassificationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/open-file": {
+      "post": {
+        "summary": "Open File",
+        "description": "Open a file using the operating system's default application\n\nArgs:\n    request: OpenFileRequest containing the file path to open\n    \nReturns:\n    JSON response with operation status",
+        "operationId": "open_file_api_open_file_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpenFileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rollback/operations": {
+      "get": {
+        "summary": "Get Rollback Operations",
+        "description": "Get file operations that can be rolled back\n\nArgs:\n    days: Number of days to look back (default: 7)\n    today_only: Only show today's operations (default: False)\n    search: Optional search term\n\nReturns:\n    JSON response with list of operations in {status, message, data} format",
+        "operationId": "get_rollback_operations_api_rollback_operations_get",
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "description": "Number of days to look back",
+              "default": 7,
+              "title": "Days"
+            },
+            "description": "Number of days to look back"
+          },
+          {
+            "name": "today_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Show only today's operations",
+              "default": false,
+              "title": "Today Only"
+            },
+            "description": "Show only today's operations"
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Search term to filter operations",
+              "title": "Search"
+            },
+            "description": "Search term to filter operations"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rollback/undo/{operation_id}": {
+      "post": {
+        "summary": "Undo Operation",
+        "description": "Undo a specific file operation\n\nArgs:\n    operation_id: ID of the operation to undo\n\nReturns:\n    JSON response with success status in {status, message, data} format",
+        "operationId": "undo_operation_api_rollback_undo__operation_id__post",
+        "parameters": [
+          {
+            "name": "operation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Operation Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rollback/undo-today": {
+      "post": {
+        "summary": "Undo Today",
+        "description": "Emergency undo: Rollback all operations from today\n\nReturns:\n    JSON response with count and status in {status, message, data} format",
+        "operationId": "undo_today_api_rollback_undo_today_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Body_upload_file_api_triage_upload_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "format": "binary",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_file_api_triage_upload_post"
+      },
+      "ClassificationRequest": {
+        "properties": {
+          "file_path": {
+            "type": "string",
+            "title": "File Path"
+          },
+          "confirmed_category": {
+            "type": "string",
+            "title": "Confirmed Category"
+          },
+          "project": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project"
+          },
+          "episode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Episode"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file_path",
+          "confirmed_category"
+        ],
+        "title": "ClassificationRequest"
+      },
+      "ConfidenceModeRequest": {
+        "properties": {
+          "mode": {
+            "type": "string",
+            "title": "Mode"
+          }
+        },
+        "type": "object",
+        "required": [
+          "mode"
+        ],
+        "title": "ConfidenceModeRequest"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "OpenFileRequest": {
+        "properties": {
+          "path": {
+            "type": "string",
+            "title": "Path"
+          }
+        },
+        "type": "object",
+        "required": [
+          "path"
+        ],
+        "title": "OpenFileRequest"
+      },
+      "ReanalyzeRequest": {
+        "properties": {
+          "force": {
+            "type": "boolean",
+            "title": "Force",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "ReanalyzeRequest",
+        "description": "Request model for reanalysis"
+      },
+      "ScanFolderRequest": {
+        "properties": {
+          "folder_path": {
+            "type": "string",
+            "title": "Folder Path"
+          }
+        },
+        "type": "object",
+        "required": [
+          "folder_path"
+        ],
+        "title": "ScanFolderRequest"
+      },
+      "VEOPromptInput": {
+        "properties": {
+          "file_path": {
+            "type": "string",
+            "title": "File Path"
+          },
+          "predicted_category": {
+            "type": "string",
+            "title": "Predicted Category"
+          },
+          "confidence": {
+            "type": "number",
+            "title": "Confidence"
+          },
+          "features": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Features"
+          },
+          "media_type": {
+            "type": "string",
+            "title": "Media Type"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source",
+            "default": "api"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file_path",
+          "predicted_category",
+          "confidence",
+          "features",
+          "media_type"
+        ],
+        "title": "VEOPromptInput",
+        "description": "Input model for creating new VEO prompts"
+      },
+      "VEOPromptResponse": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "file_path": {
+            "type": "string",
+            "title": "File Path"
+          },
+          "predicted_category": {
+            "type": "string",
+            "title": "Predicted Category"
+          },
+          "confidence": {
+            "type": "number",
+            "title": "Confidence"
+          },
+          "features": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Features"
+          },
+          "media_type": {
+            "type": "string",
+            "title": "Media Type"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "timestamp": {
+            "type": "string",
+            "title": "Timestamp"
+          },
+          "event_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "file_path",
+          "predicted_category",
+          "confidence",
+          "features",
+          "media_type",
+          "source",
+          "timestamp"
+        ],
+        "title": "VEOPromptResponse",
+        "description": "Response model for VEO prompts"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

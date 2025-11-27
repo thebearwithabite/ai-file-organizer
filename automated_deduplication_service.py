@@ -33,7 +33,7 @@ sys.path.insert(0, str(project_dir))
 from bulletproof_deduplication import BulletproofDeduplicator
 from universal_adaptive_learning import UniversalAdaptiveLearning
 from confidence_system import ADHDFriendlyConfidenceSystem
-from gdrive_integration import get_ai_organizer_root
+from gdrive_integration import get_ai_organizer_root, get_metadata_root
 from easy_rollback_system import EasyRollbackSystem
 
 @dataclass
@@ -65,7 +65,7 @@ class AutomatedDeduplicationService:
         self.rollback_system = EasyRollbackSystem()
         
         # Service configuration
-        self.service_db_path = self.base_dir / "04_METADATA_SYSTEM" / "deduplication_service.db"
+        self.service_db_path = get_metadata_root() /  "deduplication_service.db"
         self.config = {
             "real_time_enabled": True,
             "proactive_scanning": True,
@@ -909,7 +909,7 @@ class AutomatedDeduplicationService:
 
     def get_service_stats(self) -> Dict[str, Any]:
         """Get deduplication service statistics"""
-        
+
         return {
             "service_stats": self.stats,
             "active_threats": len(self.threat_queue),
@@ -918,21 +918,84 @@ class AutomatedDeduplicationService:
             "threat_patterns": list(self.threat_patterns.keys())
         }
 
+    def scan_for_duplicates(self, directory: str, confidence_threshold: float = 0.7) -> Dict[str, Any]:
+        """
+        Scan directory for duplicates without performing any cleanup (DRY-RUN mode)
+
+        Args:
+            directory: Directory to scan
+            confidence_threshold: Safety score threshold (0.0-1.0)
+
+        Returns:
+            Scan report with duplicate findings
+        """
+
+        try:
+            scan_dir = Path(directory)
+
+            if not scan_dir.exists():
+                return {
+                    "status": "error",
+                    "message": f"Directory not found: {directory}"
+                }
+
+            self.logger.info(f"Starting dry-run scan of {scan_dir} (confidence threshold: {confidence_threshold})")
+
+            # Use bulletproof deduplicator in DRY-RUN mode (execute=False)
+            scan_results = self.deduplicator.scan_directory(
+                scan_dir,
+                execute=False,
+                safety_threshold=confidence_threshold
+            )
+
+            # Format findings for report
+            report = {
+                "status": "success",
+                "scan_type": "dry_run",
+                "directory_scanned": str(scan_dir),
+                "confidence_threshold": confidence_threshold,
+                "scan_time": datetime.now().isoformat(),
+                "findings": {
+                    "files_scanned": scan_results.get("scanned_files", 0),
+                    "duplicate_groups": scan_results.get("duplicate_groups", 0),
+                    "total_duplicates": scan_results.get("duplicates_found", 0),
+                    "safe_to_delete": scan_results.get("safe_to_delete", 0),
+                    "space_recoverable_mb": scan_results.get("space_recoverable", 0) / (1024 * 1024)
+                },
+                "errors": scan_results.get("errors", []),
+                "note": "DRY-RUN mode - No files were modified or deleted"
+            }
+
+            self.logger.info(f"Dry-run scan completed: {report['findings']}")
+
+            return report
+
+        except Exception as e:
+            self.logger.error(f"Error in dry-run scan: {e}")
+            return {
+                "status": "error",
+                "message": str(e)
+            }
+
 # Testing and CLI interface
 def main():
     """Command line interface for automated deduplication service"""
     import argparse
-    
+
     parser = argparse.ArgumentParser(description='Automated Deduplication Service')
     parser.add_argument('--start', action='store_true', help='Start automated service')
     parser.add_argument('--stats', action='store_true', help='Show service statistics')
     parser.add_argument('--check', help='Check file for duplicates before move')
     parser.add_argument('--target', help='Target directory for duplicate check')
-    
+    parser.add_argument('--scan', '--dry-run', dest='scan_folder',
+                       help='Scan directory for duplicates (DRY-RUN mode - no deletions)')
+    parser.add_argument('--confidence', type=float, default=0.2,
+                       help='Safety score threshold for deletion (0.0-1.0, default: 0.2)')
+
     args = parser.parse_args()
-    
+
     service = AutomatedDeduplicationService()
-    
+
     if args.start:
         try:
             service.start_automated_service()
@@ -948,6 +1011,12 @@ def main():
         stats = service.get_service_stats()
         print("🔍 Automated Deduplication Service Statistics:")
         print(json.dumps(stats, indent=2, default=str))
+    elif args.scan_folder:
+        print(f"🔍 DRY-RUN Scan: {args.scan_folder}")
+        print(f"⚖️  Confidence threshold: {args.confidence}")
+        print()
+        result = service.scan_for_duplicates(args.scan_folder, args.confidence)
+        print(json.dumps(result, indent=2, default=str))
     elif args.check and args.target:
         result = service.check_for_duplicates_before_move(args.check, args.target)
         print("🔍 Duplicate Check Result:")

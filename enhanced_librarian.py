@@ -77,15 +77,14 @@ class EnhancedLibrarianCLI(LibrarianCLI):
         if target_folder:
             index_locations = [Path(target_folder)]
         else:
-            # Index key locations
+            # Index key locations - local only
+            from gdrive_integration import get_metadata_root
             index_locations = [
                 self.base_dir / "00_ACTIVE_PROJECTS",
-                self.base_dir / "01_UNIVERSAL_ASSETS", 
+                self.base_dir / "01_UNIVERSAL_ASSETS",
                 self.base_dir / "02_TEMPLATES_PRESETS",
                 self.base_dir / "03_INSPIRATION_RESEARCH",
-                self.base_dir / "04_METADATA_SYSTEM",
-                Path.home() / "Documents",  # Also index Documents
-                Path.home() / "Google Drive" / "My Drive" / "Projects"  # Google Drive projects
+                get_metadata_root()  # Local metadata system only
             ]
         
         files_to_index = []

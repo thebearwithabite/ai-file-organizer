@@ -34,7 +34,7 @@ sys.path.insert(0, str(project_dir))
 from universal_adaptive_learning import UniversalAdaptiveLearning
 from confidence_system import ADHDFriendlyConfidenceSystem, ConfidenceLevel
 from content_extractor import ContentExtractor
-from gdrive_integration import get_ai_organizer_root
+from gdrive_integration import get_ai_organizer_root, get_metadata_root
 from easy_rollback_system import EasyRollbackSystem
 
 @dataclass
@@ -96,7 +96,7 @@ class InteractiveBatchProcessor:
         self.rollback_system = EasyRollbackSystem()
         
         # Batch processing database
-        self.batch_db_path = self.base_dir / "04_METADATA_SYSTEM" / "batch_processing.db"
+        self.batch_db_path = get_metadata_root() /  "batch_processing.db"
         
         # Configuration
         self.config = {

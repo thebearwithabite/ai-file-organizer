@@ -15,13 +15,13 @@ sys.path.insert(0, str(project_dir))
 
 from interactive_with_preview import PreviewClassifier
 from file_naming_protocol import FileNamingProtocol
-from gdrive_integration import get_ai_organizer_root
+from gdrive_integration import get_ai_organizer_root, get_metadata_root
 
 class IntegratedOrganizer:
     """Complete file organization with classification, naming, and movement"""
     
     def __init__(self, base_dir: str = None):
-        self.base_dir = Path(base_dir) if base_dir else get_ai_organizer_root() / "04_METADATA_SYSTEM"
+        self.base_dir = Path(base_dir) if base_dir else get_metadata_root()
         self.classifier = PreviewClassifier(str(self.base_dir))
         self.naming_protocol = FileNamingProtocol()
         
@@ -32,9 +32,9 @@ class IntegratedOrganizer:
         """Create the basic folder structure if it doesn't exist"""
         base_folders = [
             "01_ACTIVE_PROJECTS",
-            "02_ARCHIVED_PROJECTS", 
+            "02_ARCHIVED_PROJECTS",
             "03_REFERENCE_MATERIALS",
-            "04_METADATA_SYSTEM",
+            # 04_METADATA_SYSTEM removed - now at ~/Documents/AI_METADATA_SYSTEM
             "99_TEMP_PROCESSING"
         ]
         

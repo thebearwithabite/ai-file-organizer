@@ -91,6 +91,12 @@ export default function DiskSpaceWidget() {
     )
   }
 
+  // Null-safe extraction of values with defaults
+  const usedPercent = status?.used_percent ?? 0
+  const freeGb = status?.free_gb ?? 0
+  const totalGb = status?.total_gb ?? 0
+  const statusType = status?.status ?? 'unknown'
+
   return (
     <div className="bg-white/[0.07] backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-glass animate-fade-in">
       <div className="flex items-center gap-2 mb-4">
@@ -109,17 +115,17 @@ export default function DiskSpaceWidget() {
         {/* Usage Percentage */}
         <div className="flex items-baseline justify-between">
           <div>
-            <div className="text-3xl font-bold text-white">{status.used_percent.toFixed(1)}%</div>
+            <div className="text-3xl font-bold text-white">{usedPercent.toFixed(1)}%</div>
             <div className="text-xs text-white/60">Disk usage</div>
           </div>
           <div className={`px-3 py-1 rounded-lg text-xs font-semibold ${
-            getStatusBgColor(status.status)
+            getStatusBgColor(statusType)
           } ${
-            getStatusColor(status.status)
+            getStatusColor(statusType)
           } border ${
-            getStatusBorderColor(status.status)
+            getStatusBorderColor(statusType)
           }`}>
-            {status.status.toUpperCase()}
+            {statusType.toUpperCase()}
           </div>
         </div>
 
@@ -128,9 +134,9 @@ export default function DiskSpaceWidget() {
           <div className="w-full h-3 bg-white/10 rounded-full overflow-hidden relative">
             <div
               className={`h-full rounded-full transition-all duration-1000 ease-out ${
-                getGaugeColor(status.used_percent)
+                getGaugeColor(usedPercent)
               }`}
-              style={{ width: `${status.used_percent}%` }}
+              style={{ width: `${usedPercent}%` }}
             />
 
             {/* Threshold markers */}
@@ -141,30 +147,30 @@ export default function DiskSpaceWidget() {
           {/* Storage Info */}
           <div className="flex items-center justify-between text-xs text-white/60">
             <div>
-              <span className="font-mono">{status.free_gb.toFixed(1)} GB</span> free
+              <span className="font-mono">{freeGb.toFixed(1)} GB</span> free
             </div>
             <div>
-              <span className="font-mono">{status.total_gb.toFixed(1)} GB</span> total
+              <span className="font-mono">{totalGb.toFixed(1)} GB</span> total
             </div>
           </div>
         </div>
 
         {/* Warning Indicators */}
-        {(status.threshold_85 || status.threshold_95) && (
+        {(status?.threshold_85 || status?.threshold_95) && (
           <div className={`p-3 rounded-lg border flex items-start gap-3 ${
-            status.threshold_95
+            status?.threshold_95
               ? 'bg-destructive/20 border-destructive/30'
               : 'bg-warning/20 border-warning/30'
           }`}>
-            <AlertTriangle size={16} className={status.threshold_95 ? 'text-destructive' : 'text-warning'} />
+            <AlertTriangle size={16} className={status?.threshold_95 ? 'text-destructive' : 'text-warning'} />
             <div className="flex-1">
               <div className={`text-sm font-semibold mb-1 ${
-                status.threshold_95 ? 'text-destructive' : 'text-warning'
+                status?.threshold_95 ? 'text-destructive' : 'text-warning'
               }`}>
-                {status.threshold_95 ? 'Critical: Low Disk Space!' : 'Warning: Disk Space Running Low'}
+                {status?.threshold_95 ? 'Critical: Low Disk Space!' : 'Warning: Disk Space Running Low'}
               </div>
               <div className="text-xs text-white/70">
-                {status.threshold_95
+                {status?.threshold_95
                   ? 'Your disk is nearly full. Free up space now to prevent issues.'
                   : 'Consider freeing up space soon to maintain optimal performance.'}
               </div>
@@ -173,12 +179,12 @@ export default function DiskSpaceWidget() {
         )}
 
         {/* Free Up Space Button */}
-        {(status.threshold_85 || status.threshold_95) && (
+        {(status?.threshold_85 || status?.threshold_95) && (
           <button
             onClick={handleFreeUpSpace}
             disabled={isCleaning}
             className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-all duration-200 ${
-              status.threshold_95
+              status?.threshold_95
                 ? 'bg-destructive hover:bg-destructive/80 text-white shadow-lg'
                 : 'bg-warning hover:bg-warning/80 text-black shadow-lg'
             } disabled:opacity-50 disabled:cursor-not-allowed`}
@@ -189,7 +195,7 @@ export default function DiskSpaceWidget() {
         )}
 
         {/* Healthy Status */}
-        {status.status === 'healthy' && (
+        {statusType === 'healthy' && (
           <div className="p-3 bg-success/10 border border-success/20 rounded-lg">
             <div className="text-xs text-success">
               <strong>Status: Healthy</strong> - Disk space is in good condition. No action needed.
