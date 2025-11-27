@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { CheckCircle, XCircle, RefreshCw, FileText, AlertTriangle, Sparkles, FolderOpen, Clock } from 'lucide-react'
 import { api } from '../services/api'
 import { toast } from 'sonner'
+import FilePreview from '../components/triage/FilePreview'
 
 interface TriageFile {
   file_id: string
@@ -296,6 +297,9 @@ export default function Triage() {
                   <h3 className="text-lg font-semibold text-white mb-2 truncate">
                     {file.file_name}
                   </h3>
+
+                  {/* File Preview */}
+                  <FilePreview filePath={file.file_path} fileName={file.file_name} />
 
                   {/* AI Analysis */}
                   <div className={`border rounded-xl p-3 mb-4 ${getConfidenceBg(file.classification.confidence)}`}>

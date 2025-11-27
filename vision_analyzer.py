@@ -21,7 +21,7 @@ from collections import defaultdict
 import time
 import logging
 
-from gdrive_integration import get_ai_organizer_root
+from gdrive_integration import get_ai_organizer_root, get_metadata_root
 
 try:
     import google.generativeai as genai
@@ -125,11 +125,11 @@ Provide a brief but informative summary."""
             self.logger.warning("Gemini API not initialized. Vision analysis will be unavailable.")
 
         # Cache directory
-        self.cache_dir = self.base_dir / "04_METADATA_SYSTEM" / "vision_cache"
+        self.cache_dir = get_metadata_root() /  "vision_cache"
         self.cache_dir.mkdir(parents=True, exist_ok=True)
 
         # Learning data
-        self.learning_dir = self.base_dir / "04_METADATA_SYSTEM" / "adaptive_learning"
+        self.learning_dir = get_metadata_root() /  "adaptive_learning"
         self.learning_dir.mkdir(parents=True, exist_ok=True)
         self.vision_patterns_file = self.learning_dir / "vision_patterns.pkl"
 
@@ -165,7 +165,7 @@ Provide a brief but informative summary."""
         self.last_request_time = 0
 
         # Daily quota tracking
-        self.quota_file = self.base_dir / "04_METADATA_SYSTEM" / "gemini_quota.json"
+        self.quota_file = get_metadata_root() /  "gemini_quota.json"
         self.daily_requests = self._load_daily_quota()
 
         self.logger.info(f"Rate limiting enabled: {self.rate_limit_rpm} RPM, {self.rate_limit_daily} daily")

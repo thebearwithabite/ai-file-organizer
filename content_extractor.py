@@ -12,7 +12,7 @@ from typing import Dict, List, Optional, Any
 from datetime import datetime
 import hashlib
 import mimetypes
-from gdrive_integration import get_ai_organizer_root
+from gdrive_integration import get_ai_organizer_root, get_metadata_root
 
 class ContentExtractor:
     """
@@ -21,12 +21,23 @@ class ContentExtractor:
     """
     
     def __init__(self, base_dir: str = None):
-        # Use Google Drive integration as primary storage root
+        # Use Google Drive integration as primary storage root for FILE OPERATIONS
         self.base_dir = Path(base_dir) if base_dir else get_ai_organizer_root()
-        self.db_path = self.base_dir / "04_METADATA_SYSTEM" / "content_index.db"
-        self.cache_dir = self.base_dir / "04_METADATA_SYSTEM" / "content_cache"
+
+        # CRITICAL FIX: SQLite databases MUST be local (not on Google Drive)
+        # Google Drive File Stream has known SQLite locking issues
+        # Per spec: "Learning DB: ~/Documents/AI_METADATA_SYSTEM/databases/adaptive_learning.db"
+        metadata_root = get_metadata_root()
         
+        local_db_dir = metadata_root / "databases"
+        local_db_dir.mkdir(parents=True, exist_ok=True)
+        self.db_path = local_db_dir / "content_index.db"
+
+        # Cache can also be local to avoid cloud sync overhead
+        local_cache_dir = metadata_root / "content_cache"
+        self.cache_dir = local_cache_dir
         self.cache_dir.mkdir(parents=True, exist_ok=True)
+
         self._init_database()
         
         # Supported extractors
@@ -575,9 +586,9 @@ def test_content_extractor():
     
     # Initialize extractor
     extractor = ContentExtractor()
-    
-    # Test with sample files from Documents
-    docs_path = Path.home() / "Documents"
+
+    # Test with sample files from AI Organizer root
+    docs_path = get_ai_organizer_root()
     test_files = []
     
     # Find some files to test with

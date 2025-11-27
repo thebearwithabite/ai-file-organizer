@@ -17,6 +17,7 @@ content_cache/
 # Configuration files with sensitive data
 *config*.json
 gdrive_credentials.json
+.env.local
 
 # macOS
 .DS_Store
@@ -48,3 +49,4 @@ test_veo_output/
 
 # Legacy audio organizer source
 audio_organizer_source/
+.ai_organizer_config/google_drive_token.json

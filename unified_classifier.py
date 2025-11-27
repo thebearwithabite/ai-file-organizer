@@ -87,19 +87,107 @@ class UnifiedClassificationService:
                 print(f"⚠️  Vision analysis disabled: {e}")
         return self._vision_analyzer
 
+    def _normalize_confidence(self, result: Dict[str, Any], file_path: Path, file_type: str) -> Dict[str, Any]:
+        """
+        Normalize classification results to ALWAYS include a numeric confidence field.
+        Also normalizes category strings (Section E: remove + symbols).
+
+        Implements inference rules from Section D requirements.
+
+        Inference Rules:
+        - Screenshots detected → confidence = 0.9
+        - Unknown category → confidence = 0.5
+        - Audio files → confidence = 0.7 (if not already set higher)
+        - Text/PDF files → confidence = 0.6 (if not already set higher)
+        - Fallback for any classification → confidence = 0.4
+
+        Category Normalization (Section E):
+        - Strip "+" symbols and replace with underscores
+        - Example: "sfx_consciousness+mysterious" → "sfx_consciousness_mysterious"
+        - Ensures categories can be properly routed through category_mapping
+
+        Args:
+            result: Classification result from any analyzer
+            file_path: Path to file being classified
+            file_type: Detected file type (audio, image, video, text, generic)
+
+        Returns:
+            Normalized result with guaranteed confidence field and normalized category
+        """
+        # SECTION E: Normalize category strings - strip + symbols
+        category = result.get('category', 'unknown')
+        if category and '+' in category:
+            # Replace + with underscore to make valid category identifier
+            normalized_category = category.replace('+', '_')
+            print(f"📝 Category normalization: '{category}' → '{normalized_category}'")
+            result['category'] = normalized_category
+            category = normalized_category
+
+        # Check if confidence field exists (handle both 'confidence' and 'confidence_score')
+        confidence = result.get('confidence')
+        if confidence is None:
+            confidence = result.get('confidence_score')
+
+        # Apply inference rules if confidence is missing or zero
+        if confidence is None or confidence == 0.0:
+            source = result.get('source', '')
+
+            # Rule 1: Screenshots → 0.9
+            if 'screenshot' in category.lower() or 'screenshot' in source.lower():
+                confidence = 0.9
+
+            # Rule 2: Unknown category → 0.5
+            elif category == 'unknown' or category == 'needs_review':
+                confidence = 0.5
+
+            # Rule 3: Audio files → 0.7
+            elif file_type == 'audio':
+                confidence = 0.7
+
+            # Rule 4: Text/PDF files → 0.6
+            elif file_type == 'text':
+                confidence = 0.6
+
+            # Rule 5: Fallback → 0.4
+            else:
+                confidence = 0.4
+
+        # Ensure confidence is a float between 0.0 and 1.0
+        try:
+            confidence = float(confidence)
+            confidence = max(0.0, min(1.0, confidence))
+        except (ValueError, TypeError):
+            confidence = 0.4  # Fallback if conversion fails
+
+        # Update result with normalized confidence
+        result['confidence'] = confidence
+
+        # Remove confidence_score if it exists to avoid confusion
+        if 'confidence_score' in result:
+            del result['confidence_score']
+
+        return result
+
     def classify_file(self, file_path: Path) -> Dict[str, Any]:
         """
         Classifies a file by routing it to the correct analysis engine.
+
+        GUARANTEED: Returns a dict with a numeric 'confidence' field (0.0 to 1.0).
+        This method is the single source of truth for all file classifications.
 
         Args:
             file_path: The absolute path to the file to classify.
 
         Returns:
-            A dictionary containing the classification result.
+            A dictionary containing the classification result with guaranteed 'confidence' field.
         """
         file_path = Path(file_path)
         if not file_path.exists():
-            return {"error": "File not found"}
+            return self._normalize_confidence(
+                {"error": "File not found", "category": "unknown", "confidence": 0.0},
+                file_path,
+                "unknown"
+            )
 
         # PERFORMANCE OPTIMIZATION: Skip large files to avoid slow vision/audio analysis
         try:
@@ -109,16 +197,20 @@ class UnifiedClassificationService:
 
             if file_size_mb > MAX_AUTO_PROCESS_SIZE_MB:
                 print(f"⚠️  Skipping {file_path.name} ({file_size_mb:.1f}MB) - too large for automatic processing")
-                return {
-                    'category': 'unknown',
-                    'confidence': 0.0,
-                    'reasoning': [
-                        f'File too large ({file_size_mb:.1f}MB) for automatic processing',
-                        'Large files should be manually organized to avoid performance issues'
-                    ],
-                    'suggested_filename': file_path.name,
-                    'source': 'FileSize Check (Performance Protection)'
-                }
+                return self._normalize_confidence(
+                    {
+                        'category': 'unknown',
+                        'confidence': 0.0,
+                        'reasoning': [
+                            f'File too large ({file_size_mb:.1f}MB) for automatic processing',
+                            'Large files should be manually organized to avoid performance issues'
+                        ],
+                        'suggested_filename': file_path.name,
+                        'source': 'FileSize Check (Performance Protection)'
+                    },
+                    file_path,
+                    "unknown"
+                )
         except (OSError, PermissionError) as e:
             print(f"⚠️  Could not check file size for {file_path.name}: {e}")
 
@@ -140,7 +232,10 @@ class UnifiedClassificationService:
         else:
             result = self._classify_generic_file(file_path)
 
-        # 4. Blend analysis with historical context (Future Step)
+        # 4. Normalize confidence to guarantee it exists
+        result = self._normalize_confidence(result, file_path, file_type)
+
+        # 5. Blend analysis with historical context (Future Step)
         # final_result = self.learning_service.blend_with_history(result, historical_context)
 
         return result

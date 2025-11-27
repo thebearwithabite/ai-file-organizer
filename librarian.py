@@ -157,12 +157,13 @@ class LibrarianCLI:
         extractor = ContentExtractor(str(self.base_dir))
         
         # Find files to index
+        from gdrive_integration import get_metadata_root
         index_locations = [
             self.base_dir / "00_ACTIVE_PROJECTS",
-            self.base_dir / "01_UNIVERSAL_ASSETS", 
+            self.base_dir / "01_UNIVERSAL_ASSETS",
             self.base_dir / "02_TEMPLATES_PRESETS",
             self.base_dir / "03_INSPIRATION_RESEARCH",
-            self.base_dir / "04_METADATA_SYSTEM"
+            get_metadata_root()  # Local metadata system only
         ]
         
         files_to_index = []

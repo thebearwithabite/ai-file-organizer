@@ -61,12 +61,14 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Add CORS middleware to allow frontend on localhost:5173 to access API
+# Add CORS middleware to allow frontend on localhost:5173 and localhost:5175 to access API
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:5173",  # Vite dev server
+        "http://localhost:5173",  # Vite dev server (default)
         "http://127.0.0.1:5173",
+        "http://localhost:5175",  # Vite dev server (alternate port)
+        "http://127.0.0.1:5175",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -143,22 +145,27 @@ async def startup_event():
                 for p in paths_str.split(",")
                 if p.strip()
             ]
-
-            if monitor_paths:
-                # Initialize monitor (uses default base_dir from get_ai_organizer_root)
-                background_monitor = AdaptiveBackgroundMonitor()
-
-                # Note: AdaptiveBackgroundMonitor uses its own monitoring logic
-                # The paths from AUTO_MONITOR_PATHS are tracked for reference
-                logger.info(f"📡 Adaptive monitor initialized - watching configured paths: {monitor_paths}")
-
-                # Start monitor in daemon thread
-                threading.Thread(target=background_monitor.start, daemon=True).start()
-                logger.info(f"📡 Adaptive monitor running in background")
-            else:
-                logger.warning("⚠️  AUTO_MONITOR_PATHS set but no valid paths found")
         else:
-            logger.info("ℹ️  Adaptive monitor disabled (no AUTO_MONITOR_PATHS configured)")
+            monitor_paths = []
+
+        if monitor_paths:
+            logger.info(f"📡 Initializing adaptive background monitor - watching: {monitor_paths}")
+
+            # Create the monitor
+            background_monitor = AdaptiveBackgroundMonitor(additional_watch_paths=monitor_paths)
+
+            # Start it on a separate thread (non-blocking)
+            # Exclude email_sync to avoid overwhelming the system with Mail directory scanning
+            threading.Thread(
+                target=lambda: background_monitor.start(
+                    threads_to_run=['real_time', 'directory_scan', 'learning_update', 'full_reindex']
+                ),
+                daemon=True
+            ).start()
+
+            logger.info("📡 Adaptive background monitor running (Downloads/Desktop only, email scanning disabled)")
+        else:
+            logger.info("ℹ️ Adaptive monitor disabled (no AUTO_MONITOR_PATHS configured)")
     except Exception as e:
         logger.exception("Failed to start background monitor: %s", e)
 
@@ -340,8 +347,9 @@ async def get_database_stats():
         else:
             stats["vector_db_size_mb"] = 0
 
-        # Learning events database
-        learning_db = Path.home() / ".ai_organizer_config" / "learning_events.db"
+        # Learning events database - MUST match path from UniversalAdaptiveLearning
+        # UniversalAdaptiveLearning uses ~/.ai_file_organizer/databases/adaptive_learning.db
+        learning_db = Path.home() / ".ai_file_organizer" / "databases" / "adaptive_learning.db"
         if learning_db.exists():
             try:
                 conn = sqlite3.connect(str(learning_db))
@@ -573,11 +581,18 @@ async def get_space_protection_status():
 
         # Force emergency check to get current disk status
         emergency_check = space_protection.force_emergency_check()
+        
+        # Get current disk space info directly
+        disk_space = system_service.get_disk_space()
 
         return {
             "status": "success",
             "message": "Space protection status retrieved",
             "data": {
+                "free_gb": disk_space["free_gb"],
+                "total_gb": disk_space["total_gb"],
+                "used_percent": disk_space["percent_used"],
+                "status": disk_space["status"],
                 "protection_stats": stats,
                 "current_emergency_check": emergency_check,
                 "monitoring_active": space_protection.monitoring_active,
@@ -733,33 +748,139 @@ async def scan_custom_folder(request: ScanFolderRequest):
 
     Returns:
         JSON response with scan results including:
-        - status: "success" or "error"
-        - message: Human-readable message
-        - files_found: Number of files found
-        - files: List of files with classifications
-        - folder_scanned: The folder that was scanned
-        - total_files_scanned: Total number of files examined
+        - files: List of files needing review
+        - count: Total files found
+        - message: Status message
     """
     try:
-        # Validate folder path is provided and not empty
-        if not request.folder_path or not request.folder_path.strip():
-            raise HTTPException(status_code=400, detail="Folder path cannot be empty")
+        # Security check: Ensure path is valid and accessible
+        folder_path = Path(request.folder_path)
+        if not folder_path.exists():
+             raise HTTPException(status_code=404, detail=f"Folder not found: {request.folder_path}")
+             
+        if not folder_path.is_dir():
+             raise HTTPException(status_code=400, detail=f"Path is not a directory: {request.folder_path}")
 
-        # Call the triage service to scan the custom folder
-        result = triage_service.scan_custom_folder(request.folder_path.strip())
-
-        # Check if the scan encountered an error
-        if result.get("status") == "error":
-            raise HTTPException(status_code=400, detail=result.get("message", "Scan failed"))
-
+        # Trigger scan on the custom folder
+        result = triage_service.scan_custom_folder(str(folder_path))
         return result
-
     except HTTPException:
-        raise  # Re-raise HTTP exceptions
+        raise
     except Exception as e:
         # Security: Log detailed error internally, return generic message to user
-        logger.error(f"Failed to scan custom folder '{request.folder_path}': {e}", exc_info=True)
+        logger.error(f"Failed to scan custom folder: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="An error occurred while scanning the folder. Please try again later.")
+
+# --- File Preview Endpoints ---
+
+def range_requests_response(
+    request: Request, file_path: str, content_type: str
+):
+    """
+    Returns a StreamingResponse that supports Range requests (critical for video/audio seeking).
+    """
+    path = Path(file_path)
+    file_size = path.stat().st_size
+    range_header = request.headers.get("range")
+
+    headers = {
+        "content-type": content_type,
+        "accept-ranges": "bytes",
+        "content-encoding": "identity",
+        "access-control-expose-headers": "content-type, accept-ranges, content-length, content-range, content-encoding"
+    }
+
+    start = 0
+    end = file_size - 1
+    status_code = 200
+
+    if range_header is not None:
+        headers["content-length"] = str(file_size)
+        byte1, byte2 = 0, None
+        
+        m = re.search(r"(\d+)-(\d*)", range_header)
+        if m:
+            g = m.groups()
+            byte1 = int(g[0])
+            if g[1]:
+                byte2 = int(g[1])
+
+        if byte1 < file_size:
+            start = byte1
+            if byte2:
+                end = byte2
+            status_code = 206
+            headers["content-range"] = f"bytes {start}-{end}/{file_size}"
+            headers["content-length"] = str(end - start + 1)
+
+    def iterfile():
+        with open(path, "rb") as f:
+            f.seek(start)
+            remaining = end - start + 1
+            while remaining > 0:
+                chunk_size = min(64 * 1024, remaining)
+                data = f.read(chunk_size)
+                if not data:
+                    break
+                remaining -= len(data)
+                yield data
+
+    return StreamingResponse(iterfile(), status_code=status_code, headers=headers)
+
+@app.get("/api/files/content")
+async def get_file_content(request: Request, path: str = Query(..., description="Absolute path to file")):
+    """
+    Stream file content with support for Range requests (video/audio).
+    """
+    try:
+        file_path = Path(path)
+        if not file_path.exists():
+            raise HTTPException(status_code=404, detail="File not found")
+        
+        # Security: Prevent accessing system files
+        if file_path.name.startswith('.') or file_path.name.startswith('~'):
+             raise HTTPException(status_code=403, detail="Access denied to hidden/system files")
+
+        # Determine content type
+        import mimetypes
+        content_type, _ = mimetypes.guess_type(file_path)
+        if not content_type:
+            content_type = "application/octet-stream"
+
+        return range_requests_response(request, str(file_path), content_type)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error serving file content: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to serve file content")
+
+@app.get("/api/files/preview-text")
+async def get_file_preview_text(path: str = Query(..., description="Absolute path to file")):
+    """
+    Get text preview for a file (supports Office docs, PDF, etc via ContentExtractor).
+    """
+    try:
+        file_path = Path(path)
+        if not file_path.exists():
+            raise HTTPException(status_code=404, detail="File not found")
+
+        # Initialize ContentExtractor
+        from content_extractor import ContentExtractor
+        extractor = ContentExtractor()
+        
+        # Extract content
+        content = extractor.extract_content(file_path)
+        
+        if not content or not content.get('text'):
+            return {"text": "No text content could be extracted from this file."}
+            
+        return {"text": content['text']}
+
+    except Exception as e:
+        logger.error(f"Error extracting preview text: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to extract preview: {str(e)}")
+
 
 @app.post("/api/triage/upload")
 async def upload_file(file: UploadFile = File(...)):

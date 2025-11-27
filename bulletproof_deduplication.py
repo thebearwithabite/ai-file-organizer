@@ -44,6 +44,26 @@ class BulletproofDeduplicator:
             '/System', '/Applications', '/Library',
             '/.git', '/.svn', '/node_modules'
         }
+
+        # PROTECTED DATABASE PATTERNS - ABSOLUTELY NEVER DELETE OR MODIFY
+        # These patterns protect all learned data, embeddings, and metadata
+        self.protected_database_patterns = [
+            r'.*vector_db.*',
+            r'.*chroma.*',
+            r'.*_METADATA_SYSTEM.*',
+            r'.*_SYSTEM/.*\.db$',
+            r'.*\.pkl$',           # Pickle learning data
+            r'.*adaptive_learning.*',
+            r'.*deduplication.*\.db$',
+            r'.*04_METADATA_SYSTEM.*',
+            r'.*learning_data.*',
+            r'.*classification_logs.*',
+            r'.*embeddings.*',
+            r'.*\.db$',            # All SQLite databases
+            r'.*\.sqlite.*',       # All SQLite variants
+            r'.*index.*\.pkl$',    # Index files
+            r'.*metadata.*',       # Any metadata folders/files
+        ]
     
     def init_database(self):
         """Initialize SQLite database for hash tracking"""
@@ -119,12 +139,47 @@ class BulletproofDeduplicator:
         except Exception as e:
             print(f"⚠️ Secure hash error for {file_path.name}: {e}")
             return None
-    
+
+    def is_database_or_learned_data(self, file_path: Path) -> bool:
+        """
+        Check if file is a database or contains learned data
+        ABSOLUTE PROTECTION - never consider these for deletion or modification
+
+        Returns:
+            True if file is database/learned data (PROTECTED)
+            False if file is safe to scan
+        """
+        path_str = str(file_path).lower()
+
+        # Check against protected database patterns
+        for pattern in self.protected_database_patterns:
+            if re.search(pattern, path_str, re.IGNORECASE):
+                return True
+
+        # Check file extensions (absolute protection)
+        if file_path.suffix.lower() in ['.db', '.sqlite', '.sqlite3', '.pkl', '.pickle']:
+            return True
+
+        # Check directory names (any parent directory with these names)
+        protected_dir_names = [
+            'vector_db', 'chroma', 'metadata_system', 'learning',
+            'adaptive', 'embeddings', 'index', '_system', 'classification_logs'
+        ]
+        for part in file_path.parts:
+            if any(protected in part.lower() for protected in protected_dir_names):
+                return True
+
+        return False
+
     def calculate_safety_score(self, file_path: Path, duplicate_group: List[Dict]) -> float:
         """
         Calculate safety score (0.0-1.0) for file deletion
         Higher score = safer to delete
         """
+        # ABSOLUTE PROTECTION: Database and learned data files NEVER get positive safety scores
+        if self.is_database_or_learned_data(file_path):
+            return 0.0
+
         score = 0.0
         
         # File age factor (older = safer to delete)
@@ -204,11 +259,17 @@ class BulletproofDeduplicator:
         print("⚡ Tier 1: Quick MD5 screening...")
         quick_hash_groups = {}
         skipped_files = 0
+        protected_files = 0
 
         for i, file_path in enumerate(all_files):
             # Show progress every 50 files
             if (i + 1) % 50 == 0 or (i + 1) == len(all_files):
                 print(f"   Progress: {i + 1}/{len(all_files)} files ({((i+1)/len(all_files)*100):.1f}%)")
+
+            # ABSOLUTE PROTECTION: Skip database and learned data files
+            if self.is_database_or_learned_data(file_path):
+                protected_files += 1
+                continue
 
             quick_hash = self.calculate_quick_hash(file_path)
             if quick_hash:
@@ -220,6 +281,9 @@ class BulletproofDeduplicator:
 
         if skipped_files > 0:
             print(f"   ⏭️  Skipped {skipped_files} files (locked, symlinks, or inaccessible)")
+
+        if protected_files > 0:
+            print(f"   🛡️  Protected {protected_files} database/learned-data files (NEVER MODIFIED)")
 
         results["scanned_files"] = len(all_files)
         
@@ -319,6 +383,138 @@ class BulletproofDeduplicator:
         else:
             print(f"   🔍 DRY RUN - No files were deleted")
         
+        return results
+
+    def clean_local_duplicates_of_gdrive(self, gdrive_dirs: List[Path], local_dirs: List[Path], execute: bool = False) -> Dict:
+        """
+        Find files in local directories that already exist in Google Drive and delete local copies
+
+        Args:
+            gdrive_dirs: List of Google Drive directories to use as reference
+            local_dirs: List of local directories to clean
+            execute: If True, actually delete local duplicates
+
+        Returns:
+            Cleanup results with statistics
+        """
+
+        print("🔍 CROSS-DIRECTORY DUPLICATE CLEANUP")
+        print(f"🛡️  Mode: {'EXECUTE' if execute else 'DRY RUN'}")
+        print()
+
+        results = {
+            "gdrive_files_scanned": 0,
+            "local_files_scanned": 0,
+            "duplicates_found": 0,
+            "space_recoverable": 0,
+            "deleted_files": 0,
+            "errors": []
+        }
+
+        # STEP 1: Build hash index of Google Drive files
+        print("📁 STEP 1: Indexing Google Drive staging areas...")
+        gdrive_hashes = {}  # secure_hash -> file_path
+
+        for gdrive_dir in gdrive_dirs:
+            if not gdrive_dir.exists():
+                print(f"   ⚠️  Skipping non-existent: {gdrive_dir}")
+                continue
+
+            print(f"   📂 Scanning: {gdrive_dir.name}")
+
+            for file_path in gdrive_dir.rglob('*'):
+                if not file_path.is_file():
+                    continue
+
+                # Skip database/learned data
+                if self.is_database_or_learned_data(file_path):
+                    continue
+
+                secure_hash = self.calculate_secure_hash(file_path)
+                if secure_hash:
+                    gdrive_hashes[secure_hash] = file_path
+                    results["gdrive_files_scanned"] += 1
+
+                    if results["gdrive_files_scanned"] % 50 == 0:
+                        print(f"      Progress: {results['gdrive_files_scanned']} files indexed")
+
+        print(f"   ✅ Indexed {results['gdrive_files_scanned']} Google Drive files")
+        print()
+
+        # STEP 2: Scan local directories and compare
+        print("💻 STEP 2: Scanning local directories for duplicates...")
+
+        for local_dir in local_dirs:
+            if not local_dir.exists():
+                print(f"   ⚠️  Skipping non-existent: {local_dir}")
+                continue
+
+            print(f"   📂 Scanning: {local_dir}")
+
+            for file_path in local_dir.rglob('*'):
+                if not file_path.is_file():
+                    continue
+
+                # Skip database/learned data (ABSOLUTE PROTECTION)
+                if self.is_database_or_learned_data(file_path):
+                    continue
+
+                # Skip files in protected paths
+                if any(protected in str(file_path) for protected in self.protected_paths):
+                    continue
+
+                results["local_files_scanned"] += 1
+
+                if results["local_files_scanned"] % 50 == 0:
+                    print(f"      Progress: {results['local_files_scanned']} local files scanned")
+
+                # Calculate hash and check if exists in Google Drive
+                secure_hash = self.calculate_secure_hash(file_path)
+
+                if secure_hash and secure_hash in gdrive_hashes:
+                    # Found a duplicate!
+                    gdrive_path = gdrive_hashes[secure_hash]
+                    results["duplicates_found"] += 1
+
+                    try:
+                        file_size = file_path.stat().st_size
+                        results["space_recoverable"] += file_size
+
+                        print(f"   🔗 DUPLICATE FOUND:")
+                        print(f"      Local:  {file_path}")
+                        print(f"      GDrive: {gdrive_path}")
+                        print(f"      Size:   {file_size / (1024*1024):.1f} MB")
+
+                        if execute:
+                            file_path.unlink()
+                            results["deleted_files"] += 1
+                            print(f"      ✅ Deleted local copy")
+                        else:
+                            print(f"      🔍 Would delete (dry-run)")
+
+                        print()
+
+                    except Exception as e:
+                        error_msg = f"Failed to process {file_path}: {e}"
+                        results["errors"].append(error_msg)
+                        print(f"      ❌ {error_msg}")
+
+        # STEP 3: Summary
+        print("=" * 80)
+        print("📊 CROSS-DIRECTORY CLEANUP SUMMARY:")
+        print(f"   Google Drive files indexed: {results['gdrive_files_scanned']}")
+        print(f"   Local files scanned: {results['local_files_scanned']}")
+        print(f"   Duplicates found: {results['duplicates_found']}")
+        print(f"   Space recoverable: {results['space_recoverable'] / (1024*1024):.1f} MB")
+
+        if execute:
+            print(f"   Files deleted: {results['deleted_files']}")
+            print(f"   Errors: {len(results['errors'])}")
+        else:
+            print(f"   🔍 DRY RUN - No files were deleted")
+
+        print("=" * 80)
+
         return results
 
 def main():

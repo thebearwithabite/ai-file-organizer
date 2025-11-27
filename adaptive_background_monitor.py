@@ -36,7 +36,7 @@ from background_monitor import EnhancedBackgroundMonitor
 from universal_adaptive_learning import UniversalAdaptiveLearning
 from confidence_system import ADHDFriendlyConfidenceSystem, ConfidenceLevel
 from bulletproof_deduplication import BulletproofDeduplicator
-from gdrive_integration import get_ai_organizer_root
+from gdrive_integration import get_ai_organizer_root, get_metadata_root
 from easy_rollback_system import EasyRollbackSystem
 
 class AdaptiveFileHandler(FileSystemEventHandler):
@@ -86,10 +86,17 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
     Learns from user behavior and creates proactive emergency prevention
     """
     
-    def __init__(self, base_dir: str = None):
+    def __init__(self, base_dir: str = None, additional_watch_paths: List[str] = None):
         # Initialize parent class
-        super().__init__(base_dir)
-        
+        super().__init__(base_dir, additional_watch_paths)
+
+        # Remove email folder from watch list to prevent overwhelming the system
+        # Email monitoring was breaking OS limits by scanning ~/Library/Mail
+        if 'mail' in self.watch_directories:
+            del self.watch_directories['mail']
+            self.logger = logging.getLogger(__name__)
+            self.logger.info("Removed ~/Library/Mail from watch directories (email monitoring disabled)")
+
         # Initialize adaptive components
         self.learning_system = UniversalAdaptiveLearning(str(self.base_dir))
         self.confidence_system = ADHDFriendlyConfidenceSystem(str(self.base_dir))
@@ -121,7 +128,7 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
         self.logger = logging.getLogger(__name__)
         
         # Adaptive rules database
-        self.rules_db_path = self.base_dir / "04_METADATA_SYSTEM" / "adaptive_rules.db"
+        self.rules_db_path = get_metadata_root() /  "adaptive_rules.db"
         self._init_adaptive_database()
         
         # Load existing adaptive rules

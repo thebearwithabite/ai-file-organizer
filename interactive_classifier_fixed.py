@@ -21,7 +21,7 @@ from datetime import datetime
 import re
 
 from classification_engine import FileClassificationEngine, ClassificationResult
-from gdrive_integration import get_ai_organizer_root
+from gdrive_integration import get_ai_organizer_root, get_metadata_root
 
 @dataclass
 class ClassificationQuestion:
@@ -52,7 +52,7 @@ class ADHDFriendlyClassifier:
         self.base_classifier = FileClassificationEngine(str(self.base_dir))
         
         # Learning system
-        self.learning_file = self.base_dir / "04_METADATA_SYSTEM" / "user_preferences.json"
+        self.learning_file = get_metadata_root() /  "user_preferences.json"
         self.user_preferences = self._load_user_preferences()
         
         # ADHD-friendly settings

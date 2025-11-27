@@ -27,11 +27,14 @@ Usage:
 Created by: RT Max
 """
 
+import shutil
 import sqlite3
 import json
+import time
 import hashlib
 import logging
 import threading
+from gdrive_integration import get_metadata_root
 from pathlib import Path
 from typing import Dict, List, Optional, Any, Tuple, Union
 from datetime import datetime, timedelta
@@ -118,11 +121,10 @@ class LocalMetadataStore:
         """
         
         # Set up paths
-        self.project_root = Path(__file__).parent
-        self.config_dir = self.project_root / '.ai_organizer_config'
-        self.config_dir.mkdir(exist_ok=True)
+        self.metadata_root = get_metadata_root()
+        self.metadata_root.mkdir(parents=True, exist_ok=True)
         
-        self.db_path = db_path or (self.config_dir / 'metadata.db')
+        self.db_path = db_path or (self.metadata_root / 'metadata.db')
         self.config = {**self.DEFAULT_CONFIG, **(config or {})}
         
         # Connection management
