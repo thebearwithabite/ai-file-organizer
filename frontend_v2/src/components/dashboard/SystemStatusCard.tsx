@@ -27,7 +27,24 @@ export default function SystemStatusCard() {
   if (isLoading || !data) {
     return (
       <div className="bg-white/[0.07] backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-glass">
-        <div className="animate-pulse text-white/60">Loading system status...</div>
+        <h2 className="text-xl font-semibold text-white mb-4">System Status</h2>
+        <div className="space-y-4 animate-pulse">
+          <div className="h-10 bg-white/5 rounded-lg"></div>
+          <div className="h-20 bg-white/5 rounded-lg"></div>
+          <div className="h-10 bg-white/5 rounded-lg"></div>
+        </div>
+      </div>
+    )
+  }
+
+  // Handle data load failure gracefully
+  if (!data) {
+    return (
+      <div className="bg-white/[0.07] backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-glass border-l-4 border-l-destructive">
+        <h2 className="text-xl font-semibold text-white mb-2">System Status Unavailable</h2>
+        <p className="text-white/60 text-sm">
+          Unable to connect to the backend service. Ensure the server is running on port 8000.
+        </p>
       </div>
     )
   }
@@ -39,20 +56,20 @@ export default function SystemStatusCard() {
       <h2 className="text-xl font-semibold text-white mb-4">System Status</h2>
 
       <div className="space-y-4">
-        {/* Google Drive */}
-        <div className="flex items-center justify-between">
+        {/* Google Drive Status */}
+        <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/10">
           <div className="flex items-center gap-3">
-            <Cloud size={20} className="text-blue-400" />
+            <div className="p-2 bg-blue-500/20 rounded-lg">
+              <Cloud size={18} className="text-blue-400" />
+            </div>
             <div>
               <div className="text-sm font-medium text-white">Google Drive</div>
               <div className="text-xs text-white/60">
-                {status.google_drive.connected
-                  ? `Connected as ${status.google_drive.user_name}`
-                  : 'Not connected'}
+                {status?.google_drive?.user_name || 'Not Connected'}
               </div>
             </div>
           </div>
-          <div className={`w-2 h-2 rounded-full ${status.google_drive.connected ? 'bg-success' : 'bg-destructive'}`} />
+          <div className={`w-2 h-2 rounded-full ${status?.google_drive?.connected ? 'bg-success' : 'bg-destructive'}`} />
         </div>
 
         {/* Disk Space */}
@@ -67,22 +84,20 @@ export default function SystemStatusCard() {
                 </div>
               </div>
             </div>
-            <div className={`px-2 py-1 rounded text-xs font-medium ${
-              status.disk_space.status === 'safe' ? 'bg-success/20 text-success' :
+            <div className={`px-2 py-1 rounded text-xs font-medium ${status.disk_space.status === 'safe' ? 'bg-success/20 text-success' :
               status.disk_space.status === 'warning' ? 'bg-warning/20 text-warning' :
-              'bg-destructive/20 text-destructive'
-            }`}>
+                'bg-destructive/20 text-destructive'
+              }`}>
               {status.disk_space.status}
             </div>
           </div>
           {/* Visual progress bar */}
           <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
             <div
-              className={`h-full rounded-full transition-all duration-500 ${
-                status.disk_space.percent_used < 70 ? 'bg-success' :
+              className={`h-full rounded-full transition-all duration-500 ${status.disk_space.percent_used < 70 ? 'bg-success' :
                 status.disk_space.percent_used < 85 ? 'bg-warning' :
-                'bg-destructive'
-              }`}
+                  'bg-destructive'
+                }`}
               style={{ width: `${status.disk_space.percent_used}%` }}
             />
           </div>
@@ -110,6 +125,22 @@ export default function SystemStatusCard() {
             </div>
           </div>
           <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
+        </div>
+
+        {/* Orchestration Status */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Activity size={20} className="text-blue-400" />
+            <div>
+              <div className="text-sm font-medium text-white">Last Orchestration</div>
+              <div className="text-xs text-white/60">
+                {status.orchestration?.last_run
+                  ? `${new Date(status.orchestration.last_run).toLocaleTimeString()} · ${status.orchestration.files_touched} files processed`
+                  : 'No runs yet'}
+              </div>
+            </div>
+          </div>
+          <div className={`w-2 h-2 rounded-full ${status.orchestration?.status === 'running' ? 'bg-blue-400 animate-pulse' : 'bg-white/20'}`} />
         </div>
 
         {/* Confidence Mode */}

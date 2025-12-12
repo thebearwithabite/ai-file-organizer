@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
+import { useQuery } from '@tanstack/react-query'
 import { Check, X, RefreshCw, FileText, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../../services/api'
@@ -14,6 +15,11 @@ export default function ClassificationPreview({ result, onClose }: Classificatio
   const [isConfirming, setIsConfirming] = useState(false)
   const [project, setProject] = useState('')
   const [episode, setEpisode] = useState('')
+
+  const { data: knownProjects } = useQuery({
+    queryKey: ['known-projects'],
+    queryFn: api.getKnownProjects,
+  })
 
   const handleConfirm = async () => {
     if (!file_path) {
@@ -75,11 +81,10 @@ export default function ClassificationPreview({ result, onClose }: Classificatio
       <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 mb-4">
         <div className="flex items-center gap-2 mb-2">
           <div className="text-sm font-medium text-blue-400">💡 AI Analysis</div>
-          <div className={`text-xs px-2 py-1 rounded ${
-            confidence >= 85 ? 'bg-success/20 text-success' :
+          <div className={`text-xs px-2 py-1 rounded ${confidence >= 85 ? 'bg-success/20 text-success' :
             confidence >= 70 ? 'bg-warning/20 text-warning' :
-            'bg-destructive/20 text-destructive'
-          }`}>
+              'bg-destructive/20 text-destructive'
+            }`}>
             {confidence}% confident
           </div>
         </div>
@@ -88,11 +93,10 @@ export default function ClassificationPreview({ result, onClose }: Classificatio
         {/* Confidence Bar */}
         <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
           <div
-            className={`h-full transition-all duration-500 ${
-              confidence >= 85 ? 'bg-success' :
+            className={`h-full transition-all duration-500 ${confidence >= 85 ? 'bg-success' :
               confidence >= 70 ? 'bg-warning' :
-              'bg-destructive'
-            }`}
+                'bg-destructive'
+              }`}
             style={{ width: `${confidence}%` }}
           />
         </div>
@@ -104,6 +108,12 @@ export default function ClassificationPreview({ result, onClose }: Classificatio
         <div className="text-lg font-semibold text-white">{classification.category}</div>
         {destination_path && (
           <div className="text-xs text-white/60 mt-1 truncate">→ {destination_path}</div>
+        )}
+        {result.suggested_filename && result.suggested_filename !== file_name && (
+          <div className="mt-2 p-2 bg-white/5 rounded-lg border border-white/10">
+            <div className="text-xs text-white/40 mb-1">Suggested Filename</div>
+            <div className="text-sm text-white font-mono">{result.suggested_filename}</div>
+          </div>
         )}
       </div>
 
@@ -117,11 +127,17 @@ export default function ClassificationPreview({ result, onClose }: Classificatio
           <label className="text-xs text-white/50 mb-1 block">Project Name</label>
           <input
             type="text"
+            list="project-suggestions"
             value={project}
             onChange={(e) => setProject(e.target.value)}
             placeholder="e.g., The_Papers_That_Dream, VEO_Prompt_Machine"
             className="w-full px-3 py-2 bg-white/5 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 placeholder:text-white/30"
           />
+          <datalist id="project-suggestions">
+            {knownProjects?.projects.map((p: { id: string; name: string }) => (
+              <option key={p.id} value={p.name} />
+            ))}
+          </datalist>
         </div>
 
         <div>

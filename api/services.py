@@ -10,6 +10,7 @@ import shutil
 import subprocess
 from pathlib import Path
 from typing import Dict, Any, Optional, List
+from datetime import datetime
 
 from gdrive_librarian import GoogleDriveLibrarian
 from unified_classifier import UnifiedClassificationService
@@ -30,6 +31,10 @@ class SystemService:
     _librarian_instance: Optional[GoogleDriveLibrarian] = None
     _initialization_error: Optional[str] = None
     _initialized: bool = False
+    
+    # Injected dependencies
+    _background_monitor = None
+    _last_orchestration_stats = {"last_run": None, "files_touched": 0}
 
     def __init__(self):
         """Initialize SystemService with lazy GoogleDriveLibrarian loading"""
@@ -48,9 +53,44 @@ class SystemService:
                 logger.error(f"Failed to create GoogleDriveLibrarian: {e}")
                 SystemService._librarian_instance = None
 
+    @classmethod
+    def set_monitor(cls, monitor):
+        """Inject the background monitor instance"""
+        cls._background_monitor = monitor
+
+    @classmethod
+    def update_orchestration_status(cls, stats: Dict[str, Any]):
+        """Update the last orchestration run stats"""
+        cls._last_orchestration_stats = stats
+
+    @classmethod
+    def get_librarian(cls) -> Optional[GoogleDriveLibrarian]:
+        """Get the singleton GoogleDriveLibrarian instance, initializing if necessary"""
+        if cls._librarian_instance is None:
+            try:
+                logger.info("Creating GoogleDriveLibrarian (lazy initialization mode)...")
+                cls._librarian_instance = GoogleDriveLibrarian(
+                    cache_size_gb=2.0,
+                    auto_sync=False
+                )
+            except Exception as e:
+                logger.error(f"Failed to create GoogleDriveLibrarian: {e}")
+                return None
+
+        if not cls._initialized and cls._librarian_instance:
+            try:
+                logger.info("Performing lazy initialization of GoogleDriveLibrarian...")
+                cls._librarian_instance.initialize()
+                cls._initialized = True
+                logger.info("GoogleDriveLibrarian initialized successfully")
+            except Exception as e:
+                logger.error(f"Lazy initialization failed: {e}")
+                
+        return cls._librarian_instance
+
     def _ensure_initialized(self):
-        """Ensure librarian is initialized before use (lazy initialization)"""
-        if SystemService._librarian_instance and not SystemService._initialized:
+        """Ensure the librarian is initialized before use"""
+        if not SystemService._initialized and SystemService._librarian_instance:
             try:
                 logger.info("Performing lazy initialization of GoogleDriveLibrarian...")
                 SystemService._librarian_instance.initialize()
@@ -62,98 +102,89 @@ class SystemService:
 
     def get_status(self) -> Dict[str, Any]:
         """
-        Get current system status from local vector database
-
+        Get unified system status (Backend + Monitor + Orchestration)
+        
         Returns:
-            Dict containing real system status information
+            Dict matching the unified status shape
         """
-        try:
-            # Get indexed file count from SearchService (local vector DB)
-            search_service = SearchService()
-            indexed_files = search_service.get_indexed_count()
+        # Ensure core services
+        self._ensure_initialized()
 
-            # Get disk space info
-            disk_space = self.get_disk_space()
+        backend_status = "ok"
+        monitor_info = None
+        orchestration_info = self._last_orchestration_stats
 
-            # Get metadata from local system
-            from gdrive_integration import get_metadata_root
-            metadata_path = get_metadata_root()
-
-            # Check if vector DB exists
-            vector_db_path = metadata_path / "vector_db"
-            vector_db_exists = vector_db_path.exists()
-
-            # Return local-only status
-            return {
-                "indexed_files": indexed_files,
-                "files_in_staging": 0,  # No staging in local-only mode
-                "last_run": None,  # Background monitor handles this
-                "authentication_status": "local-only",
-                "google_drive_user": "N/A",
-                "cache_size_mb": 0.0,
-                "sync_service_status": "disabled",
-                "disk_space": disk_space,
-                "metadata_path": str(metadata_path),
-                "vector_db_status": "operational" if vector_db_exists else "not_found"
+        # Pull monitor stats
+        if self._background_monitor:
+            try:
+                monitor_stats = self._background_monitor.status()
+                # Handle both dict access and direct attribute access depending on implementation
+                active_rules = len(getattr(self._background_monitor, "adaptive_rules", []))
+                
+                monitor_info = {
+                    "watching_paths": len(monitor_stats.get("watch_directories", {})),
+                    "rules_loaded": active_rules,
+                    "stats": {
+                        "processed_files": monitor_stats.get("processed_files", 0),
+                        "errors_24h": monitor_stats.get("errors_24h", 0),
+                        "last_scan": monitor_stats.get("last_scan")
+                    }
+                }
+            except Exception as e:
+                logger.error(f"Error getting monitor stats: {e}")
+                backend_status = "degraded"
+                monitor_info = None
+        else:
+            monitor_info = {
+                "watching_paths": 0,
+                "rules_loaded": 0,
+                "stats": {"processed_files": 0, "errors_24h": 0, "last_scan": None}
             }
 
-        except Exception as e:
-            logger.error(f"Error getting system status: {e}")
-            import traceback
-            traceback.print_exc()
-            return {
-                "status": "error",
-                "message": "Failed to retrieve system status",
-                "error": str(e),
-                "indexed_files": 0,
-                "files_in_staging": 0,
-                "last_run": None
-            }
+        return {
+            "backend_status": backend_status,
+            "monitor": monitor_info,
+            "orchestration": orchestration_info,
+            "disk_space": self.get_disk_space()
+        }
 
     def get_disk_space(self) -> Dict[str, Any]:
         """
         Get current disk space information
-
+        
         Returns:
             Dict with free_gb, total_gb, percent_used, and status
         """
         try:
-            result = subprocess.run(['df', '-h', '/'], capture_output=True, text=True)
-            lines = result.stdout.strip().split('\n')
-            if len(lines) > 1:
-                parts = lines[1].split()
-                total_str = parts[1].replace('Gi', '')
-                used_str = parts[2].replace('Gi', '')
-                avail_str = parts[3].replace('Gi', '')
-
-                total_gb = float(total_str)
-                used_gb = float(used_str)
-                free_gb = float(avail_str)
-                percent_used = int((used_gb / total_gb) * 100)
-
-                # Determine status
-                if free_gb > 20:
-                    status = 'safe'
-                elif free_gb > 10:
-                    status = 'warning'
-                else:
-                    status = 'critical'
-
-                return {
-                    'free_gb': int(free_gb),
-                    'total_gb': int(total_gb),
-                    'percent_used': percent_used,
-                    'status': status
-                }
+            # Use shutil.disk_usage for reliable cross-platform stats
+            total, used, free = shutil.disk_usage("/")
+            
+            total_gb = round(total / (1024**3), 1)
+            free_gb = round(free / (1024**3), 1)
+            percent_used = round((used / total) * 100, 1)
+            
+            # Determine status based on free space
+            if percent_used > 95:
+                status = "critical"
+            elif percent_used > 85:
+                status = "warning"
+            else:
+                status = "safe"
+                
+            return {
+                "free_gb": free_gb,
+                "total_gb": total_gb,
+                "percent_used": int(percent_used),
+                "status": status
+            }
         except Exception as e:
             logger.error(f"Error getting disk space: {e}")
-
-        return {
-            'free_gb': 0,
-            'total_gb': 0,
-            'percent_used': 0,
-            'status': 'unknown'
-        }
+            return {
+                "free_gb": 0,
+                "total_gb": 0,
+                "percent_used": 0,
+                "status": "unknown"
+            }
 
     def emergency_cleanup(self) -> Dict[str, Any]:
         """
@@ -219,50 +250,40 @@ class SystemService:
 
 
 class SearchService:
-    """Service class for search-related operations - uses local vector database"""
-
-    # Class-level shared instance
-    _vector_librarian: Optional['VectorLibrarian'] = None
+    """Service class for search-related operations - uses GoogleDriveLibrarian via SystemService"""
 
     def __init__(self):
-        """Initialize SearchService with local VectorLibrarian"""
-        if SearchService._vector_librarian is None:
-            try:
-                from vector_librarian import VectorLibrarian
-                logger.info("Initializing VectorLibrarian for local search...")
-                SearchService._vector_librarian = VectorLibrarian()
-                logger.info("VectorLibrarian initialized successfully")
-            except Exception as e:
-                logger.error(f"Failed to initialize VectorLibrarian: {e}")
-                SearchService._vector_librarian = None
-
-        self.vector_librarian = SearchService._vector_librarian
+        """Initialize SearchService"""
+        # No local initialization needed - uses SystemService singleton
+        pass
 
     def search(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
         """
-        Perform search using local vector database
-
+        Perform search using the unified GoogleDriveLibrarian
+        
         Args:
             query: Search query string
             limit: Maximum number of results to return
-
+            
         Returns:
             List of search results as dictionaries
         """
-        if self.vector_librarian is None:
-            logger.error("Cannot perform search: VectorLibrarian not initialized")
+        librarian = SystemService.get_librarian()
+        if not librarian:
+            logger.error("Cannot perform search: System librarian not available")
             return []
 
         try:
-            # Perform vector search on local ChromaDB
-            results = self.vector_librarian.vector_search(query, limit=limit)
+            # Perform search using hybrid librarian (auto mode)
+            # Access the hybrid_librarian property which lazy-loads the semantic engine
+            results = librarian.hybrid_librarian.search(query, search_mode="auto", limit=limit)
 
             # Convert EnhancedQueryResult to API-friendly format
             api_results = []
             for result in results:
                 api_result = {
                     "filename": result.filename,
-                    "file_path": result.file_path,
+                    "file_path": str(result.file_path),
                     "relevance_score": round(result.relevance_score, 2),
                     "semantic_score": round(result.semantic_score, 4),
                     "matching_content": result.matching_content,
@@ -276,23 +297,24 @@ class SearchService:
                 }
                 api_results.append(api_result)
 
-            logger.info(f"Local vector search for '{query}' returned {len(api_results)} results")
+            logger.info(f"Search for '{query}' returned {len(api_results)} results")
             return api_results
 
         except Exception as e:
-            logger.error(f"Error performing local vector search for '{query}': {e}")
+            logger.error(f"Error performing search for '{query}': {e}")
             import traceback
             traceback.print_exc()
             return []
 
     def get_indexed_count(self) -> int:
-        """Get the number of documents in the local vector database"""
-        if self.vector_librarian is None or self.vector_librarian.collection is None:
+        """Get the number of documents in the database"""
+        librarian = SystemService.get_librarian()
+        if not librarian:
             return 0
 
         try:
-            count = self.vector_librarian.collection.count()
-            return count
+            stats = librarian.get_system_status()
+            return stats.get('components', {}).get('metadata_store', {}).get('total_files', 0)
         except Exception as e:
             logger.error(f"Error getting indexed count: {e}")
             return 0
@@ -326,7 +348,8 @@ class TriageService:
                 self.base_dir / "99_TEMP_PROCESSING" / "Downloads_Staging",
                 self.base_dir / "99_TEMP_PROCESSING" / "Desktop_Staging",
                 self.base_dir / "99_TEMP_PROCESSING" / "Manual_Review",
-                self.base_dir / "99_STAGING_EMERGENCY"  # Emergency staging for bulk file dumps
+                self.base_dir / "99_STAGING_EMERGENCY",  # Emergency staging for bulk file dumps
+                self.base_dir / "00_INBOX_STAGING"  # New Primary Input Queue
             ]
 
             # Security: Validate all staging areas are within allowed base directories
@@ -677,6 +700,17 @@ class TriageService:
                 "suggested_filename": Path(file_path).name
             }
 
+    def get_known_projects(self) -> Dict[str, str]:
+        """
+        Get list of known projects for predictive text/autocomplete
+        
+        Returns:
+            Dict mapping project keys to display names
+        """
+        if self.hierarchical_organizer:
+            return self.hierarchical_organizer.KNOWN_PROJECTS
+        return {}
+
     def classify_file(self, file_path: str, confirmed_category: str, project: str = None, episode: str = None) -> Dict[str, Any]:
         """
         Classify a file with user-confirmed category, learn from the decision, and move the file
@@ -778,6 +812,33 @@ class TriageService:
                     logger.info(f"Recorded rollback operation ID: {operation_id}")
                 except Exception as e:
                     logger.warning(f"Failed to record rollback operation: {e}")
+
+            # --- Save Metadata Sidecar (JSON) ---
+            # This ensures the rich classification data travels with the file
+            try:
+                from unified_classifier import save_metadata_sidecar
+                
+                # Prepare metadata dictionary
+                metadata = {
+                    "original_filename": original_name,
+                    "classification": {
+                        "category": confirmed_category,
+                        "confidence": original_confidence,
+                        "ai_suggestion": original_category,
+                        "reasoning": classification_result.get('reasoning', []) if isinstance(classification_result, dict) else getattr(classification_result, 'reasoning', [])
+                    },
+                    "hierarchy": hierarchy_metadata,
+                    "project": project,
+                    "episode": episode,
+                    "timestamp": datetime.now().isoformat()
+                }
+                
+                # Save sidecar next to the new file
+                save_metadata_sidecar(new_file_path, metadata)
+                logger.info(f"Saved metadata sidecar for: {new_file_path.name}")
+                
+            except Exception as e:
+                logger.warning(f"Failed to save metadata sidecar: {e}")
 
             # --- Record Learning Event for Adaptive Learning System ---
             try:

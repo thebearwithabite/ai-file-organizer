@@ -8,7 +8,7 @@ files to the appropriate analysis engine and integrating adaptive learning.
 
 import os
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, Optional, Union
 
 # Import the analysis engines that will be integrated
 from content_extractor import ContentExtractor
@@ -38,6 +38,9 @@ class UnifiedClassificationService:
         self._vision_analyzer = None
         self.learning_enabled = True
         self.vision_enabled = True
+
+        # Initialize obvious patterns for fast classification
+        self._init_obvious_patterns()
 
         print("✅ Unified Classification Service Ready (lazy mode - analyzers will load on demand)")
 
@@ -168,7 +171,90 @@ class UnifiedClassificationService:
 
         return result
 
-    def classify_file(self, file_path: Path) -> Dict[str, Any]:
+    def _init_obvious_patterns(self):
+        """Initialize obvious patterns for fast, rule-based classification"""
+        self.obvious_patterns = {
+            'screenshot': {
+                'keywords': ['screenshot', 'screen shot', 'screen_shot'],
+                'category': 'visual_assets_screenshots',
+                'confidence': 0.95
+            },
+            'installer': {
+                'extensions': ['.dmg', '.pkg', '.iso'],
+                'keywords': ['installer', 'setup', 'install'],
+                'category': 'installers',
+                'confidence': 0.95
+            },
+            'archive': {
+                'extensions': ['.zip', '.rar', '.7z', '.tar', '.gz'],
+                'category': 'archives',
+                'confidence': 0.90
+            },
+            'document': {
+                'extensions': ['.pdf', '.docx', '.doc', '.txt', '.md', '.pages'],
+                'category': 'documents',
+                'confidence': 0.60  # Lower confidence to allow content analysis to override
+            },
+            'image': {
+                'extensions': ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.heic'],
+                'category': 'images',
+                'confidence': 0.60  # Lower confidence to allow vision analysis to override
+            },
+            'audio': {
+                'extensions': ['.mp3', '.wav', '.m4a', '.flac', '.aiff'],
+                'category': 'audio',
+                'confidence': 0.70  # Moderate confidence
+            },
+            'video': {
+                'extensions': ['.mp4', '.mov', '.avi', '.mkv', '.webm'],
+                'category': 'video',
+                'confidence': 0.70  # Moderate confidence
+            }
+        }
+
+    def _check_obvious_classification(self, file_path: Path) -> Optional[Dict[str, Any]]:
+        """
+        Check for obvious patterns that don't require AI analysis.
+        Returns a classification result if a strong match is found, else None.
+        """
+        filename = file_path.name.lower()
+        extension = file_path.suffix.lower()
+        
+        # Check specific patterns first
+        
+        # 1. Screenshots (High Confidence)
+        if 'screenshot' in filename:
+            return {
+                'source': 'Obvious Pattern (Screenshot)',
+                'category': 'visual_assets_screenshots',
+                'confidence': 0.95,
+                'reasoning': ['Filename contains "screenshot"'],
+                'suggested_filename': file_path.name
+            }
+            
+        # 2. Installers (High Confidence)
+        if extension in self.obvious_patterns['installer']['extensions']:
+            return {
+                'source': 'Obvious Pattern (Installer)',
+                'category': 'installers',
+                'confidence': 0.95,
+                'reasoning': [f'Extension {extension} indicates installer'],
+                'suggested_filename': file_path.name
+            }
+            
+        # 3. Archives (High Confidence)
+        if extension in self.obvious_patterns['archive']['extensions']:
+            return {
+                'source': 'Obvious Pattern (Archive)',
+                'category': 'archives',
+                'confidence': 0.90,
+                'reasoning': [f'Extension {extension} indicates archive'],
+                'suggested_filename': file_path.name
+            }
+
+        return None
+
+    def classify_file(self, file_path: Union[str, Path]) -> Dict[str, Any]:
         """
         Classifies a file by routing it to the correct analysis engine.
 
@@ -188,6 +274,12 @@ class UnifiedClassificationService:
                 file_path,
                 "unknown"
             )
+
+        # 0. Check for obvious patterns first (Fast Path)
+        obvious_result = self._check_obvious_classification(file_path)
+        if obvious_result:
+            print(f"⚡ Fast classification for {file_path.name}: {obvious_result['category']}")
+            return self._normalize_confidence(obvious_result, file_path, "generic")
 
         # PERFORMANCE OPTIMIZATION: Skip large files to avoid slow vision/audio analysis
         try:
@@ -352,12 +444,34 @@ class UnifiedClassificationService:
             final_confidence = min(best_confidence, 1.0)
             print(f"DEBUG: Final decision: Category='{best_category}', Confidence={final_confidence:.2f}")
 
+            # Generate intelligent filename if we have strong keywords
+            suggested_filename = file_path.name
+            if best_confidence > 0.6 and len(matched_keywords) > 0:
+                # Use the top 2 keywords to form a descriptive name
+                # Clean keywords (remove 'in filename' suffix)
+                clean_keywords = [k.split(' (')[0].replace(' ', '_') for k in matched_keywords]
+                # Remove duplicates while preserving order
+                unique_keywords = list(dict.fromkeys(clean_keywords))
+                
+                # Create descriptive prefix
+                prefix = "_".join(unique_keywords[:2])
+                
+                # Preserve original extension
+                extension = file_path.suffix
+                
+                # If original name is generic (e.g. "Untitled", "Doc"), replace it entirely
+                if "untitled" in filename or "doc" in filename or "scan" in filename:
+                    suggested_filename = f"{best_category}_{prefix}{extension}"
+                else:
+                    # Otherwise append category/keywords to original name
+                    suggested_filename = f"{file_path.stem}_{prefix}{extension}"
+            
             return {
                 'source': 'Text Classifier',
                 'category': best_category,
                 'confidence': final_confidence,
                 'reasoning': reasoning,
-                'suggested_filename': file_path.name
+                'suggested_filename': suggested_filename
             }
 
         except Exception as e:
@@ -562,6 +676,19 @@ class UnifiedClassificationService:
                 }
             }
 
+            # Generate intelligent filename from vision results
+            suggested_filename = file_path.name
+            if vision_result.get('suggested_filename'):
+                suggested_filename = vision_result.get('suggested_filename')
+            elif vision_result.get('keywords'):
+                # Fallback: construct from keywords if vision didn't suggest a name
+                keywords = [k.replace(' ', '_') for k in vision_result.get('keywords', [])[:3]]
+                if keywords:
+                    extension = file_path.suffix
+                    suggested_filename = f"{classification['category']}_{'_'.join(keywords)}{extension}"
+
+            classification['suggested_filename'] = suggested_filename
+
             # Record in learning system if available
             if self.learning_enabled and self.learning_system:
                 self.learning_system.record_classification(
@@ -662,3 +789,34 @@ class UnifiedClassificationService:
             'confidence': 0.10,
             'suggested_filename': file_path.name
         }
+
+def save_metadata_sidecar(file_path: Path, classification_result: Dict[str, Any]):
+    """
+    Save classification metadata to a JSON sidecar file.
+    
+    Args:
+        file_path: Path to the organized file
+        classification_result: The classification dictionary
+    """
+    try:
+        # Create sidecar path (e.g., image.jpg -> image.jpg.json)
+        sidecar_path = file_path.with_name(f"{file_path.name}.json")
+        
+        # Prepare metadata for saving
+        metadata = {
+            'original_filename': file_path.name,
+            'classification': classification_result,
+            'timestamp': datetime.now().isoformat(),
+            'system_version': '3.1'
+        }
+        
+        import json
+        from datetime import datetime
+        
+        with open(sidecar_path, 'w') as f:
+            json.dump(metadata, f, indent=2)
+            
+        print(f"📝 Saved metadata sidecar: {sidecar_path.name}")
+        
+    except Exception as e:
+        print(f"❌ Failed to save metadata sidecar for {file_path.name}: {e}")

@@ -28,10 +28,7 @@ This guide walks through setting up Google's Gemini API for intelligent image an
    - Choose "Create API key in new project" (or select existing project)
    - **IMPORTANT**: Copy the API key immediately (you won't be able to see it again)
 
-3. **API Key Format**
-   ```
-   AIza...  (typically starts with "AIza" and is ~39 characters)
-   ```
+   YOUR_API_KEY_HERE (typically starts with "API_KEY_PREFIX" and is ~39 characters)
 
 ### Option B: Google Cloud Console (For Production Use)
 
@@ -306,7 +303,7 @@ print(f'Cache Hit Rate: {stats[\"cache_hit_rate\"]}')
    echo $GEMINI_API_KEY
    ```
 
-3. Verify API key format (should start with "AIza...")
+3. Verify API key format (should look like a standard API key)
 
 ### "API initialization failed" Error
 

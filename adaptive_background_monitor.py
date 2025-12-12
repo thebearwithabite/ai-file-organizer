@@ -134,14 +134,14 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
         # Load existing adaptive rules
         self.adaptive_rules = self._load_adaptive_rules()
         
-        # Statistics tracking
-        self.stats = {
+        # Statistics tracking - Merge with parent stats
+        self.stats.update({
             "files_auto_organized": 0,
             "emergencies_prevented": 0,
             "patterns_discovered": 0,
             "rules_created": 0,
             "user_corrections_learned": 0
-        }
+        })
         
         self.logger.info("Adaptive Background Monitor initialized")
 
@@ -231,7 +231,7 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
         self.logger.info("Starting adaptive background monitoring...")
         
         # Start parent monitoring
-        super().start_monitoring()
+        super().start()
         
         # Set up file system watchers for learning
         self._setup_file_watchers()
@@ -250,6 +250,11 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
             if not watch_path.exists():
                 continue
             
+            # Prevent duplicate watchers
+            if name in self.observers:
+                self.logger.warning(f"Watcher for {name} already exists, skipping")
+                continue
+
             try:
                 observer = Observer()
                 handler = AdaptiveFileHandler(self)
@@ -422,13 +427,30 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
             )
             
             # Execute decision
+            action_taken = False
             if not decision.requires_user_input and decision.predicted_action:
-                self._execute_automatic_action(file_obj, decision, context)
+                action_taken = self._execute_automatic_action(file_obj, decision, context)
             elif decision.requires_user_input:
                 self._queue_for_user_interaction(file_obj, decision, context)
+                # Even if queued, we should index it so it's searchable
+                super()._process_single_file(file_obj)
+            
+            # If no action taken (and not queued), index it in place
+            if not action_taken and not decision.requires_user_input:
+                super()._process_single_file(file_obj)
             
         except Exception as e:
             self.logger.error(f"Error handling new file {file_path}: {e}")
+
+    def _process_single_file(self, file_path: Path, auto_organize: bool = False) -> bool:
+        """
+        Override: Route all polled files through the adaptive system.
+        This unifies the Polling and Watchdog behaviors.
+        """
+        # We ignore the 'auto_organize' flag from the poll because 
+        # _handle_new_file decides based on confidence.
+        self._handle_new_file(str(file_path), datetime.now())
+        return True
 
     def _handle_file_modification(self, file_path: str, timestamp: datetime):
         """Handle file modification - check for re-indexing"""
@@ -447,17 +469,31 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
         except Exception as e:
             self.logger.error(f"Error handling file modification: {e}")
 
-    def _execute_automatic_action(self, file_obj: Path, decision, context: Dict[str, Any]):
-        """Execute automatic file organization action"""
+    def _execute_automatic_action(self, file_obj: Path, decision, context: Dict[str, Any]) -> bool:
+        """Execute automatic file organization action. Returns True if moved."""
         
         try:
             predicted_action = decision.predicted_action
             target_location = predicted_action.get("target_location")
             
             if not target_location:
-                return
+                return False
             
             target_path = Path(target_location)
+            
+            # SAFETY CHECK: Never move database files or files from metadata system
+            # This prevents accidental corruption or remote sync of critical system files
+            if file_obj.suffix.lower() in ['.db', '.sqlite', '.sqlite3', '.db3', '.sdb', '.json']:
+                # Allow moving JSONs unless they are in metadata system
+                if "AI_METADATA_SYSTEM" in str(file_obj) or "AI_METADATA_SYSTEM" in str(target_path):
+                    self.logger.warning(f"Blocked attempt to move system file: {file_obj.name}")
+                    return False
+                
+                # Strictly block DB files regardless of location
+                if file_obj.suffix.lower() != '.json':
+                    self.logger.warning(f"Blocked attempt to move database file: {file_obj.name}")
+                    return False
+
             target_path.mkdir(parents=True, exist_ok=True)
             
             # Create rollback entry before moving
@@ -498,10 +534,18 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
             # Record success for learning
             self._record_action_success(decision, context, True)
             
+            # INDEX THE FILE AT ITS NEW LOCATION
+            # This ensures the vector database is up to date
+            super()._process_single_file(new_file_path)
+            
+            return True
+            
         except Exception as e:
             self.logger.error(f"Error executing automatic action: {e}")
-            self.rollback_system.complete_operation(operation_id, success=False, error=str(e))
+            if 'operation_id' in locals():
+                self.rollback_system.complete_operation(operation_id, success=False, error=str(e))
             self._record_action_success(decision, context, False)
+            return False
 
     def _queue_for_user_interaction(self, file_obj: Path, decision, context: Dict[str, Any]):
         """Queue file for user interaction (future implementation)"""
@@ -839,7 +883,7 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
         self.logger.info("Stopping adaptive monitoring...")
         
         # Stop parent monitoring
-        super().stop_monitoring()
+        super().stop()
         
         # Stop file system observers
         for observer in self.observers.values():

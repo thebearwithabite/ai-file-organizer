@@ -81,7 +81,7 @@ class UniversalAdaptiveLearning:
         self.base_dir = Path(base_dir) if base_dir else get_ai_organizer_root()
 
         # Learning system files
-        self.learning_dir = get_metadata_root() /  "adaptive_learning"
+        self.learning_dir = get_metadata_root() / ".AI_LIBRARIAN_CORPUS" / "03_ADAPTIVE_FEEDBACK"
         self.learning_dir.mkdir(parents=True, exist_ok=True)
 
         # Persistent storage files
@@ -1358,6 +1358,7 @@ class UniversalAdaptiveLearning:
 
         return {
             "total_learning_events": len(self.learning_events),
+            "patterns_count": len(self.patterns),
             "image_events": media_type_counts.get('image', 0),
             "video_events": media_type_counts.get('video', 0),
             "audio_events": media_type_counts.get('audio', 0),
@@ -1400,6 +1401,32 @@ class UniversalAdaptiveLearning:
             "patterns_removed": len(patterns_to_remove),
             "preferences_removed": len(weak_prefs)
         }
+
+
+    def get_recent_activity(self, limit: int = 50) -> List[Dict[str, Any]]:
+        """
+        Get recent learning events from memory
+        
+        Args:
+            limit: Maximum number of events to return
+            
+        Returns:
+            List of activity dictionaries
+        """
+        # Get last 'limit' events, reversed (newest first)
+        recent_events = sorted(self.learning_events, key=lambda x: x.timestamp, reverse=True)[:limit]
+        
+        activities = []
+        for event in recent_events:
+            activities.append({
+                "id": event.event_id,
+                "timestamp": event.timestamp.isoformat(),
+                "type": event.event_type,
+                "file_path": event.file_path,
+                "details": event.user_action,
+                "prediction": event.original_prediction
+            })
+        return activities
 
 # Testing and verification functions
 def test_adaptive_learning():

@@ -185,6 +185,29 @@ class HierarchicalOrganizer:
         # Detect or use override for episode
         episode = episode_override or self.detect_episode_from_filename(filename)
 
+        # Sanitize episode name: prevent filenames from being used as directory names
+        if episode and '.' in episode:
+            # Check if it ends with a known media extension (indicating user likely pasted a filename)
+            parts = episode.rsplit('.', 1)
+            if len(parts) > 1:
+                ext = parts[1].lower()
+                if ext in self.MEDIA_TYPE_MAP:
+                    # It's likely a mistake - we need to extract the meaningful name
+                    if '/' in episode or '\\' in episode:
+                        # If it looks like a path (e.g. "Episode_01/File.png"), take the parent folder
+                        # Normalize slashes
+                        normalized_episode = episode.replace('\\', '/')
+                        # Remove the filename component
+                        parent_dir = normalized_episode.rsplit('/', 1)[0]
+                        # If there are still slashes, take the last component (the folder name)
+                        if '/' in parent_dir:
+                            episode = parent_dir.split('/')[-1]
+                        else:
+                            episode = parent_dir
+                    else:
+                        # Just a filename (e.g. "File.png") - strip extension
+                        episode = parts[0]
+
         # Get media type
         media_type = self.get_media_type(file_path)
 

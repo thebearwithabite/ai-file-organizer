@@ -8,7 +8,7 @@ import type { RollbackOperation } from '../types/api'
 export default function RollbackCenter() {
   const queryClient = useQueryClient()
   const [searchTerm, setSearchTerm] = useState('')
-  const [timeFilter, setTimeFilter] = useState<'today' | '7days' | '30days'>('7days')
+  const [timeFilter, setTimeFilter] = useState<'today' | '7days' | '30days'>('30days')
 
   const { data, isLoading } = useQuery({
     queryKey: ['rollback-operations', timeFilter, searchTerm],
@@ -74,19 +74,19 @@ export default function RollbackCenter() {
           const today = new Date()
           return opDate.toDateString() === today.toDateString()
         }) && (
-          <button
-            onClick={() => {
-              if (window.confirm('⚠️ This will undo ALL file operations from today. Are you sure?')) {
-                undoTodayMutation.mutate()
-              }
-            }}
-            disabled={undoTodayMutation.isPending}
-            className="flex items-center gap-2 px-4 py-2 bg-destructive/20 hover:bg-destructive/30 border border-destructive/30 rounded-lg text-sm font-medium text-destructive transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <AlertTriangle size={16} />
-            {undoTodayMutation.isPending ? 'Undoing...' : 'Emergency Undo Today'}
-          </button>
-        )}
+            <button
+              onClick={() => {
+                if (window.confirm('⚠️ This will undo ALL file operations from today. Are you sure?')) {
+                  undoTodayMutation.mutate()
+                }
+              }}
+              disabled={undoTodayMutation.isPending}
+              className="flex items-center gap-2 px-4 py-2 bg-destructive/20 hover:bg-destructive/30 border border-destructive/30 rounded-lg text-sm font-medium text-destructive transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <AlertTriangle size={16} />
+              {undoTodayMutation.isPending ? 'Undoing...' : 'Emergency Undo Today'}
+            </button>
+          )}
       </div>
 
       {/* Controls */}
@@ -110,31 +110,28 @@ export default function RollbackCenter() {
           <div className="flex gap-2">
             <button
               onClick={() => setTimeFilter('today')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                timeFilter === 'today'
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${timeFilter === 'today'
                   ? 'bg-primary text-white'
                   : 'bg-white/5 text-white/60 hover:bg-white/10'
-              }`}
+                }`}
             >
               Today
             </button>
             <button
               onClick={() => setTimeFilter('7days')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                timeFilter === '7days'
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${timeFilter === '7days'
                   ? 'bg-primary text-white'
                   : 'bg-white/5 text-white/60 hover:bg-white/10'
-              }`}
+                }`}
             >
               7 Days
             </button>
             <button
               onClick={() => setTimeFilter('30days')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                timeFilter === '30days'
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${timeFilter === '30days'
                   ? 'bg-primary text-white'
                   : 'bg-white/5 text-white/60 hover:bg-white/10'
-              }`}
+                }`}
             >
               30 Days
             </button>
@@ -177,11 +174,10 @@ export default function RollbackCenter() {
                       {formatTimestamp(op.timestamp)}
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${
-                        op.operation_type === 'organize' ? 'bg-primary/20 text-primary' :
-                        op.operation_type === 'rename' ? 'bg-warning/20 text-warning' :
-                        'bg-white/10 text-white/60'
-                      }`}>
+                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${op.operation_type === 'organize' ? 'bg-primary/20 text-primary' :
+                          op.operation_type === 'rename' ? 'bg-warning/20 text-warning' :
+                            'bg-white/10 text-white/60'
+                        }`}>
                         {op.operation_type}
                       </span>
                     </td>
@@ -213,11 +209,10 @@ export default function RollbackCenter() {
                       <div className="flex items-center gap-2">
                         <div className="w-16 h-2 bg-white/10 rounded-full overflow-hidden">
                           <div
-                            className={`h-full rounded-full ${
-                              op.confidence >= 0.85 ? 'bg-success' :
-                              op.confidence >= 0.7 ? 'bg-warning' :
-                              'bg-destructive'
-                            }`}
+                            className={`h-full rounded-full ${op.confidence >= 0.85 ? 'bg-success' :
+                                op.confidence >= 0.7 ? 'bg-warning' :
+                                  'bg-destructive'
+                              }`}
                             style={{ width: `${op.confidence * 100}%` }}
                           />
                         </div>
@@ -225,11 +220,10 @@ export default function RollbackCenter() {
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`inline-flex px-2 py-1 rounded text-xs font-medium ${
-                        op.status === 'active' ? 'bg-success/20 text-success' :
-                        op.status === 'undone' ? 'bg-white/10 text-white/60' :
-                        'bg-destructive/20 text-destructive'
-                      }`}>
+                      <span className={`inline-flex px-2 py-1 rounded text-xs font-medium ${op.status === 'active' ? 'bg-success/20 text-success' :
+                          op.status === 'undone' ? 'bg-white/10 text-white/60' :
+                            'bg-destructive/20 text-destructive'
+                        }`}>
                         {op.status}
                       </span>
                     </td>

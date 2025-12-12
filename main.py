@@ -4,7 +4,7 @@ FastAPI Hello World Application
 Basic boilerplate for a FastAPI web application
 """
 
-from fastapi import FastAPI, HTTPException, Query, UploadFile, File
+from fastapi import FastAPI, HTTPException, Query, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -33,6 +33,7 @@ from adaptive_background_monitor import AdaptiveBackgroundMonitor
 from confidence_system import ADHDFriendlyConfidenceSystem, ConfidenceLevel
 from automated_deduplication_service import AutomatedDeduplicationService
 from emergency_space_protection import EmergencySpaceProtection
+from orchestrate_staging import orchestrate
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -76,7 +77,7 @@ app.add_middleware(
 )
 
 # Mount static files for the web interface
-app.mount("/static", StaticFiles(directory="frontend"), name="static")
+
 
 # Initialize services
 print("DEBUG: Initializing SystemService...")
@@ -147,31 +148,81 @@ async def startup_event():
             ]
         else:
             monitor_paths = []
+            
+        # Add default paths if not specified
+        if not monitor_paths:
+            monitor_paths = [
+                os.path.expanduser("~/Downloads"),
+                os.path.expanduser("~/Desktop"),
+                os.path.expanduser("~/Documents")
+            ]
 
-        if monitor_paths:
-            logger.info(f"📡 Initializing adaptive background monitor - watching: {monitor_paths}")
+        logger.info(f"🛡️  Initializing Adaptive Monitor for: {monitor_paths}")
+        
+        background_monitor = AdaptiveBackgroundMonitor(
+            additional_watch_paths=monitor_paths
+        )
+        background_monitor.start()
+        SystemService.set_monitor(background_monitor)
+        logger.info("✅ Adaptive Background Monitor started")
 
-            # Create the monitor
-            background_monitor = AdaptiveBackgroundMonitor(additional_watch_paths=monitor_paths)
+        # Schedule background tasks
+        logger.info("🚀 Server started - scheduling initial Downloads scan in 30 seconds...")
+        asyncio.create_task(delayed_initial_scan())
+        asyncio.create_task(periodic_orchestration())
 
-            # Start it on a separate thread (non-blocking)
-            # Exclude email_sync to avoid overwhelming the system with Mail directory scanning
-            threading.Thread(
-                target=lambda: background_monitor.start(
-                    threads_to_run=['real_time', 'directory_scan', 'learning_update', 'full_reindex']
-                ),
-                daemon=True
-            ).start()
-
-            logger.info("📡 Adaptive background monitor running (Downloads/Desktop only, email scanning disabled)")
-        else:
-            logger.info("ℹ️ Adaptive monitor disabled (no AUTO_MONITOR_PATHS configured)")
     except Exception as e:
-        logger.exception("Failed to start background monitor: %s", e)
+        logger.error(f"❌ Failed to start background monitor: {e}")
 
-    logger.info("🚀 Server started - scheduling initial Downloads scan in 30 seconds...")
-    asyncio.create_task(delayed_initial_scan())
-    asyncio.create_task(periodic_downloads_scan())
+@app.on_event("shutdown")
+async def shutdown_event():
+    """
+    Graceful shutdown handler.
+    """
+    global background_monitor
+    logger.info("🛑 Shutting down services...")
+    
+    if background_monitor:
+        logger.info("   Stopping background monitor...")
+        background_monitor.stop()
+        
+    logger.info("✅ Shutdown complete")
+
+if __name__ == "__main__":
+    # Enforce single instance
+    from pid_lock import enforce_single_instance
+    lock = enforce_single_instance("server.lock")
+    
+    # Run the application directly with python main.py
+    # Enable reload=True for better development    # Print database paths for debugging
+    try:
+        from easy_rollback_system import EasyRollbackSystem
+        from universal_adaptive_learning import UniversalAdaptiveLearning
+        
+        rollback_db_path = EasyRollbackSystem().db_path
+        learning_db_path = UniversalAdaptiveLearning().db_path
+        
+        logger.info(f"DEBUG: Rollback DB Path: {rollback_db_path}")
+        logger.info(f"DEBUG: Learning DB Path: {learning_db_path}")
+        
+        if triage_service.rollback_service:
+             logger.info("DEBUG: TriageService has RollbackService initialized")
+        else:
+             logger.error("DEBUG: TriageService MISSING RollbackService")
+             
+    except Exception as e:
+        logger.error(f"DEBUG: Failed to print DB paths: {e}")
+
+    try:
+        # Start uvicorn server
+        # Disable reload in production-like run to prevent signal handling issues
+        # Use --reload flag only when developing
+        use_reload = os.getenv("DEV_MODE", "False").lower() == "true"
+        uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=use_reload)
+    finally:
+        lock.release()
+
+
 
 async def delayed_initial_scan():
     """
@@ -188,35 +239,63 @@ async def delayed_initial_scan():
     except Exception as e:
         logger.error(f"❌ Initial scan failed: {e}")
 
-async def periodic_downloads_scan():
+async def periodic_orchestration():
     """
-    Periodically scan Downloads folder every 10 minutes.
-    ADHD-friendly: Files organize automatically without manual intervention.
-
-    With rate limiting (15 RPM, 1,500/day):
-    - 10 min intervals = 6 scans/hour = 144 scans/day
-    - Max 20 files/scan = max 2,880 files/day
-    - Actual API calls limited by rate limiter to stay under 1,500/day
+    Periodically run the full orchestration workflow every 15 minutes.
+    Replaces simple downloads scan with full Staging -> Triage -> Auto-Organize pipeline.
     """
     # Wait for initial scan to complete first
-    await asyncio.sleep(90)  # Initial scan at 30s + 60s buffer
+    await asyncio.sleep(90)
 
     while True:
         try:
-            logger.info("🔄 Running periodic Downloads scan (every 10 minutes)...")
+            logger.info("🎼 Starting periodic orchestration...")
+            
+            # Update status to running
+            SystemService.update_orchestration_status({
+                "last_run": datetime.now().isoformat(),
+                "files_touched": 0, # Will update after run
+                "status": "running"
+            })
+            
             loop = asyncio.get_event_loop()
-            result = await loop.run_in_executor(None, triage_service.trigger_scan)
-            logger.info(f"✅ Periodic scan complete: {result.get('files_found', 0)} files found")
+            # Run orchestration with dry_run=False and default threshold
+            # Capture result if orchestrate returns stats (it currently doesn't return much, but we can track time)
+            await loop.run_in_executor(None, lambda: orchestrate(dry_run=False))
+            
+            # Update status to complete
+            SystemService.update_orchestration_status({
+                "last_run": datetime.now().isoformat(),
+                "files_touched": 0, # TODO: Capture actual count
+                "status": "idle"
+            })
+            
+            logger.info("✅ Periodic orchestration complete")
         except Exception as e:
-            logger.error(f"❌ Periodic scan failed: {e}")
+            logger.error(f"❌ Periodic orchestration failed: {e}")
+            SystemService.update_orchestration_status({
+                "last_run": datetime.now().isoformat(),
+                "files_touched": 0,
+                "status": "error"
+            })
 
-        # Wait 10 minutes before next scan
-        await asyncio.sleep(600)  # 600 seconds = 10 minutes
+        # Wait 15 minutes before next run
+        await asyncio.sleep(900)
+
+# Mount React App static assets
+# Vite builds to dist/assets, so we mount that to /assets
+if os.path.exists("frontend_v2/dist/assets"):
+    app.mount("/assets", StaticFiles(directory="frontend_v2/dist/assets"), name="assets")
 
 @app.get("/")
-async def serve_web_interface():
-    """Serve the main web interface"""
-    return FileResponse("frontend/index.html")
+async def serve_spa():
+    """Serve the React App"""
+    # Verify build exists
+    if not os.path.exists("frontend_v2/dist/index.html"):
+        return {"error": "Frontend build not found. Please run 'cd frontend_v2 && npm run build'"}
+    return FileResponse("frontend_v2/dist/index.html")
+
+
 
 @app.get("/health")
 async def health_check():
@@ -225,8 +304,19 @@ async def health_check():
 
 @app.get("/api/system/status")
 async def get_system_status():
-    """Get current system status including file counts and last run time"""
+    """Get current system status including file counts, monitor status, and last run time"""
+    # SystemService now handles aggregation of all status data
     return system_service.get_status()
+
+@app.get("/api/recent-activity")
+async def get_recent_activity(limit: int = 50):
+    """Get recent system activity"""
+    try:
+        activities = learning_system.get_recent_activity(limit)
+        return {"activities": activities}
+    except Exception as e:
+        logger.error(f"Error getting recent activity: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/system/emergency_cleanup")
 async def emergency_cleanup():
@@ -240,23 +330,48 @@ async def get_monitor_status():
     Get background monitor status for health checking and debugging
 
     Returns:
-        JSON with monitor status in {status, message, data} format
+        JSON matching MonitorStatus interface for frontend
     """
-    global background_monitor, monitor_paths
+    global background_monitor
 
-    is_running = background_monitor is not None
-    path_count = len(monitor_paths) if monitor_paths else 0
-
-    return {
-        "status": "success",
-        "message": f"Monitor is {'running' if is_running else 'disabled'} - watching {path_count} paths",
-        "data": {
-            "monitor_status": "running" if is_running else "disabled",
-            "monitored_paths": monitor_paths if monitor_paths else [],
-            "path_count": path_count,
-            "enabled": is_running
+    if not background_monitor:
+        return {
+            "status": "paused",
+            "paths": [],
+            "last_event": None,
+            "events_processed": 0,
+            "uptime_seconds": 0
         }
-    }
+
+    try:
+        # Get real status from the monitor
+        status = background_monitor.status()
+        
+        # Get list of monitored paths
+        paths = []
+        if hasattr(background_monitor, 'watch_directories'):
+            for info in background_monitor.watch_directories.values():
+                if 'path' in info:
+                    paths.append(str(info['path']))
+        
+        # Map to frontend interface
+        return {
+            "status": "active" if status.get('running') else "paused",
+            "paths": paths,
+            "last_event": status.get('last_scan').isoformat() if status.get('last_scan') else None,
+            "events_processed": status.get('files_processed_24h', 0),
+            "uptime_seconds": status.get('uptime_seconds', 0),
+            "rules_count": len(getattr(background_monitor, "adaptive_rules", []))
+        }
+    except Exception as e:
+        logger.error(f"Error getting monitor status: {e}")
+        return {
+            "status": "paused",
+            "paths": [],
+            "last_event": None,
+            "events_processed": 0,
+            "uptime_seconds": 0
+        }
 
 @app.get("/api/settings/learning-stats")
 async def get_learning_stats():
@@ -275,6 +390,14 @@ async def get_learning_stats():
     """
     try:
         stats = learning_system.get_learning_statistics()
+        
+        # Add files organized today from rollback service
+        try:
+            today_ops = rollback_service.get_operations(today_only=True)
+            stats["files_organized_today"] = len(today_ops)
+        except Exception:
+            stats["files_organized_today"] = 0
+            
         return stats
     except Exception as e:
         logger.error(f"Failed to get learning statistics: {e}", exc_info=True)
@@ -766,10 +889,51 @@ async def scan_custom_folder(request: ScanFolderRequest):
         return result
     except HTTPException:
         raise
+
+@app.post("/api/open-file")
+async def open_file(request: OpenFileRequest):
+    """
+    Open a file in the system default application (Finder/Explorer)
+    """
+    try:
+        path = Path(request.path)
+        if not path.exists():
+            raise HTTPException(status_code=404, detail="File not found")
+            
+        # Use 'open' command on macOS
+        subprocess.run(['open', str(path)], check=True)
+        
+        return {"status": "success", "message": f"Opened {path.name}"}
+    except subprocess.CalledProcessError as e:
+        logger.error(f"Failed to open file: {e}")
+        raise HTTPException(status_code=500, detail="Failed to open file")
+    except Exception as e:
+        logger.error(f"Error opening file: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
     except Exception as e:
         # Security: Log detailed error internally, return generic message to user
         logger.error(f"Failed to scan custom folder: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="An error occurred while scanning the folder. Please try again later.")
+
+@app.get("/api/triage/projects")
+async def get_known_projects():
+    """
+    Get list of known projects for predictive text/autocomplete in Triage UI
+    
+    Returns:
+        JSON response with list of projects
+    """
+    try:
+        projects = triage_service.get_known_projects()
+        # Convert dict to list of objects for frontend
+        project_list = [{"id": k, "name": v} for k, v in projects.items()]
+        return {
+            "projects": project_list,
+            "count": len(project_list)
+        }
+    except Exception as e:
+        logger.error(f"Failed to retrieve known projects: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to retrieve known projects")
 
 # --- File Preview Endpoints ---
 
@@ -925,6 +1089,7 @@ async def upload_file(file: UploadFile = File(...)):
                 "reasoning": classification.get("reasoning", "File analyzed"),
                 "needs_review": classification.get("confidence", 0.5) < 0.85
             },
+            "suggested_filename": classification.get("suggested_filename", file.filename),
             "status": "pending_review" if classification.get("confidence", 0.5) < 0.85 else "organized",
             "destination_path": str(file_path),
             "operation_id": 0
@@ -1126,6 +1291,38 @@ async def undo_today():
         logger.error(f"Failed to undo today's operations: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to undo today's operations")
 
+# Catch-all to support React Router (client-side routing)
+# Must be defined LAST to avoid blocking API routes
+@app.get("/{full_path:path}")
+async def catch_all(full_path: str):
+    # Skip API routes - they should have been handled above, but just in case
+    if full_path.startswith("api/"):
+        raise HTTPException(status_code=404)
+    # Serve index.html for any other route to let React handle it
+    if os.path.exists("frontend_v2/dist/index.html"):
+        return FileResponse("frontend_v2/dist/index.html")
+    return {"error": "Frontend build not found"}
+
 if __name__ == "__main__":
     # Run the application directly with python main.py
-    uvicorn.run("main:app", host="0.0.0.0", port=8000)
+    # Enable reload=True for better development    # Print database paths for debugging
+    try:
+        from easy_rollback_system import EasyRollbackSystem
+        from universal_adaptive_learning import UniversalAdaptiveLearning
+        
+        rollback_db_path = EasyRollbackSystem().db_path
+        learning_db_path = UniversalAdaptiveLearning().db_path
+        
+        logger.info(f"DEBUG: Rollback DB Path: {rollback_db_path}")
+        logger.info(f"DEBUG: Learning DB Path: {learning_db_path}")
+        
+        if triage_service.rollback_service:
+             logger.info("DEBUG: TriageService has RollbackService initialized")
+        else:
+             logger.error("DEBUG: TriageService MISSING RollbackService")
+             
+    except Exception as e:
+        logger.error(f"DEBUG: Failed to print DB paths: {e}")
+
+    # Start uvicorn server
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

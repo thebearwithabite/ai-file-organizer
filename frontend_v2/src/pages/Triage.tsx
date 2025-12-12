@@ -52,6 +52,11 @@ export default function Triage() {
     enabled: false, // Don't auto-fetch on page load - only fetch when scan is triggered
   })
 
+  const { data: knownProjects } = useQuery({
+    queryKey: ['known-projects'],
+    queryFn: api.getKnownProjects,
+  })
+
   const scanMutation = useMutation({
     mutationFn: api.triggerTriageScan,
     onSuccess: (scanResult) => {
@@ -102,8 +107,19 @@ export default function Triage() {
       project?: string;
       episode?: string;
     }) => api.classifyFile(filePath, category, project, episode),
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       toast.success('File organized successfully')
+
+      // Optimistically update the cache to remove the file immediately
+      queryClient.setQueryData(['triage-files'], (oldData: any) => {
+        if (!oldData) return oldData
+        return {
+          ...oldData,
+          files: oldData.files.filter((f: TriageFile) => f.file_path !== variables.filePath)
+        }
+      })
+
+      // Still invalidate to ensure consistency with backend
       queryClient.invalidateQueries({ queryKey: ['triage-files'] })
     },
     onError: (error: Error) => {
@@ -260,7 +276,11 @@ export default function Triage() {
           </div>
           {files.length > 0 && (
             <div className="text-sm text-white/60">
-              Average confidence: {Math.round((files.reduce((sum, f) => sum + f.classification.confidence, 0) / files.length) * 100)}%
+              Average confidence: {
+                files.length > 0
+                  ? Math.round((files.reduce((sum, f) => sum + (f.classification.confidence || 0), 0) / files.length) * 100)
+                  : 0
+              }%
             </div>
           )}
         </div>
@@ -306,7 +326,7 @@ export default function Triage() {
                     <div className="flex items-center gap-2 mb-2">
                       <AlertTriangle size={16} className={getConfidenceColor(file.classification.confidence)} />
                       <span className="text-sm font-medium text-white">
-                        AI Confidence: {Math.round(file.classification.confidence * 100)}%
+                        AI Confidence: {Math.round((file.classification.confidence || 0) * 100)}%
                       </span>
                     </div>
                     <p className="text-sm text-white/80">{file.classification.reasoning}</p>
@@ -338,11 +358,17 @@ export default function Triage() {
                       <label className="text-xs text-white/50 mb-1 block">Project Name</label>
                       <input
                         type="text"
+                        list={`projects-${file.file_id}`}
                         value={projectInput[file.file_id] || ''}
                         onChange={(e) => setProjectInput({ ...projectInput, [file.file_id]: e.target.value })}
                         placeholder="e.g., The_Papers_That_Dream, VEO_Prompt_Machine"
                         className="w-full px-3 py-2 bg-white/5 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 placeholder:text-white/30"
                       />
+                      <datalist id={`projects-${file.file_id}`}>
+                        {knownProjects?.projects.map((p) => (
+                          <option key={p.id} value={p.name} />
+                        ))}
+                      </datalist>
                     </div>
 
                     <div>

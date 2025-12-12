@@ -12,7 +12,8 @@ import type {
   ConfidenceMode,
   SpaceProtectionStatus,
   DuplicatesResponse,
-  MonitorStatus
+  MonitorStatus,
+  ProjectsResponse,
 } from '../types/api'
 
 const API_BASE = 'http://localhost:8000'
@@ -24,11 +25,12 @@ export const api = {
 
     const data = await response.json()
 
-    // Transform backend response to frontend format
+    // Pass through raw data and map legacy fields for dashboard compatibility
     return {
+      ...data,
       google_drive: {
-        connected: data.authentication_status === 'authenticated',
-        user_name: data.google_drive_user || 'Unknown',
+        connected: data.authentication_status === 'authenticated' || data.authentication_status === 'local-only',
+        user_name: data.authentication_status === 'local-only' ? 'Local Mode' : (data.google_drive_user || 'Unknown'),
         sync_status: data.sync_service_status || 'disabled',
         last_sync: data.last_run || new Date().toISOString(),
       },
@@ -39,27 +41,39 @@ export const api = {
         status: 'unknown'
       },
       background_services: {
-        adaptive_monitor: 'stopped',
+        adaptive_monitor: data.monitor ? 'active' : 'stopped',
         staging_monitor: 'stopped',
         drive_sync: data.sync_service_status || 'disabled',
       },
-      confidence_mode: 'smart', // TODO: Get from backend
+      confidence_mode: 'smart',
     }
   },
 
   getLearningStats: async (): Promise<LearningStats> => {
-    // TODO: Implement backend endpoint for learning stats
+    const response = await fetch(`${API_BASE}/api/settings/learning-stats`)
+    if (!response.ok) throw new Error('Failed to fetch learning stats')
+    const json = await response.json()
+
     return {
-      files_organized_today: 0,
-      patterns_count: 0,
-      confidence_mode: 'SMART',
-      searches_today: 0,
+      files_organized_today: json.files_organized_today || 0,
+      patterns_count: json.unique_categories_learned || 0, // Using unique categories as patterns count for now
+      confidence_mode: 'SMART', // Hardcoded for now as it's not in the stats response
+      searches_today: 0, // Not available in stats response yet
+      ...json // Spread original fields
     }
   },
 
+  getDatabaseStats: async (): Promise<any> => {
+    const response = await fetch(`${API_BASE}/api/settings/database-stats`)
+    if (!response.ok) throw new Error('Failed to fetch database stats')
+    return await response.json()
+  },
+
   getRecentOperations: async (): Promise<FileOperation[]> => {
-    // TODO: Implement backend endpoint for recent operations
-    return []
+    const response = await fetch(`${API_BASE}/api/rollback/operations?days=7`)
+    if (!response.ok) throw new Error('Failed to fetch recent operations')
+    const json = await response.json()
+    return json.data.operations
   },
 
   uploadFile: async (file: File): Promise<ClassificationResult> => {
@@ -144,13 +158,13 @@ export const api = {
 
     const data = await response.json()
 
-    // Transform backend response to frontend format
     return {
-      status: data.data?.enabled && data.data?.monitor_status === 'running' ? 'active' : 'paused',
-      paths: data.data?.monitored_paths || [],
-      last_event: null, // TODO: Backend needs to provide this
-      events_processed: 0, // TODO: Backend needs to provide this
-      uptime_seconds: 0, // TODO: Backend needs to provide this
+      status: data.status || 'paused',
+      paths: data.paths || [],
+      last_event: data.last_event || null,
+      events_processed: data.events_processed || 0,
+      uptime_seconds: data.uptime_seconds || 0,
+      rules_count: data.rules_count || 0,
     }
   },
 
@@ -275,5 +289,11 @@ export const api = {
     })
     if (!response.ok) throw new Error('Failed to open file')
     return await response.json()
+  },
+
+  getKnownProjects: async (): Promise<ProjectsResponse> => {
+    const response = await fetch(`${API_BASE}/api/triage/projects`)
+    if (!response.ok) throw new Error('Failed to fetch known projects')
+    return response.json()
   },
 }
