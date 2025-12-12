@@ -62,7 +62,7 @@ class BulletproofDeduplicator:
             r'.*\.pkl$',           # Pickle learning data
             r'.*adaptive_learning.*',
             r'.*deduplication.*\.db$',
-            r'.*04_METADATA_SYSTEM.*',
+            # r'.*04_METADATA_SYSTEM.*',  # [REMOVED] Legacy path - replaced by AI_METADATA_SYSTEM
             r'.*learning_data.*',
             r'.*classification_logs.*',
             r'.*embeddings.*',

@@ -31,6 +31,8 @@ from pathlib import Path
 from typing import Optional, Dict, Any
 from datetime import datetime, timedelta
 
+from gdrive_integration import get_metadata_root
+
 # Google API imports
 try:
     from google.auth.transport.requests import Request
@@ -85,8 +87,8 @@ class GoogleDriveAuth:
         
         # Set up paths
         self.project_root = Path(__file__).parent
-        self.config_dir = config_dir or (self.project_root / '.ai_organizer_config')
-        self.config_dir.mkdir(exist_ok=True)
+        self.config_dir = config_dir or (get_metadata_root() / "config")
+        self.config_dir.mkdir(parents=True, exist_ok=True)
         
         # Credential files
         self.credentials_file = self.project_root / credentials_file

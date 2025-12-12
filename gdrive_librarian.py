@@ -166,6 +166,7 @@ class GoogleDriveLibrarian:
         
         # State
         self._authenticated = False
+        self._cached_auth_info = None  # Cache for auth info
         self._last_drive_scan: Optional[datetime] = None
         self._drive_file_cache: Dict[str, Dict] = {}
         
@@ -262,6 +263,8 @@ class GoogleDriveLibrarian:
                 return False
             
             self._authenticated = True
+            self._cached_auth_info = auth_result
+            self._auth_cache_time = datetime.now()
             logger.info(f"   ✅ Authenticated as: {auth_result['user_name']}")
             
             # Step 2: Initialize metadata store
@@ -714,8 +717,28 @@ class GoogleDriveLibrarian:
         }
         
         # Authentication status
+        # Authentication status
         if self._authenticated:
-            auth_test = self.auth_service.test_authentication()
+            # Use cached auth info if available and fresh (TTL 5 minutes)
+            should_refresh = True
+            if self._cached_auth_info and hasattr(self, '_auth_cache_time') and self._auth_cache_time:
+                age = datetime.now() - self._auth_cache_time
+                if age < timedelta(minutes=5):
+                    should_refresh = False
+                    auth_test = self._cached_auth_info
+
+            if should_refresh:
+                # Refresh cache
+                try:
+                     auth_test = self.auth_service.test_authentication()
+                     if auth_test.get('success'):
+                         self._cached_auth_info = auth_test
+                         self._auth_cache_time = datetime.now()
+                except Exception as e:
+                     logger.warning(f"Status check auth failed: {e}")
+                     # Keep old cache if refresh failed, or empty if none
+                     auth_test = self._cached_auth_info if self._cached_auth_info else {}
+
             status['auth_info'] = {
                 'user_name': auth_test.get('user_name', 'Unknown'),
                 'user_email': auth_test.get('user_email', 'Unknown'),

@@ -91,7 +91,8 @@ class UniversalAdaptiveLearning:
         self.stats_file = self.learning_dir / "learning_stats.json"
 
         # Database for quick queries - use local storage for SQLite (cloud sync conflicts)
-        local_db_dir = Path.home() / ".ai_file_organizer" / "databases"
+        # Use centralized metadata system for compliance
+        local_db_dir = get_metadata_root() / "databases"
         local_db_dir.mkdir(parents=True, exist_ok=True)
         self.db_path = local_db_dir / "adaptive_learning.db"
 
