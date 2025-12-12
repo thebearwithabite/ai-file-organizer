@@ -87,14 +87,14 @@ Each path spawns its own watcher thread on API startup.
   "status": "active",
   "watchers": [
     {
-      "path": "/Users/ryan/Desktop",
+      "path": "/Users/user/Desktop",
       "status": "running",
       "uptime_seconds": 3600,
       "last_event": "2025-11-05T10:30:15Z",
       "events_processed": 42
     },
     {
-      "path": "/Users/ryan/Downloads",
+      "path": "/Users/user/Downloads",
       "status": "running",
       "uptime_seconds": 3600,
       "last_event": "2025-11-05T10:45:22Z",
@@ -185,7 +185,7 @@ MONITOR_BATCH_SIZE=10
 POST /api/system/monitor-config
 {
   "enabled": true,
-  "paths": ["/Users/ryan/Desktop", "/Users/ryan/Downloads"],
+  "paths": ["/Users/user/Desktop", "/Users/user/Downloads"],
   "interval": 5
 }
 ```

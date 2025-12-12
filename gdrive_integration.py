@@ -61,7 +61,7 @@ class GoogleDriveIntegration:
     def __init__(self):
         """Initialize Google Drive Integration"""
         self.base_drive_paths = [
-            Path("/Users/user/Library/CloudStorage/GoogleDrive-account/My Drive"),
+            Path("/Users/user/Library/CloudStorage/user@example.com/My Drive"),
             Path("/Volumes/GoogleDrive/My Drive"),
             Path.home() / "Google Drive" / "My Drive"
         ]
@@ -347,7 +347,7 @@ def get_ai_organizer_root() -> Path:
         Path: Google Drive root or fallback path
     """
     # Check for Google Drive path
-    drive_path = Path("/Users/user/Library/CloudStorage/GoogleDrive-account/My Drive")
+    drive_path = Path("/Users/user/Library/CloudStorage/user@example.com/My Drive")
     if drive_path.exists():
         return drive_path
         

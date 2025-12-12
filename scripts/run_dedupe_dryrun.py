@@ -8,7 +8,7 @@ def run_dedupe():
     deduper = BulletproofDeduplicator()
     
     # Define paths
-    gdrive_path = Path('/Users/user/Library/CloudStorage/GoogleDrive-account')
+    gdrive_path = Path('/Users/user/Library/CloudStorage/user@example.com')
     local_paths = [
         Path('/Users/user/Downloads'),
         Path('/Users/user/Desktop'),

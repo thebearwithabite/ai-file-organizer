@@ -40,7 +40,7 @@ any environment variables pointing to a cloud path
 After updating the code, run a full search across the project to ensure ZERO
  references remain to:
 
-GoogleDrive-account
+user@example.com
 
 04_METADATA_SYSTEM inside CloudStorage
 
@@ -87,7 +87,7 @@ END MESSAGE TO CLAUDE
 ⏺ Search(pattern: "get_ai_organizer_root")
   ⎿  Found 32 files (ctrl+o to expand)
 
-⏺ Search(pattern: "GoogleDrive-account")
+⏺ Search(pattern: "user@example.com")
   ⎿  Found 1 file (ctrl+o to expand)
 
 ⏺ Search(pattern: "AI_ORGANIZER_GDRIVE")
@@ -284,10 +284,10 @@ END MESSAGE TO CLAUDE
 ⏺ Excellent! 15 files updated. Now let me complete the cleanup by searching
   for and removing remaining Google Drive references:
 
-⏺ Bash(cd ~/Github/ai-file-organizer && grep -r "GoogleDrive-account"
+⏺ Bash(cd ~/Github/ai-file-organizer && grep -r "GoogleDrive-user"
       --include="*.py" | grep -v Archive)
   ⎿ ./cleanup_gdrive_duplicates.py:        Path.home() / "Library/CloudStor
-    age/GoogleDrive-account/My Drive/99_STAGING_EMERGENC
+    age/user@example.com/My Drive/99_STAGING_EMERGENC
     Y",
     … +4 lines (ctrl+o to expand)
 
@@ -572,9 +572,9 @@ were we not supposed to be using only local for these db files?
 
 ⏺ Bash(find "/Users/user/Library/CloudStorage/GoogleDrive-account
       user@example.com/My Drive" -name "*METADATA*" -type d 2>/dev/null)
-  ⎿ /Users/user/Library/CloudStorage/GoogleDrive-account
+  ⎿ /Users/user/Library/CloudStorage/GoogleDrive-user@gm
     ail.com/My Drive/ARCHIVE/AI_METADATA_ARCHIVE
-    /Users/user/Library/CloudStorage/GoogleDrive-account
+    /Users/user/Library/CloudStorage/GoogleDrive-user@gm
     … +11 lines (ctrl+o to expand)
 
 
@@ -595,10 +595,10 @@ were we not supposed to be using only local for these db files?
     … +17 lines (ctrl+o to expand)
 
 
-⏺ Bash(echo "Files written to GDRIVE after 3:17am today:" && find "/Users/user/Library/CloudStorage/GoogleDrive-account/My
+⏺ Bash(echo "Files written to GDRIVE after 3:17am today:" && find "/Users/user/Library/CloudStorage/user@example.com/My
       Drive/04_METADATA_…)
   ⎿ Files written to GDRIVE after 3:17am today:                            
-    /Users/user/Library/CloudStorage/GoogleDrive-account
+    /Users/user/Library/CloudStorage/GoogleDrive-user@gm
     ail.com/My Drive/04_METADATA_SYSTEM/learning_data.pkl
     … +8 lines (ctrl+o to expand)
 
@@ -787,7 +787,7 @@ legacy wiring.
 I already saw that as of 3:17am today, there were stray DB and pickle files 
 written into CloudStorage:
 
-/Users/user/Library/CloudStorage/GoogleDrive-account
+/Users/user/Library/CloudStorage/GoogleDrive-user@gmail.c
 om/My Drive/04_METADATA_SYSTEM*
 
 These came from old code that was still running before your path changes and
@@ -965,7 +965,7 @@ foundation we already have.
       references ===" && grep -r "GoogleDrive-" --include="*.py" . 2>/dev/null |
        grep -v "Archive…)
   ⎿ === Scanning for GoogleDrive- references ===                           
-    ./scrub_personal_info.py:            r'GoogleDrive-account
+    ./scrub_personal_info.py:            r'GoogleDrive-user@gma
     il\.com': 'user@example.com',
 
 
@@ -1698,7 +1698,7 @@ be back soon with thoughts.
 ⏺ Bash(ls -la ~ | grep -i google)
   ⎿ -rw-------     1 user  staff    583 Mar 28  2025 .google-cookie 
     lrwx------     1 user  staff     78 Nov 23 13:03 Google Drive ->
-     /Users/user/Library/CloudStorage/GoogleDrive-account
+     /Users/user/Library/CloudStorage/GoogleDrive-user@g
     … +4 lines (ctrl+o to expand)
 
 
@@ -1730,7 +1730,7 @@ be back soon with thoughts.
 
 
 
-⏺ Bash(du -sh ~/Library/CloudStorage/GoogleDrive-account
+⏺ Bash(du -sh ~/Library/CloudStorage/user@example.com
       2>/dev/null)
   ⎿  774M	/Users/user/Library/CloudStorage/GoogleDrive-account
      user@example.com
@@ -1743,13 +1743,13 @@ be back soon with thoughts.
      … +5 lines (ctrl+o to expand)
 
 ⏺ Bash(echo "=== What's in the CloudStorage mount? ===" && ls
-      ~/Library/CloudStorage/GoogleDrive-account/My\ Drive
+      ~/Library/CloudStorage/user@example.com/My\ Drive
       2>/dev/null | head -20 || ls ~/Li…)
   ⎿  === What's in the CloudStorage mount? ===
 
 ⏺ Bash(ps aux | grep -i "google drive\|backup and sync" | grep -v grep || echo
       "Google Drive Desktop not running")
-  ⎿ user      16836   0.0  0.3 459706400  48256   ??  S     1:19PM  
+  ⎿ user      16836   0.0  0.3 XXXXXXXXX  48256   ??  S     1:19PM  
      0:00.04 /Applications/Google Drive.app/Contents/Helpers/Google Drive H
     elper (Renderer).app/Contents/MacOS/Google Drive Helper (Renderer) --ty
     … +429 lines (ctrl+o to expand)
@@ -1767,7 +1767,7 @@ be back soon with thoughts.
     - Old local copy with outdated metadata (04_METADATA_SYSTEM,
   05_VEO_PROMPTS)
     - Not being used by the system
-  3. ~/Library/CloudStorage/GoogleDrive-account (774MB) →
+  3. ~/Library/CloudStorage/user@example.com (774MB) →
    Don't manually delete
     - This is the File Provider mount (managed by Google Drive Desktop app)
     - Google Drive Desktop is currently running
@@ -1802,7 +1802,7 @@ something so lets leave that
 
 ⏺ Bash(ls -la ~ | grep -i googledrive)
   ⎿ lrwx------     1 user  staff     78 Nov 23 13:03 Google Drive ->
-     /Users/user/Library/CloudStorage/GoogleDrive-account
+     /Users/user/Library/CloudStorage/GoogleDrive-user@g
     mail.com
 
 
