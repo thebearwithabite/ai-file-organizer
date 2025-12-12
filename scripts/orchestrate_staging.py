@@ -48,7 +48,7 @@ def get_gdrive_root_files() -> List[Path]:
         '01_ACTIVE_PROJECTS', 
         '02_MEDIA_ASSETS', 
         '03_REFERENCE_LIBRARY', 
-        '04_METADATA_SYSTEM',
+        # '04_METADATA_SYSTEM', # [REMOVED] Legacy path - replaced by AI_METADATA_SYSTEM
         '99_TEMP_PROCESSING', 
         '99_STAGING_EMERGENCY',
         '.trash'

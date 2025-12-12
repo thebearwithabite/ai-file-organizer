@@ -29,6 +29,9 @@ from typing import List, Dict, Optional, Any
 from dataclasses import dataclass
 import argparse
 
+# Import centralized configuration root
+from gdrive_integration import get_metadata_root
+
 try:
     from googleapiclient.discovery import build
     from googleapiclient.errors import HttpError
@@ -67,7 +70,7 @@ def ensure_rollback_db() -> Path:
     Returns:
         Path: Path to the rollback database
     """
-    db_path = Path.home() / ".ai_organizer_config" / "rollback.db"
+    db_path = get_metadata_root() / "databases" / "rollback.db"
     db_path.parent.mkdir(parents=True, exist_ok=True)
     with sqlite3.connect(db_path) as conn:
         conn.executescript(ROLLBACK_SCHEMA_SQL)
@@ -138,7 +141,7 @@ class EasyRollbackSystem:
     def __init__(self):
         self.project_root = Path(__file__).parent
         # Use centralized config DB
-        self.rollback_db = Path.home() / ".ai_organizer_config" / "rollback.db"
+        self.rollback_db = get_metadata_root() / "databases" / "rollback.db"
         
         # Google Drive integration
         self.gdrive_auth = None

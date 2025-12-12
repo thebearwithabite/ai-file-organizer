@@ -21,7 +21,7 @@ class IntegratedOrganizer:
     """Complete file organization with classification, naming, and movement"""
     
     def __init__(self, base_dir: str = None):
-        self.base_dir = Path(base_dir) if base_dir else get_metadata_root()
+        self.base_dir = Path(base_dir) if base_dir else get_ai_organizer_root()
         self.classifier = PreviewClassifier(str(self.base_dir))
         self.naming_protocol = FileNamingProtocol()
         

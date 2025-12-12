@@ -18,6 +18,7 @@ import threading
 from pathlib import Path
 from typing import Optional
 from dotenv import load_dotenv
+from datetime import datetime
 
 # Load environment variables from .env file
 load_dotenv()
@@ -27,6 +28,7 @@ from api.services import SystemService, SearchService, TriageService
 from api.rollback_service import RollbackService
 from api.veo_api import router as veo_router, clip_router
 from security_utils import sanitize_filename, validate_path_within_base
+from gdrive_integration import get_metadata_root
 from universal_adaptive_learning import UniversalAdaptiveLearning
 from easy_rollback_system import ensure_rollback_db
 from adaptive_background_monitor import AdaptiveBackgroundMonitor
@@ -140,22 +142,30 @@ async def startup_event():
     # Initialize adaptive background monitor
     try:
         paths_str = os.getenv("AUTO_MONITOR_PATHS", "")
+        paths_list = []
         if paths_str.strip():
-            monitor_paths = [
+            paths_list = [
                 os.path.expanduser(p.strip())
                 for p in paths_str.split(",")
                 if p.strip()
             ]
-        else:
-            monitor_paths = []
             
-        # Add default paths if not specified
-        if not monitor_paths:
-            monitor_paths = [
-                os.path.expanduser("~/Downloads"),
-                os.path.expanduser("~/Desktop"),
-                os.path.expanduser("~/Documents")
-            ]
+        # Add default paths if not specified or alongside env vars depending on logic
+        # Here we just add defaults if env is empty, but let's ensure we contain defaults anyway
+        # if the user wants strictly only AUTO_MONITOR_PATHS, they should set it validation
+        
+        default_paths = [
+            os.path.expanduser("~/Downloads"),
+            os.path.expanduser("~/Desktop"),
+            os.path.expanduser("~/Documents")
+        ]
+        
+        # Combine and deduplicate
+        all_paths = set(paths_list)
+        if not paths_list:
+             all_paths.update(default_paths)
+             
+        monitor_paths = list(all_paths)
 
         logger.info(f"🛡️  Initializing Adaptive Monitor for: {monitor_paths}")
         
@@ -426,9 +436,12 @@ async def get_database_stats():
         # Calculate time periods (used by multiple database queries)
         seven_days_ago = (datetime.now() - timedelta(days=7)).isoformat()
         today = datetime.now().date().isoformat()
+        
+        # Metadata root for all DBs
+        metadata_root = get_metadata_root()
 
         # Rollback database statistics
-        rollback_db = Path.home() / ".ai_organizer_config" / "rollback.db"
+        rollback_db = metadata_root / "databases" / "rollback.db"
         if rollback_db.exists():
             try:
                 conn = sqlite3.connect(str(rollback_db))
@@ -463,7 +476,7 @@ async def get_database_stats():
             stats["rollback_db_size_mb"] = 0
 
         # ChromaDB statistics (vector database for semantic search)
-        chroma_db = Path.home() / ".ai_organizer_config" / "chroma_db"
+        chroma_db = metadata_root / "chroma_db"
         if chroma_db.exists():
             total_size = sum(f.stat().st_size for f in chroma_db.rglob('*') if f.is_file())
             stats["vector_db_size_mb"] = round(total_size / (1024 * 1024), 2)
@@ -471,8 +484,8 @@ async def get_database_stats():
             stats["vector_db_size_mb"] = 0
 
         # Learning events database - MUST match path from UniversalAdaptiveLearning
-        # UniversalAdaptiveLearning uses ~/.ai_file_organizer/databases/adaptive_learning.db
-        learning_db = Path.home() / ".ai_file_organizer" / "databases" / "adaptive_learning.db"
+        # UniversalAdaptiveLearning uses adaptive_learning.db in databases/
+        learning_db = metadata_root / "databases" / "adaptive_learning.db"
         if learning_db.exists():
             try:
                 conn = sqlite3.connect(str(learning_db))

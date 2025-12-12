@@ -2,6 +2,14 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+# ⚠️ STRICT CODE OF CONDUCT
+
+**ROOT CAUSE FIXES OVER PATCHES**
+*   **Fix the Bug, Don't Patch the Test**: When a test fails or an error occurs, investigate the *root cause* (e.g., missing import, broken logic, incorrect configuration) rather than applying a superficial patch just to silence the error or make the test pass.
+*   **No "Band-Aid" Fixes**: Do not just comment out failing code, mock out essential logic without understanding it, or add broad `try/except` blocks that swallow important errors unless explicitly instructed.
+*   **Verify the Solution**: After applying a fix, verify that it actually resolves the problem in the running system, not just in the test suite.
+*   **Ask if Unsure**: If the proper fix is complex or risky, STOP and ask the user for guidance rather than applying a quick hack.
+
 # User's AI File Organizer
 
 ## 🎯 **Why This System Exists**

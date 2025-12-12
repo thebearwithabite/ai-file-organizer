@@ -141,11 +141,37 @@ class SystemService:
                 "stats": {"processed_files": 0, "errors_24h": 0, "last_scan": None}
             }
 
+        # Get Google Drive status
+        gdrive_status = {
+            "connected": False,
+            "user_name": None,
+            "quota_used_gb": 0,
+            "quota_total_gb": 0
+        }
+
+        librarian = self.get_librarian()
+        if librarian:
+            try:
+                # Get detailed status from librarian
+                lib_status = librarian.get_system_status()
+                
+                if lib_status.get("authenticated", False):
+                    auth_info = lib_status.get("auth_info", {})
+                    gdrive_status = {
+                        "connected": True,
+                        "user_name": auth_info.get("user_name", "Unknown"),
+                        "quota_used_gb": auth_info.get("storage_used_gb", 0),
+                        "quota_total_gb": auth_info.get("storage_quota_gb", 0)
+                    }
+            except Exception as e:
+                logger.error(f"Error getting Google Drive status: {e}")
+
         return {
             "backend_status": backend_status,
             "monitor": monitor_info,
             "orchestration": orchestration_info,
-            "disk_space": self.get_disk_space()
+            "disk_space": self.get_disk_space(),
+            "google_drive": gdrive_status
         }
 
     def get_disk_space(self) -> Dict[str, Any]:

@@ -41,6 +41,8 @@ except ImportError as e:
     print("Run: pip install google-api-python-client requests")
     raise e
 
+
+from gdrive_integration import get_metadata_root
 from google_drive_auth import GoogleDriveAuth, GoogleDriveAuthError
 from local_metadata_store import LocalMetadataStore
 
@@ -382,7 +384,7 @@ class GoogleDriveStreamer:
         
         # Set up caching
         if cache_dir is None:
-            cache_dir = Path.home() / ".ai_organizer_cache" / "drive_files"
+            cache_dir = get_metadata_root() / "caches" / "drive_files"
         self.cache_manager = SmartCacheManager(cache_dir, cache_size_gb)
         
         # Streaming state
@@ -546,8 +548,8 @@ class GoogleDriveStreamer:
                 return cache_path
             else:
                 # Save to temp location
-                temp_dir = Path.home() / ".ai_organizer_temp"
-                temp_dir.mkdir(exist_ok=True)
+                temp_dir = get_metadata_root() / "temp"
+                temp_dir.mkdir(parents=True, exist_ok=True)
                 
                 safe_filename = "".join(c for c in filename if c.isalnum() or c in (' ', '.', '-', '_')).strip()
                 temp_path = temp_dir / f"temp_{file_id}_{safe_filename}"
