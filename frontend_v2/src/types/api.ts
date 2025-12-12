@@ -3,7 +3,18 @@
  */
 
 export interface SystemStatus {
-  google_drive: {
+  backend_status?: string
+  monitor?: {
+    watching_paths: number
+    rules_loaded: number
+  }
+  orchestration?: {
+    last_run: string | null
+    files_touched: number
+    status: string
+  }
+  // Legacy support for existing dashboards
+  google_drive?: {
     connected: boolean
     user_name: string
     sync_status: string
@@ -28,14 +39,31 @@ export interface LearningStats {
   patterns_count: number
   confidence_mode: string
   searches_today: number
+  // Extended stats used by Settings page
+  total_learning_events?: number
+  image_events?: number
+  video_events?: number
+  audio_events?: number
+  document_events?: number
+  unique_categories_learned?: number
+  most_common_category?: string | null
+  top_confidence_average?: number
+  media_type_breakdown?: Record<string, number>
+  category_distribution?: Record<string, number>
 }
 
 export interface FileOperation {
   operation_id: number
   timestamp: string
   operation_type: string
-  file_name: string
-  new_path?: string
+  original_filename: string
+  new_filename: string
+  original_path: string
+  new_location: string
+  confidence: number
+  status: string
+  notes: string
+  google_drive_id?: string
 }
 
 export interface ClassificationResult {
@@ -101,4 +129,23 @@ export interface MonitorStatus {
   last_event: string | null
   events_processed: number
   uptime_seconds: number
+  rules_count: number
+}
+
+export interface Category {
+  id: string
+  name: string
+  path: string
+  color: string
+  description: string
+}
+
+export interface Project {
+  id: string
+  name: string
+}
+
+export interface ProjectsResponse {
+  projects: Project[]
+  count: number
 }

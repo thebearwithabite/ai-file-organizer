@@ -56,39 +56,43 @@ class VisionAnalyzer:
     VIDEO_EXTENSIONS = {'.mp4', '.mov', '.avi', '.mkv', '.webm', '.flv'}
 
     # Analysis prompts for different content types
-    IMAGE_ANALYSIS_PROMPT = """Analyze this image and provide a detailed but concise description.
+    IMAGE_ANALYSIS_PROMPT = """Analyze this image and provide the results in JSON format.
 
-Focus on:
-1. Main subject(s) and objects
-2. Scene type (indoor/outdoor, professional/casual, etc.)
-3. Any text visible in the image (extract verbatim)
-4. Visual style (screenshot, photo, illustration, diagram, etc.)
-5. Emotional tone or mood
-6. Potential category (e.g., headshot, logo, screenshot, document, creative, technical)
-
-Provide your response as a structured analysis covering these points."""
+Return a valid JSON object with this structure:
+{
+    "description": "Detailed description of the image content, including main subjects, setting, and action.",
+    "objects_detected": ["list", "of", "main", "objects"],
+    "scene_type": "indoor/outdoor/digital/unknown",
+    "text_content": "Any visible text extracted verbatim",
+    "visual_style": "photo/screenshot/illustration/diagram/etc",
+    "emotional_tone": "Mood or tone of the image",
+    "suggested_category": "photo/screenshot/document/creative/technical/etc",
+    "keywords": ["list", "of", "relevant", "keywords", "for", "search"]
+}"""
 
     SCREENSHOT_TEXT_PROMPT = """This appears to be a screenshot. Please extract ALL visible text from this image.
+    
+    Include:
+    - All readable text, exactly as shown
+    - UI elements and button labels
+    - Any error messages or notifications
+    - Application names or window titles
+    
+    Format the text clearly, preserving hierarchy when possible."""
 
-Include:
-- All readable text, exactly as shown
-- UI elements and button labels
-- Any error messages or notifications
-- Application names or window titles
+    VIDEO_ANALYSIS_PROMPT = """Analyze this video clip and provide the results in JSON format.
 
-Format the text clearly, preserving hierarchy when possible."""
-
-    VIDEO_ANALYSIS_PROMPT = """Analyze this video clip and provide a concise summary.
-
-Focus on:
-1. Main content/subject matter
-2. Type of video (tutorial, presentation, recording, creative, etc.)
-3. Key scenes or moments
-4. Any visible text or captions
-5. Audio/visual quality indicators
-6. Suggested category
-
-Provide a brief but informative summary."""
+Return a valid JSON object with this structure:
+{
+    "description": "Concise summary of the video content.",
+    "objects_detected": ["list", "of", "key", "objects"],
+    "scene_type": "video/animation/screen_recording",
+    "text_content": "Any visible text or captions",
+    "visual_style": "cinematic/amateur/professional/etc",
+    "mood": "Emotional tone",
+    "suggested_category": "video_recording/tutorial/presentation/creative_video/etc",
+    "keywords": ["list", "of", "relevant", "keywords"]
+}"""
 
     def __init__(self,
                  api_key: Optional[str] = None,
@@ -667,101 +671,195 @@ Provide a brief but informative summary."""
 
     def _parse_image_analysis(self, analysis_text: str, image_path: Path) -> Dict[str, Any]:
         """Parse Gemini's image analysis response into structured data"""
-
-        # Extract key information from the analysis text
-        text_lower = analysis_text.lower()
-
-        # Detect category based on keywords
-        detected_category = 'photo'  # Default
-        max_keyword_matches = 0
-
-        for category, keywords in self.category_keywords.items():
-            matches = sum(1 for keyword in keywords if keyword in text_lower)
-            if matches > max_keyword_matches:
-                max_keyword_matches = matches
-                detected_category = category
-
-        # Calculate confidence based on keyword matches and analysis length
-        base_confidence = 0.5 if max_keyword_matches > 0 else 0.3
-        keyword_bonus = min(0.3, max_keyword_matches * 0.1)
-        length_bonus = 0.1 if len(analysis_text) > 100 else 0.0
-        confidence = min(0.95, base_confidence + keyword_bonus + length_bonus)
-
-        # Extract objects/keywords from analysis
-        words = analysis_text.lower().split()
-        keywords = [word.strip('.,!?;:') for word in words if len(word) > 4][:10]
-
-        # Determine scene type
-        scene_type = 'unknown'
-        if any(word in text_lower for word in ['indoor', 'interior', 'room', 'office']):
-            scene_type = 'indoor'
-        elif any(word in text_lower for word in ['outdoor', 'exterior', 'landscape', 'nature']):
-            scene_type = 'outdoor'
-        elif any(word in text_lower for word in ['screen', 'interface', 'window', 'desktop']):
-            scene_type = 'digital'
-
-        return {
-            'success': True,
-            'content_type': 'image',
-            'description': analysis_text,
-            'objects_detected': keywords[:5],  # Top 5 objects
-            'text_content': '',  # Populated separately by extract_screenshot_text if needed
-            'scene_type': scene_type,
-            'confidence_score': confidence,
-            'keywords': keywords,
-            'suggested_category': detected_category,
-            'metadata': {
-                'file_name': image_path.name,
-                'file_size': image_path.stat().st_size if image_path.exists() else 0,
-                'analysis_timestamp': datetime.now().isoformat(),
-                'keyword_matches': max_keyword_matches
+        
+        try:
+            # Clean up potential markdown code blocks
+            clean_text = analysis_text.strip()
+            if clean_text.startswith('```json'):
+                clean_text = clean_text[7:]
+            if clean_text.startswith('```'):
+                clean_text = clean_text[3:]
+            if clean_text.endswith('```'):
+                clean_text = clean_text[:-3]
+            clean_text = clean_text.strip()
+            
+            # Try parsing as JSON first
+            data = json.loads(clean_text)
+            
+            # Extract fields with defaults
+            description = data.get('description', '')
+            objects = data.get('objects_detected', [])
+            scene_type = data.get('scene_type', 'unknown')
+            text_content = data.get('text_content', '')
+            keywords = data.get('keywords', [])
+            suggested_category = data.get('suggested_category', 'photo')
+            
+            # Calculate confidence
+            confidence = 0.85 # High base confidence for structured JSON
+            if not objects and not description:
+                confidence = 0.4
+            
+            return {
+                'success': True,
+                'content_type': 'image',
+                'description': description,
+                'objects_detected': objects,
+                'text_content': text_content,
+                'scene_type': scene_type,
+                'confidence_score': confidence,
+                'keywords': keywords,
+                'suggested_category': suggested_category,
+                'metadata': {
+                    'file_name': image_path.name,
+                    'file_size': image_path.stat().st_size if image_path.exists() else 0,
+                    'analysis_timestamp': datetime.now().isoformat(),
+                    'keyword_matches': len(keywords)
+                }
             }
-        }
+            
+        except json.JSONDecodeError:
+            self.logger.warning(f"Failed to parse JSON from Gemini response for {image_path.name}. Falling back to text parsing.")
+            # Fallback to original text parsing logic
+            
+            # Extract key information from the analysis text
+            text_lower = analysis_text.lower()
+
+            # Detect category based on keywords
+            detected_category = 'photo'  # Default
+            max_keyword_matches = 0
+
+            for category, keywords in self.category_keywords.items():
+                matches = sum(1 for keyword in keywords if keyword in text_lower)
+                if matches > max_keyword_matches:
+                    max_keyword_matches = matches
+                    detected_category = category
+
+            # Calculate confidence based on keyword matches and analysis length
+            base_confidence = 0.5 if max_keyword_matches > 0 else 0.3
+            keyword_bonus = min(0.3, max_keyword_matches * 0.1)
+            length_bonus = 0.1 if len(analysis_text) > 100 else 0.0
+            confidence = min(0.95, base_confidence + keyword_bonus + length_bonus)
+
+            # Extract objects/keywords from analysis
+            words = analysis_text.lower().split()
+            keywords = [word.strip('.,!?;:') for word in words if len(word) > 4][:10]
+
+            # Determine scene type
+            scene_type = 'unknown'
+            if any(word in text_lower for word in ['indoor', 'interior', 'room', 'office']):
+                scene_type = 'indoor'
+            elif any(word in text_lower for word in ['outdoor', 'exterior', 'landscape', 'nature']):
+                scene_type = 'outdoor'
+            elif any(word in text_lower for word in ['screen', 'interface', 'window', 'desktop']):
+                scene_type = 'digital'
+
+            return {
+                'success': True,
+                'content_type': 'image',
+                'description': analysis_text,
+                'objects_detected': keywords[:5],  # Top 5 objects
+                'text_content': '',  # Populated separately by extract_screenshot_text if needed
+                'scene_type': scene_type,
+                'confidence_score': confidence,
+                'keywords': keywords,
+                'suggested_category': detected_category,
+                'metadata': {
+                    'file_name': image_path.name,
+                    'file_size': image_path.stat().st_size if image_path.exists() else 0,
+                    'analysis_timestamp': datetime.now().isoformat(),
+                    'keyword_matches': max_keyword_matches
+                }
+            }
 
     def _parse_video_analysis(self, analysis_text: str, video_path: Path) -> Dict[str, Any]:
         """Parse Gemini's video analysis response into structured data"""
-
-        text_lower = analysis_text.lower()
-
-        # Detect video category
-        detected_category = 'video_recording'  # Default
-        max_keyword_matches = 0
-
-        for category, keywords in self.category_keywords.items():
-            if not category.endswith('_video') and category not in ['tutorial', 'presentation']:
-                continue
-            matches = sum(1 for keyword in keywords if keyword in text_lower)
-            if matches > max_keyword_matches:
-                max_keyword_matches = matches
-                detected_category = category
-
-        # Calculate confidence
-        base_confidence = 0.5 if max_keyword_matches > 0 else 0.3
-        keyword_bonus = min(0.3, max_keyword_matches * 0.1)
-        length_bonus = 0.1 if len(analysis_text) > 100 else 0.0
-        confidence = min(0.95, base_confidence + keyword_bonus + length_bonus)
-
-        # Extract keywords
-        words = analysis_text.lower().split()
-        keywords = [word.strip('.,!?;:') for word in words if len(word) > 4][:10]
-
-        return {
-            'success': True,
-            'content_type': 'video',
-            'description': analysis_text,
-            'objects_detected': keywords[:5],
-            'text_content': '',
-            'scene_type': 'video',
-            'confidence_score': confidence,
-            'keywords': keywords,
-            'suggested_category': detected_category,
-            'metadata': {
-                'file_name': video_path.name,
-                'file_size': video_path.stat().st_size if video_path.exists() else 0,
-                'analysis_timestamp': datetime.now().isoformat(),
-                'keyword_matches': max_keyword_matches
+        
+        try:
+            # Clean up potential markdown code blocks
+            clean_text = analysis_text.strip()
+            if clean_text.startswith('```json'):
+                clean_text = clean_text[7:]
+            if clean_text.startswith('```'):
+                clean_text = clean_text[3:]
+            if clean_text.endswith('```'):
+                clean_text = clean_text[:-3]
+            clean_text = clean_text.strip()
+            
+            # Try parsing as JSON first
+            data = json.loads(clean_text)
+            
+            # Extract fields with defaults
+            description = data.get('description', '')
+            objects = data.get('objects_detected', [])
+            scene_type = data.get('scene_type', 'video')
+            keywords = data.get('keywords', [])
+            suggested_category = data.get('suggested_category', 'video_recording')
+            
+            # Calculate confidence
+            confidence = 0.85 # High base confidence for structured JSON
+            
+            return {
+                'success': True,
+                'content_type': 'video',
+                'description': description,
+                'objects_detected': objects,
+                'text_content': data.get('text_content', ''),
+                'scene_type': scene_type,
+                'confidence_score': confidence,
+                'keywords': keywords,
+                'suggested_category': suggested_category,
+                'metadata': {
+                    'file_name': video_path.name,
+                    'file_size': video_path.stat().st_size if video_path.exists() else 0,
+                    'analysis_timestamp': datetime.now().isoformat(),
+                    'keyword_matches': len(keywords)
+                }
             }
-        }
+            
+        except json.JSONDecodeError:
+            self.logger.warning(f"Failed to parse JSON from Gemini response for {video_path.name}. Falling back to text parsing.")
+            
+            text_lower = analysis_text.lower()
+
+            # Detect video category
+            detected_category = 'video_recording'  # Default
+            max_keyword_matches = 0
+
+            for category, keywords in self.category_keywords.items():
+                if not category.endswith('_video') and category not in ['tutorial', 'presentation']:
+                    continue
+                matches = sum(1 for keyword in keywords if keyword in text_lower)
+                if matches > max_keyword_matches:
+                    max_keyword_matches = matches
+                    detected_category = category
+
+            # Calculate confidence
+            base_confidence = 0.5 if max_keyword_matches > 0 else 0.3
+            keyword_bonus = min(0.3, max_keyword_matches * 0.1)
+            length_bonus = 0.1 if len(analysis_text) > 100 else 0.0
+            confidence = min(0.95, base_confidence + keyword_bonus + length_bonus)
+
+            # Extract keywords
+            words = analysis_text.lower().split()
+            keywords = [word.strip('.,!?;:') for word in words if len(word) > 4][:10]
+
+            return {
+                'success': True,
+                'content_type': 'video',
+                'description': analysis_text,
+                'objects_detected': keywords[:5],
+                'text_content': '',
+                'scene_type': 'video',
+                'confidence_score': confidence,
+                'keywords': keywords,
+                'suggested_category': detected_category,
+                'metadata': {
+                    'file_name': video_path.name,
+                    'file_size': video_path.stat().st_size if video_path.exists() else 0,
+                    'analysis_timestamp': datetime.now().isoformat(),
+                    'keyword_matches': max_keyword_matches
+                }
+            }
 
     def _fallback_image_analysis(self, image_path: Path) -> Dict[str, Any]:
         """Fallback analysis when Gemini API is unavailable (filename-based)"""

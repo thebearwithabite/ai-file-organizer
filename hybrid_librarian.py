@@ -14,8 +14,9 @@ import json
 import hashlib
 
 try:
-    from sentence_transformers import SentenceTransformer
-    EMBEDDINGS_AVAILABLE = True
+    # from sentence_transformers import SentenceTransformer
+    # EMBEDDINGS_AVAILABLE = True
+    EMBEDDINGS_AVAILABLE = False
 except ImportError:
     EMBEDDINGS_AVAILABLE = False
     print("⚠️  Install sentence-transformers for semantic search: pip install sentence-transformers")
@@ -84,6 +85,7 @@ class HybridLibrarian:
     def _init_embeddings_db(self):
         """Create database for storing embeddings"""
         with sqlite3.connect(self.embeddings_db_path) as conn:
+            # File-level embeddings (legacy/summary)
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS file_embeddings (
                     file_path TEXT PRIMARY KEY,
@@ -97,6 +99,20 @@ class HybridLibrarian:
                 )
             """)
             
+            # Chunk-level embeddings (new)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS file_chunks (
+                    chunk_id TEXT PRIMARY KEY,
+                    file_path TEXT,
+                    chunk_index INTEGER,
+                    chunk_type TEXT,
+                    content TEXT,
+                    embedding BLOB,
+                    metadata TEXT,
+                    FOREIGN KEY(file_path) REFERENCES file_embeddings(file_path)
+                )
+            """)
+            
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS query_cache (
                     query_hash TEXT PRIMARY KEY,
@@ -106,7 +122,7 @@ class HybridLibrarian:
                     timestamp TIMESTAMP
                 )
             """)
-    
+
     def _load_query_patterns(self):
         """Load patterns for intelligent query routing"""
         # Define what types of queries work best with each approach
@@ -209,67 +225,7 @@ class HybridLibrarian:
             enhanced_results.append(enhanced)
         
         return enhanced_results
-    
-    def _semantic_search(self, query: str, limit: int) -> List[EnhancedQueryResult]:
-        """Semantic search using embeddings"""
-        if not self.model:
-            print("⚠️  Semantic search not available, falling back to fast search")
-            return self._fast_search(query, limit)
-        
-        # Generate query embedding
-        query_embedding = self.model.encode(query)
-        
-        # Search embeddings database
-        results = []
-        with sqlite3.connect(self.embeddings_db_path) as conn:
-            cursor = conn.execute("""
-                SELECT file_path, embedding, content_summary, key_concepts, last_modified, file_size
-                FROM file_embeddings
-                WHERE embedding IS NOT NULL
-            """)
-            
-            for row in cursor.fetchall():
-                file_path, embedding_blob, summary, concepts, modified, size = row
-                
-                # Convert blob back to numpy array
-                if embedding_blob:
-                    file_embedding = np.frombuffer(embedding_blob, dtype=np.float32)
-                    
-                    # Calculate semantic similarity
-                    similarity = np.dot(query_embedding, file_embedding) / (
-                        np.linalg.norm(query_embedding) * np.linalg.norm(file_embedding)
-                    )
-                    
-                    if similarity > 0.3:  # Threshold for relevance
-                        # Get file classification for tags
-                        try:
-                            classification = self.classifier.classify_file(Path(file_path))
-                            tags = classification.tags if hasattr(classification, 'tags') else []
-                            category = classification.category if hasattr(classification, 'category') else 'unknown'
-                        except:
-                            tags = []
-                            category = 'unknown'
-                        
-                        result = EnhancedQueryResult(
-                            file_path=file_path,
-                            filename=Path(file_path).name,
-                            relevance_score=similarity * 100,
-                            semantic_score=similarity,
-                            matching_content=summary[:200] if summary else "",
-                            file_category=category,
-                            tags=tags,
-                            last_modified=datetime.fromisoformat(modified) if modified else datetime.now(),
-                            file_size=size or 0,
-                            reasoning=[f"Semantic similarity: {similarity:.1%}"],
-                            content_summary=summary or "",
-                            key_concepts=json.loads(concepts) if concepts else []
-                        )
-                        results.append(result)
-        
-        # Sort by semantic similarity
-        results.sort(key=lambda x: x.semantic_score, reverse=True)
-        return results[:limit]
-    
+
     def _hybrid_search(self, query: str, limit: int) -> List[EnhancedQueryResult]:
         """Combine fast search + semantic search for best results"""
         # Get fast results (your existing system)
@@ -306,9 +262,9 @@ class HybridLibrarian:
         final_results.sort(key=lambda x: x.relevance_score, reverse=True)
         
         return final_results[:limit]
-    
+            
     def index_file_for_semantic_search(self, file_path: Path) -> bool:
-        """Index a file for semantic search"""
+        """Index a file for semantic search using Smart Chunking"""
         if not self.model:
             return False
         
@@ -322,17 +278,16 @@ class HybridLibrarian:
             if len(content.strip()) < 50:  # Skip very short content
                 return False
             
-            # Generate embedding
-            embedding = self.model.encode(content)
-            
+            # 1. File-Level Indexing (Summary)
             # Generate summary and key concepts
             summary = self._generate_content_summary(content)
             key_concepts = self._extract_key_concepts(content)
-            
-            # Calculate content hash for change detection
             content_hash = hashlib.md5(content.encode()).hexdigest()
             
-            # Store in database
+            # Generate file-level embedding (from summary + concepts)
+            file_context = f"{summary}\nKey Concepts: {', '.join(key_concepts)}"
+            file_embedding = self.model.encode(file_context)
+            
             with sqlite3.connect(self.embeddings_db_path) as conn:
                 conn.execute("""
                     INSERT OR REPLACE INTO file_embeddings 
@@ -342,19 +297,126 @@ class HybridLibrarian:
                 """, (
                     str(file_path),
                     content_hash,
-                    embedding.tobytes(),
+                    file_embedding.tobytes(),
                     summary,
                     json.dumps(key_concepts),
                     datetime.now().isoformat(),
                     file_path.stat().st_size,
                     datetime.fromtimestamp(file_path.stat().st_mtime).isoformat()
                 ))
+                
+                # 2. Chunk-Level Indexing
+                # Clear existing chunks for this file
+                conn.execute("DELETE FROM file_chunks WHERE file_path = ?", (str(file_path),))
+                
+                # Use SmartChunker
+                from chunking_utils import SmartChunker
+                chunker = SmartChunker()
+                chunks = chunker.chunk_document(content, str(file_path))
+                
+                for chunk in chunks:
+                    chunk_embedding = self.model.encode(chunk.content)
+                    
+                    conn.execute("""
+                        INSERT INTO file_chunks 
+                        (chunk_id, file_path, chunk_index, chunk_type, content, embedding, metadata)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """, (
+                        chunk.chunk_id,
+                        str(file_path),
+                        chunk.chunk_index,
+                        chunk.chunk_type,
+                        chunk.content,
+                        chunk_embedding.tobytes(),
+                        json.dumps(chunk.metadata)
+                    ))
             
             return True
             
         except Exception as e:
             print(f"Failed to index {file_path}: {e}")
             return False
+
+    def _semantic_search(self, query: str, limit: int) -> List[EnhancedQueryResult]:
+        """Semantic search using embeddings (Chunks + File Level)"""
+        if not self.model:
+            print("⚠️  Semantic search not available, falling back to fast search")
+            return self._fast_search(query, limit)
+        
+        # Generate query embedding
+        query_embedding = self.model.encode(query)
+        
+        results = []
+        seen_files = set()
+        
+        with sqlite3.connect(self.embeddings_db_path) as conn:
+            # Search Chunks First (More precise)
+            cursor = conn.execute("""
+                SELECT c.file_path, c.content, c.embedding, c.chunk_type, f.content_summary, f.key_concepts, f.last_modified, f.file_size
+                FROM file_chunks c
+                JOIN file_embeddings f ON c.file_path = f.file_path
+                WHERE c.embedding IS NOT NULL
+            """)
+            
+            chunk_matches = []
+            for row in cursor.fetchall():
+                file_path, content, embedding_blob, chunk_type, summary, concepts, modified, size = row
+                
+                if embedding_blob:
+                    chunk_embedding = np.frombuffer(embedding_blob, dtype=np.float32)
+                    similarity = np.dot(query_embedding, chunk_embedding) / (
+                        np.linalg.norm(query_embedding) * np.linalg.norm(chunk_embedding)
+                    )
+                    
+                    if similarity > 0.3:
+                        chunk_matches.append({
+                            'file_path': file_path,
+                            'similarity': similarity,
+                            'content': content,
+                            'chunk_type': chunk_type,
+                            'summary': summary,
+                            'concepts': concepts,
+                            'modified': modified,
+                            'size': size
+                        })
+            
+            # Sort matches
+            chunk_matches.sort(key=lambda x: x['similarity'], reverse=True)
+            
+            for match in chunk_matches:
+                if match['file_path'] in seen_files:
+                    continue
+                    
+                # Get file classification for tags
+                try:
+                    classification = self.classifier.classify_file(Path(match['file_path']))
+                    tags = classification.tags if hasattr(classification, 'tags') else []
+                    category = classification.category if hasattr(classification, 'category') else 'unknown'
+                except:
+                    tags = []
+                    category = 'unknown'
+                
+                result = EnhancedQueryResult(
+                    file_path=match['file_path'],
+                    filename=Path(match['file_path']).name,
+                    relevance_score=match['similarity'] * 100,
+                    semantic_score=match['similarity'],
+                    matching_content=match['content'][:200] + "..." if len(match['content']) > 200 else match['content'],
+                    file_category=category,
+                    tags=tags,
+                    last_modified=datetime.fromisoformat(match['modified']) if match['modified'] else datetime.now(),
+                    file_size=match['size'] or 0,
+                    reasoning=[f"Semantic similarity: {match['similarity']:.1%}", f"Matched chunk: {match['chunk_type']}"],
+                    content_summary=match['summary'] or "",
+                    key_concepts=json.loads(match['concepts']) if match['concepts'] else []
+                )
+                results.append(result)
+                seen_files.add(match['file_path'])
+                
+                if len(results) >= limit:
+                    break
+        
+        return results
     
     def _generate_content_summary(self, content: str) -> str:
         """Generate a summary of file content"""
@@ -430,6 +492,7 @@ class HybridLibrarian:
         stats = {
             'semantic_search_available': self.model is not None,
             'files_indexed_semantically': 0,
+            'total_chunks': 0,
             'embedding_model': 'all-MiniLM-L6-v2' if self.model else None
         }
         
@@ -437,6 +500,13 @@ class HybridLibrarian:
             with sqlite3.connect(self.embeddings_db_path) as conn:
                 cursor = conn.execute("SELECT COUNT(*) FROM file_embeddings")
                 stats['files_indexed_semantically'] = cursor.fetchone()[0]
+                
+                # Check for chunks table
+                try:
+                    cursor = conn.execute("SELECT COUNT(*) FROM file_chunks")
+                    stats['total_chunks'] = cursor.fetchone()[0]
+                except:
+                    pass
         
         return stats
 

@@ -75,6 +75,28 @@ export default function MediaPreview({ filePath, fileType }: MediaPreviewProps) 
         }
     }
 
+    if (fileType === 'audio') {
+        return (
+            <div className="w-full bg-black/20 rounded-xl p-4 border border-white/10">
+                <div className="flex items-center gap-4">
+                    <div className="p-3 bg-white/10 rounded-full">
+                        <Play size={24} className="text-white" />
+                    </div>
+                    <div className="flex-1">
+                        <div className="text-xs text-white/50 mb-1">Audio Preview</div>
+                        <audio
+                            controls
+                            className="w-full h-8"
+                            src={`/api/files/content?path=${encodeURIComponent(filePath)}`}
+                        >
+                            Your browser does not support the audio element.
+                        </audio>
+                    </div>
+                </div>
+            </div>
+        )
+    }
+
     if (error) {
         return (
             <div className="w-full h-48 bg-black/20 rounded-lg flex items-center justify-center text-white/50 text-sm">
@@ -121,12 +143,6 @@ export default function MediaPreview({ filePath, fileType }: MediaPreviewProps) 
                 >
                     {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
                 </button>
-
-                {fileType === 'audio' && (
-                    <span className="text-xs text-white/50 font-mono">
-                        Preview (15s)
-                    </span>
-                )}
             </div>
         </div>
     )

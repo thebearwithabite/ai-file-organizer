@@ -8,6 +8,15 @@ An ADHD-friendly AI file organizer that helps manage complex document workflows 
 
 ---
 
+## Frontends
+
+- **Control Center (v2)** — Served on Port 8000 (`http://localhost:8000`)
+  - **System State strip is the canonical status view.**
+  - Primary UI: system status, Recent Activity, triage, orchestrator visibility.
+
+- **Legacy (v1)** — Served on Port 5173 (`http://localhost:5173`)
+  - Kept for historical search/triage flows. Will be folded into v2 over time.
+
 ## 🚀 **Quick Start**
 
 ### 1. Install & Start
@@ -23,8 +32,7 @@ source venv/bin/activate  # On macOS/Linux
 # OR: venv\Scripts\activate  # On Windows
 
 # Install dependencies
-pip install -r requirements_v3.txt
-pip install -r requirements_cloud.txt  # Google Drive integration
+pip install -r requirements.txt
 
 # Start the system
 python main.py
@@ -34,8 +42,7 @@ python main.py
 ```bash
 git clone https://github.com/thebearwithabite/ai-file-organizer
 cd ai-file-organizer
-pip install -r requirements_v3.txt
-pip install -r requirements_cloud.txt  # Google Drive integration
+pip install -r requirements.txt
 python main.py
 ```
 
@@ -70,8 +77,7 @@ source venv/bin/activate  # macOS/Linux
 
 2. **Install Python dependencies:**
 ```bash
-pip install -r requirements_v3.txt
-pip install -r requirements_cloud.txt  # For Google Drive integration
+pip install -r requirements.txt
 pip install pytest pytest-asyncio httpx  # For testing
 pip install detect-secrets  # For PII/secrets scanning
 ```

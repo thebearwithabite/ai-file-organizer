@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Set
 import time
 import json
+from gdrive_integration import get_metadata_root
 
 class BulletproofDeduplicator:
     """
@@ -26,7 +27,13 @@ class BulletproofDeduplicator:
     
     def __init__(self, base_dir: str = None):
         self.base_dir = Path(base_dir) if base_dir else Path.cwd()
-        self.db_path = self.base_dir / "deduplication.db"
+        
+        # PRIME DIRECTIVE: Metadata MUST be local-only
+        # We ignore base_dir for the DB path and force it to the system metadata root
+        metadata_root = get_metadata_root()
+        metadata_root.mkdir(parents=True, exist_ok=True)
+        self.db_path = metadata_root / "deduplication.db"
+        
         self.init_database()
         
         # Bulletproof duplicate patterns
@@ -132,12 +139,61 @@ class BulletproofDeduplicator:
                 # Read file in chunks for memory efficiency
                 for chunk in iter(lambda: f.read(4096), b""):
                     sha256_hash.update(chunk)
-            return sha256_hash.hexdigest()
+            
+            secure_hash = sha256_hash.hexdigest()
+            
+            # Persist to database
+            try:
+                with sqlite3.connect(self.db_path) as conn:
+                    conn.execute("""
+                        INSERT OR REPLACE INTO file_hashes 
+                        (file_path, secure_hash, file_size, last_modified)
+                        VALUES (?, ?, ?, ?)
+                    """, (
+                        str(file_path), secure_hash, 
+                        file_path.stat().st_size, file_path.stat().st_mtime
+                    ))
+            except Exception as db_err:
+                # Don't fail if DB write fails, just log it
+                print(f"⚠️ Failed to persist hash for {file_path.name}: {db_err}")
+                
+            return secure_hash
         except (PermissionError, OSError) as e:
             # Skip files we can't read (locked, network, etc.)
             return None
         except Exception as e:
             print(f"⚠️ Secure hash error for {file_path.name}: {e}")
+            return None
+
+    def check_if_hash_exists_in_gdrive(self, secure_hash: str) -> Optional[str]:
+        """
+        Check if a file hash already exists in Google Drive
+        
+        Args:
+            secure_hash: SHA-256 hash to check
+            
+        Returns:
+            Path to existing file if found, None otherwise
+        """
+        if not secure_hash:
+            return None
+            
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                # Look for this hash where the path contains 'GoogleDrive'
+                cursor.execute("""
+                    SELECT file_path FROM file_hashes 
+                    WHERE secure_hash = ? AND file_path LIKE '%GoogleDrive%'
+                    LIMIT 1
+                """, (secure_hash,))
+                
+                result = cursor.fetchone()
+                if result:
+                    return result[0]
+                return None
+        except Exception as e:
+            print(f"⚠️ Error checking hash existence: {e}")
             return None
 
     def is_database_or_learned_data(self, file_path: Path) -> bool:
@@ -198,8 +254,9 @@ class BulletproofDeduplicator:
         path_str = str(file_path).lower()
         if any(safe in path_str for safe in ['/downloads', '/temp', '/tmp']):
             score += 0.3
-        elif any(protected in path_str for protected in ['/documents', '/desktop']):
-            score -= 0.2
+        # AGGRESSIVE MODE: Penalty disabled by user request
+        # elif any(protected in path_str for protected in ['/documents', '/desktop']):
+        #     score -= 0.2
         
         # Pattern recognition (obvious duplicates safer)
         filename = file_path.name
@@ -215,8 +272,13 @@ class BulletproofDeduplicator:
             score += 0.1
         
         # Protected path check
-        if any(protected in str(file_path) for protected in self.protected_paths):
-            score = 0.0  # Never delete from protected paths
+        for protected in self.protected_paths:
+            if protected in str(file_path):
+                # Exception: Allow iCloud Drive (Mobile Documents) and CloudStorage
+                if protected == "/Library" and ("Mobile Documents" in str(file_path) or "CloudStorage" in str(file_path)):
+                    continue
+                score = 0.0  # Never delete from protected paths
+                break
         
         return min(1.0, max(0.0, score))
     
@@ -247,11 +309,30 @@ class BulletproofDeduplicator:
             "errors": []
         }
         
-        # Find all files
+        # Find all files with safe walker
         all_files = []
-        for file_path in directory.rglob('*'):
-            if file_path.is_file():
-                all_files.append(file_path)
+        print("   Scanning files (skipping .imovielibrary and other bundles)...")
+        
+        try:
+            for root, dirs, files in os.walk(directory):
+                # Skip problematic bundles and hidden directories
+                dirs[:] = [d for d in dirs if not d.endswith('.imovielibrary') 
+                          and not d.endswith('.photoslibrary')
+                          and not d.startswith('.')]
+                
+                for file in files:
+                    if file.startswith('.'):
+                        continue
+                        
+                    try:
+                        file_path = Path(root) / file
+                        all_files.append(file_path)
+                    except Exception as e:
+                        print(f"   ⚠️ Error accessing {file}: {e}")
+                        
+        except Exception as e:
+            print(f"   ❌ Critical error during scan: {e}")
+            return {"error": str(e)}
         
         print(f"📁 Found {len(all_files)} files to analyze")
 

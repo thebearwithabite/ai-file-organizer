@@ -50,3 +50,9 @@ test_veo_output/
 # Legacy audio organizer source
 audio_organizer_source/
 .ai_organizer_config/google_drive_token.json
+
+# Virtual Environments
+.venv/
+
+# Nested git repos
+Open-AI-Moving-Checklist/

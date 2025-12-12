@@ -17,7 +17,7 @@ export default function MonitorStatusWidget() {
       console.error('Error fetching monitor status:', error)
       // Don't show error toast on auto-refresh
       if (isLoading) {
-        toast.error('Failed to load monitor status')
+        toast.error('Failed to load monitor status. Check backend connection.')
       }
     } finally {
       setIsLoading(false)
@@ -101,7 +101,7 @@ export default function MonitorStatusWidget() {
                 {isActive ? 'Active' : 'Paused'}
               </div>
               <div className="text-xs text-white/60">
-                {isActive ? 'Monitoring file system' : 'Not currently monitoring'}
+                {isActive ? `Watching ${status.paths.length} folders · ${status.rules_count} rules` : 'Not currently monitoring'}
               </div>
             </div>
           </div>

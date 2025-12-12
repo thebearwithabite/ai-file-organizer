@@ -115,15 +115,21 @@ class ContentExtractor:
             with open(file_path, 'rb') as file:
                 reader = PyPDF2.PdfReader(file)
                 
-                # Extract metadata
-                if reader.metadata:
-                    metadata = {
-                        'title': reader.metadata.get('/Title', ''),
-                        'author': reader.metadata.get('/Author', ''),
-                        'subject': reader.metadata.get('/Subject', ''),
-                        'creator': reader.metadata.get('/Creator', ''),
-                        'pages': len(reader.pages)
-                    }
+                # Extract metadata safely
+                try:
+                    if reader.metadata:
+                        # Force string conversion for all values to avoid IndirectObject serialization errors
+                        metadata = {
+                            'title': str(reader.metadata.get('/Title', '')) if reader.metadata.get('/Title') else '',
+                            'author': str(reader.metadata.get('/Author', '')) if reader.metadata.get('/Author') else '',
+                            'subject': str(reader.metadata.get('/Subject', '')) if reader.metadata.get('/Subject') else '',
+                            'creator': str(reader.metadata.get('/Creator', '')) if reader.metadata.get('/Creator') else '',
+                            'pages': len(reader.pages)
+                        }
+                except Exception as e:
+                    # If metadata extraction fails, log it but continue with text extraction
+                    print(f"Warning: Failed to extract metadata from {file_path.name}: {e}")
+                    metadata = {'error': 'metadata_extraction_failed'}
                 
                 # Extract text from all pages
                 for page in reader.pages:

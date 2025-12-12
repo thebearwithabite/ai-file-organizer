@@ -1,29 +1,11 @@
 import { useState, useEffect } from 'react'
 import { Plus, FolderOpen, Trash2, Edit2, Save, X, Brain, Target, TrendingUp, Image, Video, Music, FileText, Award, Database, HardDrive, Activity } from 'lucide-react'
 import { toast } from 'sonner'
+import { api } from '../services/api'
 import ConfidenceModeSwitcher from '../components/settings/ConfidenceModeSwitcher'
 import RollbackPanel from '../components/settings/RollbackPanel'
 
-interface Category {
-  id: string
-  name: string
-  path: string
-  color: string
-  description: string
-}
-
-interface LearningStats {
-  total_learning_events: number
-  image_events: number
-  video_events: number
-  audio_events: number
-  document_events: number
-  unique_categories_learned: number
-  most_common_category: string | null
-  top_confidence_average: number
-  media_type_breakdown: Record<string, number>
-  category_distribution: Record<string, number>
-}
+import type { LearningStats, Category } from '../types/api'
 
 interface DatabaseStats {
   total_operations: number
@@ -75,11 +57,7 @@ export default function Settings() {
     const fetchLearningStats = async () => {
       try {
         setIsLoadingStats(true)
-        const response = await fetch('http://localhost:8000/api/settings/learning-stats')
-        if (!response.ok) {
-          throw new Error('Failed to fetch learning statistics')
-        }
-        const data = await response.json()
+        const data = await api.getLearningStats()
         setLearningStats(data)
       } catch (error) {
         console.error('Error fetching learning stats:', error)
@@ -97,11 +75,7 @@ export default function Settings() {
     const fetchDatabaseStats = async () => {
       try {
         setIsLoadingDbStats(true)
-        const response = await fetch('http://localhost:8000/api/settings/database-stats')
-        if (!response.ok) {
-          throw new Error('Failed to fetch database statistics')
-        }
-        const data = await response.json()
+        const data = await api.getDatabaseStats()
         setDatabaseStats(data)
       } catch (error) {
         console.error('Error fetching database stats:', error)
@@ -173,7 +147,7 @@ export default function Settings() {
           <div className="flex items-center justify-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
           </div>
-        ) : learningStats && learningStats.total_learning_events > 0 ? (
+        ) : learningStats && (learningStats.total_learning_events || 0) > 0 ? (
           <>
             {/* Main Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -182,7 +156,7 @@ export default function Settings() {
                   <Target size={16} className="text-success" />
                   <div className="text-sm text-white/60">Total Learning Events</div>
                 </div>
-                <div className="text-3xl font-bold text-white">{formatNumber(learningStats.total_learning_events)}</div>
+                <div className="text-3xl font-bold text-white">{formatNumber(learningStats.total_learning_events || 0)}</div>
                 <div className="text-xs text-white/40 mt-1">AI classifications tracked</div>
               </div>
 
@@ -191,7 +165,7 @@ export default function Settings() {
                   <TrendingUp size={16} className="text-primary" />
                   <div className="text-sm text-white/60">Unique Categories</div>
                 </div>
-                <div className="text-3xl font-bold text-white">{formatNumber(learningStats.unique_categories_learned)}</div>
+                <div className="text-3xl font-bold text-white">{formatNumber(learningStats.unique_categories_learned || 0)}</div>
                 <div className="text-xs text-white/40 mt-1">Patterns discovered</div>
               </div>
 
@@ -200,13 +174,13 @@ export default function Settings() {
                   <Award size={16} className="text-warning" />
                   <div className="text-sm text-white/60">Top Confidence</div>
                 </div>
-                <div className="text-3xl font-bold text-white">{(learningStats.top_confidence_average * 100).toFixed(0)}%</div>
+                <div className="text-3xl font-bold text-white">{((learningStats.top_confidence_average || 0) * 100).toFixed(0)}%</div>
                 <div className="text-xs text-white/40 mt-1">Average of top 10 events</div>
                 {/* Progress bar */}
                 <div className="mt-2 h-1.5 bg-white/10 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-gradient-to-r from-warning to-success transition-all duration-1000 ease-out"
-                    style={{ width: `${learningStats.top_confidence_average * 100}%` }}
+                    style={{ width: `${(learningStats.top_confidence_average || 0) * 100}%` }}
                   />
                 </div>
               </div>
@@ -222,7 +196,7 @@ export default function Settings() {
                   </div>
                   <div>
                     <div className="text-xs text-white/60">Images</div>
-                    <div className="text-lg font-bold text-white">{formatNumber(learningStats.image_events)}</div>
+                    <div className="text-lg font-bold text-white">{formatNumber(learningStats.image_events || 0)}</div>
                   </div>
                 </div>
 
@@ -232,7 +206,7 @@ export default function Settings() {
                   </div>
                   <div>
                     <div className="text-xs text-white/60">Videos</div>
-                    <div className="text-lg font-bold text-white">{formatNumber(learningStats.video_events)}</div>
+                    <div className="text-lg font-bold text-white">{formatNumber(learningStats.video_events || 0)}</div>
                   </div>
                 </div>
 
@@ -242,7 +216,7 @@ export default function Settings() {
                   </div>
                   <div>
                     <div className="text-xs text-white/60">Audio</div>
-                    <div className="text-lg font-bold text-white">{formatNumber(learningStats.audio_events)}</div>
+                    <div className="text-lg font-bold text-white">{formatNumber(learningStats.audio_events || 0)}</div>
                   </div>
                 </div>
 
@@ -252,7 +226,7 @@ export default function Settings() {
                   </div>
                   <div>
                     <div className="text-xs text-white/60">Documents</div>
-                    <div className="text-lg font-bold text-white">{formatNumber(learningStats.document_events)}</div>
+                    <div className="text-lg font-bold text-white">{formatNumber(learningStats.document_events || 0)}</div>
                   </div>
                 </div>
               </div>
@@ -263,8 +237,8 @@ export default function Settings() {
               <div className="mt-4 p-3 bg-primary/10 border border-primary/20 rounded-lg">
                 <div className="text-sm text-primary">
                   <strong>Most Common Category:</strong> {learningStats.most_common_category}
-                  {learningStats.category_distribution[learningStats.most_common_category] &&
-                    ` (${formatNumber(learningStats.category_distribution[learningStats.most_common_category])} files)`
+                  {learningStats.most_common_category && learningStats.category_distribution && learningStats.category_distribution[learningStats.most_common_category] &&
+                    ` (${formatNumber(learningStats.category_distribution[learningStats.most_common_category] || 0)} files)`
                   }
                 </div>
               </div>
@@ -437,7 +411,7 @@ export default function Settings() {
                 onChange={(e) => setNewCategory({ ...newCategory, description: e.target.value })}
                 className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-primary/50"
               />
-              
+
               <div>
                 <div className="text-xs text-white/60 mb-2">Color</div>
                 <div className="flex flex-wrap gap-2">
@@ -478,7 +452,7 @@ export default function Settings() {
           {categories.map(category => (
             <div key={category.id} className="flex items-center gap-4 p-4 bg-white/5 rounded-lg hover:bg-white/[0.07] transition-colors">
               <div className={`w-3 h-3 rounded-full ${category.color}`} />
-              
+
               {editingId === category.id ? (
                 <div className="flex-1 space-y-2">
                   <input
@@ -533,7 +507,7 @@ export default function Settings() {
 
         <div className="mt-4 p-3 bg-white/5 rounded-lg">
           <div className="text-xs text-white/60">
-            <strong>How it works:</strong> When you add a new category, the AI will start recognizing similar files. 
+            <strong>How it works:</strong> When you add a new category, the AI will start recognizing similar files.
             The more you use it, the better it gets at auto-classifying to your custom categories.
           </div>
         </div>

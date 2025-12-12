@@ -18,7 +18,7 @@ export default function DiskSpaceWidget() {
       console.error('Error fetching space protection status:', error)
       // Don't show error toast on auto-refresh
       if (isLoading) {
-        toast.error('Failed to load disk space status')
+        toast.error('Failed to load disk space status. Check backend connection.')
       }
     } finally {
       setIsLoading(false)
@@ -116,15 +116,12 @@ export default function DiskSpaceWidget() {
         <div className="flex items-baseline justify-between">
           <div>
             <div className="text-3xl font-bold text-white">{usedPercent.toFixed(1)}%</div>
-            <div className="text-xs text-white/60">Disk usage</div>
+            <div className="text-xs text-white/60">Local Disk Usage</div>
           </div>
-          <div className={`px-3 py-1 rounded-lg text-xs font-semibold ${
-            getStatusBgColor(statusType)
-          } ${
-            getStatusColor(statusType)
-          } border ${
-            getStatusBorderColor(statusType)
-          }`}>
+          <div className={`px-3 py-1 rounded-lg text-xs font-semibold ${getStatusBgColor(statusType)
+            } ${getStatusColor(statusType)
+            } border ${getStatusBorderColor(statusType)
+            }`}>
             {statusType.toUpperCase()}
           </div>
         </div>
@@ -133,9 +130,8 @@ export default function DiskSpaceWidget() {
         <div className="space-y-2">
           <div className="w-full h-3 bg-white/10 rounded-full overflow-hidden relative">
             <div
-              className={`h-full rounded-full transition-all duration-1000 ease-out ${
-                getGaugeColor(usedPercent)
-              }`}
+              className={`h-full rounded-full transition-all duration-1000 ease-out ${getGaugeColor(usedPercent)
+                }`}
               style={{ width: `${usedPercent}%` }}
             />
 
@@ -157,16 +153,14 @@ export default function DiskSpaceWidget() {
 
         {/* Warning Indicators */}
         {(status?.threshold_85 || status?.threshold_95) && (
-          <div className={`p-3 rounded-lg border flex items-start gap-3 ${
-            status?.threshold_95
-              ? 'bg-destructive/20 border-destructive/30'
-              : 'bg-warning/20 border-warning/30'
-          }`}>
+          <div className={`p-3 rounded-lg border flex items-start gap-3 ${status?.threshold_95
+            ? 'bg-destructive/20 border-destructive/30'
+            : 'bg-warning/20 border-warning/30'
+            }`}>
             <AlertTriangle size={16} className={status?.threshold_95 ? 'text-destructive' : 'text-warning'} />
             <div className="flex-1">
-              <div className={`text-sm font-semibold mb-1 ${
-                status?.threshold_95 ? 'text-destructive' : 'text-warning'
-              }`}>
+              <div className={`text-sm font-semibold mb-1 ${status?.threshold_95 ? 'text-destructive' : 'text-warning'
+                }`}>
                 {status?.threshold_95 ? 'Critical: Low Disk Space!' : 'Warning: Disk Space Running Low'}
               </div>
               <div className="text-xs text-white/70">
@@ -183,11 +177,10 @@ export default function DiskSpaceWidget() {
           <button
             onClick={handleFreeUpSpace}
             disabled={isCleaning}
-            className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-all duration-200 ${
-              status?.threshold_95
-                ? 'bg-destructive hover:bg-destructive/80 text-white shadow-lg'
-                : 'bg-warning hover:bg-warning/80 text-black shadow-lg'
-            } disabled:opacity-50 disabled:cursor-not-allowed`}
+            className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-all duration-200 ${status?.threshold_95
+              ? 'bg-destructive hover:bg-destructive/80 text-white shadow-lg'
+              : 'bg-warning hover:bg-warning/80 text-black shadow-lg'
+              } disabled:opacity-50 disabled:cursor-not-allowed`}
           >
             <Trash2 size={16} />
             {isCleaning ? 'Freeing Space...' : 'Free Up Space Now'}

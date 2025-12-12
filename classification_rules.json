@@ -37,10 +37,12 @@
         "contract",
         "agreement",
         "deal memo",
-        "nda"
+        "nda",
+        "terms",
+        "conditions"
       ],
       "confidence_boost": 0.3,
-      "target_folder": "entertainment"
+      "target_folder": "business/contracts"
     },
     "financial": {
       "keywords": [
@@ -48,10 +50,40 @@
         "report",
         "residual",
         "tax",
-        "invoice"
+        "invoice",
+        "bill",
+        "receipt"
       ],
       "confidence_boost": 0.3,
-      "target_folder": "financial"
+      "target_folder": "business/financial"
+    },
+    "creative_portfolio": {
+      "keywords": [
+        "demo reel",
+        "showreel",
+        "portfolio",
+        "demo"
+      ],
+      "confidence_boost": 0.4,
+      "target_folder": "creative/portfolio"
+    },
+    "podcast": {
+      "keywords": [
+        "podcast",
+        "episode",
+        "interview"
+      ],
+      "confidence_boost": 0.4,
+      "target_folder": "creative/podcast"
+    },
+    "visual_assets": {
+      "keywords": [
+        "screenshot",
+        "screen shot",
+        "capture"
+      ],
+      "confidence_boost": 0.5,
+      "target_folder": "media/visual"
     },
     "audio_files": {
       "extensions": [
@@ -62,7 +94,7 @@
         ".flac"
       ],
       "confidence_boost": 0.4,
-      "target_folder": "audio"
+      "target_folder": "media/audio"
     }
   },
   "confidence_thresholds": {

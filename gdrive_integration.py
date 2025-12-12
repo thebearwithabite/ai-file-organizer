@@ -59,11 +59,16 @@ class GoogleDriveIntegration:
     """
     
     def __init__(self):
-        # DEPRECATED: Google Drive integration disabled
-        # System now uses local metadata only at /Users/ryanthomson/Documents/AI_METADATA_SYSTEM
-        self.drive_root = None
+        """Initialize Google Drive Integration"""
+        self.base_drive_paths = [
+            Path("/Users/ryanthomson/Library/CloudStorage/GoogleDrive-thebearwithabite@gmail.com/My Drive"),
+            Path("/Volumes/GoogleDrive/My Drive"),
+            Path.home() / "Google Drive" / "My Drive"
+        ]
+        
         self.fallback_path = Path("/Users/ryanthomson/Documents")
-        self.emergency_staging = None
+        self.drive_root = self._detect_google_drive()
+        self.emergency_staging = self._setup_emergency_staging()
         
     def _detect_google_drive(self) -> Optional[Path]:
         """
@@ -247,6 +252,11 @@ class GoogleDriveIntegration:
             try:
                 for file_path in source_dir.rglob("*"):
                     if file_path.is_file() and not file_path.name.startswith('.'):
+                        # SAFETY CHECK: Never move database files
+                        if file_path.suffix.lower() in ['.db', '.sqlite', '.sqlite3', '.db3', '.sdb']:
+                            print(f"   ⚠️  Skipping database file: {file_path.name}")
+                            continue
+                            
                         # Check file size (move files > 50MB)
                         try:
                             file_size = file_path.stat().st_size
@@ -329,15 +339,19 @@ def get_metadata_root() -> Path:
 
 def get_ai_organizer_root() -> Path:
     """
-    DEPRECATED: Use get_metadata_root() instead for metadata access.
-
-    This function maintained for backwards compatibility only.
-    The organizer no longer uses Google Drive - metadata is local.
+    Get the PRIMARY root directory for AI File Organizer.
+    
+    Prioritizes Google Drive if available, falls back to Documents.
 
     Returns:
-        Path: Parent directory of metadata system
+        Path: Google Drive root or fallback path
     """
-    # Return parent directory so existing code like base_dir / "04_METADATA_SYSTEM" still works
+    # Check for Google Drive path
+    drive_path = Path("/Users/ryanthomson/Library/CloudStorage/GoogleDrive-thebearwithabite@gmail.com/My Drive")
+    if drive_path.exists():
+        return drive_path
+        
+    # Fallback to Documents
     return Path("/Users/ryanthomson/Documents")
 
 def main():

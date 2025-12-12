@@ -71,6 +71,9 @@ class EmergencySpaceProtection:
     """
     
     def __init__(self, base_dir: str = None):
+        # Set up logging first
+        self.logger = logging.getLogger(__name__)
+        
         self.base_dir = Path(base_dir) if base_dir else get_ai_organizer_root()
         
         # Initialize components
@@ -104,6 +107,25 @@ class EmergencySpaceProtection:
             "large_files": "99_EMERGENCY_STAGING/Large_Files_Archive",
             "duplicates": "99_EMERGENCY_STAGING/Duplicate_Files_Archive"
         }
+
+        # Detect real Google Drive path for offloading
+        # We cannot use base_dir because it defaults to ~/Documents (local)
+        self.gdrive_root = None
+        possible_gdrive_paths = [
+            Path.home() / "Google Drive" / "My Drive",
+            Path.home() / "Google Drive",
+            Path("/Volumes/GoogleDrive/My Drive"),
+            Path("/Volumes/GoogleDrive")
+        ]
+        
+        for path in possible_gdrive_paths:
+            if path.exists() and path.is_dir():
+                self.gdrive_root = path
+                self.logger.info(f"Emergency offloading target found: {self.gdrive_root}")
+                break
+        
+        if not self.gdrive_root:
+            self.logger.warning("Google Drive not found! Emergency offloading will fail.")
         
         # Monitored locations with priorities
         self.monitored_locations = {
@@ -181,8 +203,6 @@ class EmergencySpaceProtection:
         # Initialize database
         self._init_protection_database()
         
-        # Set up logging
-        self.logger = logging.getLogger(__name__)
         self.logger.info("Emergency Space Protection initialized")
 
     def _init_protection_database(self):
@@ -594,6 +614,19 @@ class EmergencySpaceProtection:
             if not file_path.exists() or file_path.is_dir():
                 return None
             
+            # CRITICAL: EXCLUDE DATABASE FILES AND METADATA SYSTEM
+            # User requirement: DB files must NEVER go to Google Drive
+            if file_path.suffix.lower() in ['.db', '.sqlite', '.sqlite3', '.db3', '.sdb']:
+                return None
+                
+            # Exclude the entire metadata directory
+            if "AI_METADATA_SYSTEM" in str(file_path):
+                return None
+                
+            # Exclude hidden files
+            if file_path.name.startswith('.'):
+                return None
+            
             stat_info = file_path.stat()
             file_size_mb = stat_info.st_size / (1024 * 1024)
             
@@ -710,7 +743,12 @@ class EmergencySpaceProtection:
                     gdrive_path = self._get_gdrive_offload_path(file_path, candidate)
                     
                     # Create Google Drive directory structure
-                    gdrive_dir = self.base_dir / gdrive_path
+                    if self.gdrive_root:
+                        gdrive_dir = self.gdrive_root / gdrive_path
+                    else:
+                        # Fallback to base_dir (won't save space if on same disk, but preserves file)
+                        gdrive_dir = self.base_dir / gdrive_path
+                        
                     gdrive_dir.mkdir(parents=True, exist_ok=True)
                     
                     # Move file to Google Drive
