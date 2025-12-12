@@ -1,7 +1,7 @@
 site_name: AI File Organizer
 site_description: Intelligent file organization with computer vision, audio analysis, and adaptive learning
 site_author: AI File Organizer Team
-repo_url: https://github.com/thebearwithabite/ai-file-organizer
+repo_url: https://github.com/user/ai-file-organizer
 repo_name: GitHub
 
 theme:
@@ -70,6 +70,6 @@ plugins:
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/thebearwithabite/ai-file-organizer
+      link: https://github.com/user/ai-file-organizer
   version:
     provider: mike

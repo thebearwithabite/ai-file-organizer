@@ -228,8 +228,8 @@ def main():
     # Stray structures created by previous versions of this tool need to be checked against the hashes of the files in the Library annd either deleted or added to index and then the moved to their permanent location.
 
     # Identified local folders that need to be deduped, indexed and moved are:
-   # - /Users/ryanthomson/projects
-   # -'/Users/ryanthomson/Library/Mobile Documents/com~apple~CloudDocs'
+   # - /Users/user/projects
+   # -'/Users/user/Library/Mobile Documents/com~apple~CloudDocs'
 
    # The AL Librarian (classification system) is an  intelligent  procative always-watching learning  with vision and hearing capabilities allowing it  to take the the most logical and meaningful 
    # in the maintence and evolution of a knowledgebase that will explicitly separate my work and creative projects from personal filesAI training data and system metadata.

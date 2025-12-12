@@ -8,7 +8,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Add project root to path
-sys.path.append('/Users/ryanthomson/Github/ai-file-organizer')
+sys.path.append('/Users/user/Github/ai-file-organizer')
 
 try:
     from google_drive_auth import GoogleDriveAuth

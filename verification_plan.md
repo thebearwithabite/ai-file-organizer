@@ -3,7 +3,7 @@
 **Objective:** Verify the end-to-end functionality of the AI File Organizer, specifically focusing on the new Google Drive monitoring and the Frontend V2 integration.
 
 ## 1. Google Drive Monitoring Verification
-- [ ] **Action:** Create a test file (e.g., `test_gdrive_sync.txt`) in `~/Library/CloudStorage/GoogleDrive-thebearwithabite@gmail.com`.
+- [ ] **Action:** Create a test file (e.g., `test_gdrive_sync.txt`) in `~/Library/CloudStorage/user@example.com`.
 - [ ] **Observation:** Watch backend logs for "Processing: test_gdrive_sync.txt".
 - [ ] **Verification:** Check if the file appears in the Frontend V2 "Recent Activity" or "Indexed Files" count.
 

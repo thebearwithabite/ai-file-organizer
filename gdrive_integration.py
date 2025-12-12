@@ -61,12 +61,12 @@ class GoogleDriveIntegration:
     def __init__(self):
         """Initialize Google Drive Integration"""
         self.base_drive_paths = [
-            Path("/Users/ryanthomson/Library/CloudStorage/GoogleDrive-thebearwithabite@gmail.com/My Drive"),
+            Path("/Users/user/Library/CloudStorage/user@example.com/My Drive"),
             Path("/Volumes/GoogleDrive/My Drive"),
             Path.home() / "Google Drive" / "My Drive"
         ]
         
-        self.fallback_path = Path("/Users/ryanthomson/Documents")
+        self.fallback_path = Path("/Users/user/Documents")
         self.drive_root = self._detect_google_drive()
         self.emergency_staging = self._setup_emergency_staging()
         
@@ -335,7 +335,7 @@ def get_metadata_root() -> Path:
     Returns:
         Path: Local metadata system at ~/Documents/AI_METADATA_SYSTEM
     """
-    return Path("/Users/ryanthomson/Documents/AI_METADATA_SYSTEM")
+    return Path("/Users/user/Documents/AI_METADATA_SYSTEM")
 
 def get_ai_organizer_root() -> Path:
     """
@@ -347,12 +347,12 @@ def get_ai_organizer_root() -> Path:
         Path: Google Drive root or fallback path
     """
     # Check for Google Drive path
-    drive_path = Path("/Users/ryanthomson/Library/CloudStorage/GoogleDrive-thebearwithabite@gmail.com/My Drive")
+    drive_path = Path("/Users/user/Library/CloudStorage/user@example.com/My Drive")
     if drive_path.exists():
         return drive_path
         
     # Fallback to Documents
-    return Path("/Users/ryanthomson/Documents")
+    return Path("/Users/user/Documents")
 
 def main():
     """Test the Google Drive integration"""

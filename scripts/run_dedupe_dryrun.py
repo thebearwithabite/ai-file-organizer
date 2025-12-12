@@ -1,18 +1,18 @@
 
 import sys
 from pathlib import Path
-sys.path.append('/Users/ryanthomson/Github/ai-file-organizer')
+sys.path.append('/Users/user/Github/ai-file-organizer')
 from bulletproof_deduplication import BulletproofDeduplicator
 
 def run_dedupe():
     deduper = BulletproofDeduplicator()
     
     # Define paths
-    gdrive_path = Path('/Users/ryanthomson/Library/CloudStorage/GoogleDrive-thebearwithabite@gmail.com')
+    gdrive_path = Path('/Users/user/Library/CloudStorage/user@example.com')
     local_paths = [
-        Path('/Users/ryanthomson/Downloads'),
-        Path('/Users/ryanthomson/Desktop'),
-        Path('/Users/ryanthomson/Documents')
+        Path('/Users/user/Downloads'),
+        Path('/Users/user/Desktop'),
+        Path('/Users/user/Documents')
     ]
     
     # Run dry run

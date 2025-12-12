@@ -77,7 +77,7 @@ def update_file(file_path: Path):
         return False
 
 def main():
-    project_root = Path("/Users/ryanthomson/Github/ai-file-organizer")
+    project_root = Path("/Users/user/Github/ai-file-organizer")
 
     print("=" * 60)
     print("METADATA PATH REPLACEMENT SCRIPT")

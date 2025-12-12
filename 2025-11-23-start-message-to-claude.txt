@@ -22,7 +22,7 @@ cp -R ~/Github/ai-file-organizer/04_METADATA_SYSTEM/*
 ~/Documents/AI_METADATA_SYSTEM/
 
 STEP 4 — Update all code to use this exact hardcoded path:
-/Users/ryanthomson/Documents/AI_METADATA_SYSTEM
+/Users/user/Documents/AI_METADATA_SYSTEM
 
 
 Replace ANY of the following if they appear:
@@ -40,7 +40,7 @@ any environment variables pointing to a cloud path
 After updating the code, run a full search across the project to ensure ZERO
  references remain to:
 
-GoogleDrive-thebearwithabite@gmail.com
+user@example.com
 
 04_METADATA_SYSTEM inside CloudStorage
 
@@ -73,7 +73,7 @@ END MESSAGE TO CLAUDE
       ~/Github/ai-file-organizer/04_METADATA_SYSTEM/* ~/Documents/AI_METADAT…)
   ⎿  ✓ Canonical metadata system created                     
      total 200
-     drwxr-xr-x    8 ryanthomson  staff    256 Nov 23 03:29 .
+     drwxr-xr-x    8 user  staff    256 Nov 23 03:29 .
      … +10 lines (ctrl+o to expand)
 
 > /resume 
@@ -87,7 +87,7 @@ END MESSAGE TO CLAUDE
 ⏺ Search(pattern: "get_ai_organizer_root")
   ⎿  Found 32 files (ctrl+o to expand)
 
-⏺ Search(pattern: "GoogleDrive-thebearwithabite@gmail.com")
+⏺ Search(pattern: "user@example.com")
   ⎿  Found 1 file (ctrl+o to expand)
 
 ⏺ Search(pattern: "AI_ORGANIZER_GDRIVE")
@@ -107,9 +107,9 @@ END MESSAGE TO CLAUDE
 
 ⏺ Bash(find ~/Github/ai-file-organizer -name "path_config.py" -o -name
       "config.py" | grep -v Archive | head -5)
-  ⎿ /Users/ryanthomson/Github/ai-file-organizer/audio_organizer_source/conf
+  ⎿ /Users/user/Github/ai-file-organizer/audio_organizer_source/conf
     ig.py
-    /Users/ryanthomson/Github/ai-file-organizer/audio_organizer_source/.ven
+    /Users/user/Github/ai-file-organizer/audio_organizer_source/.ven
     … +7 lines (ctrl+o to expand)
 
 
@@ -162,7 +162,7 @@ END MESSAGE TO CLAUDE
        372 -      gdrive = GoogleDriveIntegration()
        373 -      return gdrive.get_ai_organizer_root()
        372 +      return 
-           + Path("/Users/ryanthomson/Documents/AI_METADATA_SYSTEM")
+           + Path("/Users/user/Documents/AI_METADATA_SYSTEM")
        373    
        374    def main():
        375        """Test the Google Drive integration"""
@@ -199,7 +199,7 @@ END MESSAGE TO CLAUDE
              ~/Documents/AI_METADATA_SYSTEM
        372        """
        373        return 
-             Path("/Users/ryanthomson/Documents/AI_METADATA_SYSTEM")
+             Path("/Users/user/Documents/AI_METADATA_SYSTEM")
        374    
        375 +  def get_ai_organizer_root() -> Path:
        376 +      """
@@ -216,7 +216,7 @@ END MESSAGE TO CLAUDE
        384 +      """
        385 +      # Return parent directory so existing code like 
            + base_dir / "04_METADATA_SYSTEM" still works
-       386 +      return Path("/Users/ryanthomson/Documents")
+       386 +      return Path("/Users/user/Documents")
        387 +  
        388    def main():
        389        """Test the Google Drive integration"""
@@ -284,10 +284,10 @@ END MESSAGE TO CLAUDE
 ⏺ Excellent! 15 files updated. Now let me complete the cleanup by searching
   for and removing remaining Google Drive references:
 
-⏺ Bash(cd ~/Github/ai-file-organizer && grep -r "GoogleDrive-thebearwithabite"
+⏺ Bash(cd ~/Github/ai-file-organizer && grep -r "GoogleDrive-user"
       --include="*.py" | grep -v Archive)
   ⎿ ./cleanup_gdrive_duplicates.py:        Path.home() / "Library/CloudStor
-    age/GoogleDrive-thebearwithabite@gmail.com/My Drive/99_STAGING_EMERGENC
+    age/user@example.com/My Drive/99_STAGING_EMERGENC
     Y",
     … +4 lines (ctrl+o to expand)
 
@@ -338,9 +338,9 @@ END MESSAGE TO CLAUDE
           - break things
        63 -          self.user_email = 
           - os.getenv("AI_ORGANIZER_GDRIVE_EMAIL", 
-          - "thebearwithabite@gmail.com")
+          - "user@example.com")
        64 -  
-       65 -          user = os.getenv("USER", "ryanthomson")
+       65 -          user = os.getenv("USER", "user")
        66 -  
        67 -          # Try multiple email format variations for macOS 
           - Google Drive File Stream
@@ -381,10 +381,10 @@ END MESSAGE TO CLAUDE
           - self._setup_emergency_staging()
        62 +          # DEPRECATED: Google Drive integration disabled
        63 +          # System now uses local metadata only at 
-          + /Users/ryanthomson/Documents/AI_METADATA_SYSTEM
+          + /Users/user/Documents/AI_METADATA_SYSTEM
        64 +          self.drive_root = None
        65 +          self.fallback_path = 
-          + Path("/Users/ryanthomson/Documents")
+          + Path("/Users/user/Documents")
        66 +          self.emergency_staging = None
        67            
        68        def _detect_google_drive(self) -> Optional[Path]:
@@ -442,7 +442,7 @@ END MESSAGE TO CLAUDE
        && file ~/Documents/AI_METADATA_SY…)
   ⎿  === Metadata System Location ===                        
      total 632
-     drwxr-xr-x   17 ryanthomson  staff   544B Nov 23 04:36 .
+     drwxr-xr-x   17 user  staff   544B Nov 23 04:36 .
      … +49 lines (ctrl+o to expand)
 
 ⏺ Excellent! The metadata system is active at the new location. I can see
@@ -460,8 +460,8 @@ END MESSAGE TO CLAUDE
 
 ⏺ Bash(ls -lah ~/Documents/AI_METADATA_SYSTEM/vector_db/)
   ⎿  total 78816                                             
-     drwxr-xr-x   4 ryanthomson  staff   128B Nov 23 04:36 .
-     drwxr-xr-x  17 ryanthomson  staff   544B Nov 23 04:36 ..
+     drwxr-xr-x   4 user  staff   128B Nov 23 04:36 .
+     drwxr-xr-x  17 user  staff   544B Nov 23 04:36 ..
      … +3 lines (ctrl+o to expand)
 
 ⏺ Bash(curl -s "http://localhost:8000/api/system/status" | python -m json.tool)
@@ -489,7 +489,7 @@ END MESSAGE TO CLAUDE
 
   For now, the core system is working:
   - ✅ Local metadata system at
-  /Users/ryanthomson/Documents/AI_METADATA_SYSTEM
+  /Users/user/Documents/AI_METADATA_SYSTEM
   - ✅ Background monitor indexing files to local vector DB
   - ✅ All databases being updated locally
   - ⚠️  API SearchService still configured for Google Drive (needs update in
@@ -512,7 +512,7 @@ END MESSAGE TO CLAUDE
 
   What's Active:
 
-  Local Metadata System: /Users/ryanthomson/Documents/AI_METADATA_SYSTEM
+  Local Metadata System: /Users/user/Documents/AI_METADATA_SYSTEM
   - All 15 core Python files updated to use get_metadata_root()
   - Background monitor actively indexing files (407+ chunks indexed)
   - Vector database operational (38MB ChromaDB)
@@ -547,7 +547,7 @@ END MESSAGE TO CLAUDE
 
   System Status:
 
-  ✅ Metadata: /Users/ryanthomson/Documents/AI_METADATA_SYSTEM
+  ✅ Metadata: /Users/user/Documents/AI_METADATA_SYSTEM
   ✅ Disk Space: 14GB free (warning level but stable)
   ✅ API Health: HEALTHY
   ✅ Indexing: ACTIVE (real-time)
@@ -555,51 +555,51 @@ END MESSAGE TO CLAUDE
 
   Full detailed summary saved to: /tmp/full_reset_summary.md
 
-> i noticed '/Users/ryanthomson/Library/CloudStorage/GoogleDrive-thebearwith
-abite@gmail.com/My Drive/04_METADATA_SYSTEM 2' was created at 3:17am today. 
+> i noticed '/Users/user/Library/CloudStorage/GoogleDrive-thebearwith
+user@example.com/My Drive/04_METADATA_SYSTEM 2' was created at 3:17am today. 
 were we not supposed to be using only local for these db files? 
 
 ⏺ You're absolutely right to be concerned. That Google Drive folder should
   NOT have been created. Let me investigate:
 
-⏺ Bash(ls -lah "/Users/ryanthomson/Library/CloudStorage/GoogleDrive-thebearwitha
-      bite@gmail.com/My Drive/04_METADATA_SYSTEM 2" 2>/dev/null && echo "---" &&
+⏺ Bash(ls -lah "/Users/user/Library/CloudStorage/GoogleDrive-thebearwitha
+      user@example.com/My Drive/04_METADATA_SYSTEM 2" 2>/dev/null && echo "---" &&
        ls -lt "/Use…)
   ⎿  total 24                                                   
-     drwx------@    21 ryanthomson  staff   672B Nov 23 13:09 .
-     drwx------@   105 ryanthomson  staff   3.3K Nov 22 21:25 ..
+     drwx------@    21 user  staff   672B Nov 23 13:09 .
+     drwx------@   105 user  staff   3.3K Nov 22 21:25 ..
      … +38 lines (ctrl+o to expand)
 
-⏺ Bash(find "/Users/ryanthomson/Library/CloudStorage/GoogleDrive-thebearwithabit
-      e@gmail.com/My Drive" -name "*METADATA*" -type d 2>/dev/null)
-  ⎿ /Users/ryanthomson/Library/CloudStorage/GoogleDrive-thebearwithabite@gm
+⏺ Bash(find "/Users/user/Library/CloudStorage/GoogleDrive-thebearwithabit
+      user@example.com/My Drive" -name "*METADATA*" -type d 2>/dev/null)
+  ⎿ /Users/user/Library/CloudStorage/GoogleDrive-user@gm
     ail.com/My Drive/ARCHIVE/AI_METADATA_ARCHIVE
-    /Users/ryanthomson/Library/CloudStorage/GoogleDrive-thebearwithabite@gm
+    /Users/user/Library/CloudStorage/GoogleDrive-user@gm
     … +11 lines (ctrl+o to expand)
 
 
 
-⏺ Bash(ls -lah "/Users/ryanthomson/Library/CloudStorage/GoogleDrive-thebearwitha
-      bite@gmail.com/My Drive/04_METADATA_SYSTEM" 2>/dev/null)
+⏺ Bash(ls -lah "/Users/user/Library/CloudStorage/GoogleDrive-thebearwitha
+      user@example.com/My Drive/04_METADATA_SYSTEM" 2>/dev/null)
   ⎿  total 9584                                               
-     drwxr-xr-x@   7 ryanthomson  staff   224B Nov 23 03:17 .
-     drwx------@ 105 ryanthomson  staff   3.3K Nov 22 21:25 ..
+     drwxr-xr-x@   7 user  staff   224B Nov 23 03:17 .
+     drwx------@ 105 user  staff   3.3K Nov 22 21:25 ..
      … +10 lines (ctrl+o to expand)
 
 ⏺ Bash(echo "=== LOCAL metadata (what we want) ===" && ls -lh
       ~/Documents/AI_METADATA_SYSTEM/*.db 2>/dev/null | awk '{print $9, $5, $6,
       $7, $8}' && echo && echo "=== G…)
   ⎿ === LOCAL metadata (what we want) ===                                  
-    /Users/ryanthomson/Documents/AI_METADATA_SYSTEM/adaptive_rules.db 24K N
+    /Users/user/Documents/AI_METADATA_SYSTEM/adaptive_rules.db 24K N
     ov 23 04:25
     … +17 lines (ctrl+o to expand)
 
 
 ⏺ Bash(echo "Files written to GDRIVE after 3:17am today:" && find "/Users/ryanth
-      omson/Library/CloudStorage/GoogleDrive-thebearwithabite@gmail.com/My
+      omson/Library/CloudStorage/user@example.com/My
       Drive/04_METADATA_…)
   ⎿ Files written to GDRIVE after 3:17am today:                            
-    /Users/ryanthomson/Library/CloudStorage/GoogleDrive-thebearwithabite@gm
+    /Users/user/Library/CloudStorage/GoogleDrive-user@gm
     ail.com/My Drive/04_METADATA_SYSTEM/learning_data.pkl
     … +8 lines (ctrl+o to expand)
 
@@ -623,9 +623,9 @@ were we not supposed to be using only local for these db files?
 ⏺ Bash(grep -n "04_METADATA_SYSTEM"
       ~/Github/ai-file-organizer/enhanced_librarian.py
       ~/Github/ai-file-organizer/librarian.py 2>/dev/null)
-  ⎿  /Users/ryanthomson/Github/ai-file-organizer/enhanced_librarian.py:86:
+  ⎿  /Users/user/Github/ai-file-organizer/enhanced_librarian.py:86:
                    self.base_dir / "04_METADATA_SYSTEM",
-     /Users/ryanthomson/Github/ai-file-organizer/librarian.py:165:
+     /Users/user/Github/ai-file-organizer/librarian.py:165:
        self.base_dir / "04_METADATA_SYSTEM"
 
 ⏺ Found it! Three files still have the old pattern and are writing to Google
@@ -747,7 +747,7 @@ Context / facts (do NOT re-litigate):
 
 Canonical metadata location is now:
 
-/Users/ryanthomson/Documents/AI_METADATA_SYSTEM
+/Users/user/Documents/AI_METADATA_SYSTEM
 
 This is the only place metadata DBs, Chroma indexes, learning pickles, and 
 caches are allowed to live.
@@ -762,10 +762,10 @@ treated as archived fossils.
 gdrive_integration.py has already been updated to:
 
 Provide get_metadata_root() → 
-Path("/Users/ryanthomson/Documents/AI_METADATA_SYSTEM")
+Path("/Users/user/Documents/AI_METADATA_SYSTEM")
 
 Mark get_ai_organizer_root() as deprecated and return 
-Path("/Users/ryanthomson/Documents")
+Path("/Users/user/Documents")
 
 Remove actual Google Drive detection logic.
 
@@ -788,7 +788,7 @@ legacy wiring.
 I already saw that as of 3:17am today, there were stray DB and pickle files 
 written into CloudStorage:
 
-/Users/ryanthomson/Library/CloudStorage/GoogleDrive-thebearwithabite@gmail.c
+/Users/user/Library/CloudStorage/GoogleDrive-user@gmail.c
 om/My Drive/04_METADATA_SYSTEM*
 
 These came from old code that was still running before your path changes and
@@ -966,7 +966,7 @@ foundation we already have.
       references ===" && grep -r "GoogleDrive-" --include="*.py" . 2>/dev/null |
        grep -v "Archive…)
   ⎿ === Scanning for GoogleDrive- references ===                           
-    ./scrub_personal_info.py:            r'GoogleDrive-thebearwithabite@gma
+    ./scrub_personal_info.py:            r'GoogleDrive-user@gma
     il\.com': 'user@example.com',
 
 
@@ -1662,7 +1662,7 @@ foundation we already have.
   - 1 file: Created guardrail script (NEW)
 
   Single Source of Truth:
-  get_metadata_root() → /Users/ryanthomson/Documents/AI_METADATA_SYSTEM
+  get_metadata_root() → /Users/user/Documents/AI_METADATA_SYSTEM
 
   SearchService Confirmed:
   - ✅ No Google Drive dependency
@@ -1687,7 +1687,7 @@ be back soon with thoughts.
 
 ⏺ You're welcome. The system is stable and fully operational in local-only
   mode now. All metadata operations are confirmed to be using
-  /Users/ryanthomson/Documents/AI_METADATA_SYSTEM exclusively, and the
+  /Users/user/Documents/AI_METADATA_SYSTEM exclusively, and the
   guardrail script is in place to catch any regressions.
 
   Take your time reviewing. I'll be here when you're ready to continue.
@@ -1697,60 +1697,60 @@ be back soon with thoughts.
 ⏺ Let me check what's actually in there before you delete anything:
 
 ⏺ Bash(ls -la ~ | grep -i google)
-  ⎿ -rw-------     1 ryanthomson  staff    583 Mar 28  2025 .google-cookie 
-    lrwx------     1 ryanthomson  staff     78 Nov 23 13:03 Google Drive ->
-     /Users/ryanthomson/Library/CloudStorage/GoogleDrive-thebearwithabite@g
+  ⎿ -rw-------     1 user  staff    583 Mar 28  2025 .google-cookie 
+    lrwx------     1 user  staff     78 Nov 23 13:03 Google Drive ->
+     /Users/user/Library/CloudStorage/GoogleDrive-user@g
     … +4 lines (ctrl+o to expand)
 
 
 
 ⏺ Bash(ls -la ~/Library/CloudStorage/ 2>/dev/null | grep GoogleDrive || echo "No
        CloudStorage GoogleDrive found")
-  ⎿ dr-x------@   6 ryanthomson  staff    192 Nov 22 11:36 GoogleDrive-theb
-    earwithabite@gmail.com
+  ⎿ dr-x------@   6 user  staff    192 Nov 22 11:36 GoogleDrive-theb
+    user@example.com
 
 
 ⏺ Bash(echo "=== Checking what's in Google Drive ===" && du -sh
       ~/Library/CloudStorage/GoogleDrive-*/My\ Drive 2>/dev/null | head -5)
   ⎿ === Checking what's in Google Drive ===                                
-    (eval):1: no matches found: /Users/ryanthomson/Library/CloudStorage/Goo
+    (eval):1: no matches found: /Users/user/Library/CloudStorage/Goo
     gleDrive-*/My
 
 
 ⏺ Bash(echo "=== ~/GoogleDrive (real directory) ===" && ls -la ~/GoogleDrive)
   ⎿  === ~/GoogleDrive (real directory) ===                 
      total 16
-     drwxr-xr-x    4 ryanthomson  staff   128 Nov 22 11:42 .
+     drwxr-xr-x    4 user  staff   128 Nov 22 11:42 .
      … +3 lines (ctrl+o to expand)
 
 ⏺ Bash(echo "=== Google Drive symlink target ===" && ls -la ~/Google\ Drive)
   ⎿ === Google Drive symlink target ===                                    
-    lrwx------  1 ryanthomson  staff  78 Nov 23 13:03 /Users/ryanthomson/Go
-    ogle Drive -> /Users/ryanthomson/Library/CloudStorage/GoogleDrive-thebe
-    arwithabite@gmail.com
+    lrwx------  1 user  staff  78 Nov 23 13:03 /Users/user/Go
+    ogle Drive -> /Users/user/Library/CloudStorage/GoogleDrive-thebe
+    user@example.com
 
 
 
-⏺ Bash(du -sh ~/Library/CloudStorage/GoogleDrive-thebearwithabite@gmail.com
+⏺ Bash(du -sh ~/Library/CloudStorage/user@example.com
       2>/dev/null)
-  ⎿  774M	/Users/ryanthomson/Library/CloudStorage/GoogleDrive-thebearwithab
-     te@gmail.com
+  ⎿  774M	/Users/user/Library/CloudStorage/GoogleDrive-thebearwithab
+     user@example.com
 
 ⏺ Bash(ls -la ~/GoogleDrive/AI_Organizer && echo "---" && du -sh
       ~/GoogleDrive/AI_Organizer)
   ⎿  total 16                                              
-     drwxr-xr-x  5 ryanthomson  staff   160 Nov 22 11:42 .
-     drwxr-xr-x  4 ryanthomson  staff   128 Nov 22 11:42 ..
+     drwxr-xr-x  5 user  staff   160 Nov 22 11:42 .
+     drwxr-xr-x  4 user  staff   128 Nov 22 11:42 ..
      … +5 lines (ctrl+o to expand)
 
 ⏺ Bash(echo "=== What's in the CloudStorage mount? ===" && ls
-      ~/Library/CloudStorage/GoogleDrive-thebearwithabite@gmail.com/My\ Drive
+      ~/Library/CloudStorage/user@example.com/My\ Drive
       2>/dev/null | head -20 || ls ~/Li…)
   ⎿  === What's in the CloudStorage mount? ===
 
 ⏺ Bash(ps aux | grep -i "google drive\|backup and sync" | grep -v grep || echo
       "Google Drive Desktop not running")
-  ⎿ ryanthomson      16836   0.0  0.3 459706400  48256   ??  S     1:19PM  
+  ⎿ user      16836   0.0  0.3 XXXXXXXXX  48256   ??  S     1:19PM  
      0:00.04 /Applications/Google Drive.app/Contents/Helpers/Google Drive H
     elper (Renderer).app/Contents/MacOS/Google Drive Helper (Renderer) --ty
     … +429 lines (ctrl+o to expand)
@@ -1768,7 +1768,7 @@ be back soon with thoughts.
     - Old local copy with outdated metadata (04_METADATA_SYSTEM,
   05_VEO_PROMPTS)
     - Not being used by the system
-  3. ~/Library/CloudStorage/GoogleDrive-thebearwithabite@gmail.com (774MB) →
+  3. ~/Library/CloudStorage/user@example.com (774MB) →
    Don't manually delete
     - This is the File Provider mount (managed by Google Drive Desktop app)
     - Google Drive Desktop is currently running
@@ -1802,8 +1802,8 @@ something so lets leave that
   ⎿  ✓ Deleted ~/GoogleDrive (archived ghost with 24KB old metadata)
 
 ⏺ Bash(ls -la ~ | grep -i googledrive)
-  ⎿ lrwx------     1 ryanthomson  staff     78 Nov 23 13:03 Google Drive ->
-     /Users/ryanthomson/Library/CloudStorage/GoogleDrive-thebearwithabite@g
+  ⎿ lrwx------     1 user  staff     78 Nov 23 13:03 Google Drive ->
+     /Users/user/Library/CloudStorage/GoogleDrive-user@g
     mail.com
 
 
@@ -1823,7 +1823,7 @@ I’ll handle the rest internally
 ⏺ Understood. The local-only metadata refactor is complete and verified:
 
   - ✅ All paths hardcoded to
-  /Users/ryanthomson/Documents/AI_METADATA_SYSTEM
+  /Users/user/Documents/AI_METADATA_SYSTEM
   - ✅ SearchService rewired to local ChromaDB (1,888 indexed documents)
   - ✅ No CloudStorage writes (guardrail script confirms)
   - ✅ System operational without Google Drive

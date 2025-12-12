@@ -23,7 +23,7 @@ An ADHD-friendly AI file organizer that helps manage complex document workflows 
 
 **Recommended: Use Virtual Environment**
 ```bash
-git clone https://github.com/thebearwithabite/ai-file-organizer
+git clone https://github.com/user/ai-file-organizer
 cd ai-file-organizer
 
 # Create and activate virtual environment
@@ -40,7 +40,7 @@ python main.py
 
 **Quick Start (without venv)**
 ```bash
-git clone https://github.com/thebearwithabite/ai-file-organizer
+git clone https://github.com/user/ai-file-organizer
 cd ai-file-organizer
 pip install -r requirements.txt
 python main.py
@@ -66,7 +66,7 @@ Navigate to **http://localhost:8000** for the modern web interface with:
 
 1. **Clone and setup virtual environment:**
 ```bash
-git clone https://github.com/thebearwithabite/ai-file-organizer
+git clone https://github.com/user/ai-file-organizer
 cd ai-file-organizer
 
 # Create virtual environment (recommended)
@@ -376,7 +376,7 @@ python easy_rollback_system.py --today
 This is a specialized tool built for complex document workflows and ADHD accessibility.
 
 **Questions or Issues:**
-- [Open an issue](https://github.com/thebearwithabite/ai-file-organizer/issues)
+- [Open an issue](https://github.com/user/ai-file-organizer/issues)
 - Email: [user@example.com](mailto:user@example.com)
 
 **Development Priorities:**

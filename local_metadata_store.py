@@ -159,7 +159,7 @@ class LocalMetadataStore:
             self._local.connection.execute("PRAGMA synchronous=NORMAL")  
             self._local.connection.execute("PRAGMA cache_size=10000")
             self._local.connection.execute("PRAGMA temp_store=MEMORY")
-            self._local.connection.execute("PRAGMA mmap_size=268435456")  # 256MB
+            self._local.connection.execute("PRAGMA mmap_size=XXXXXXXXX")  # 256MB
             
             # Enable foreign keys
             self._local.connection.execute("PRAGMA foreign_keys=ON")

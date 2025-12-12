@@ -68,7 +68,7 @@ Output → `docs/API_Endpoints.md`.
 **Deliverables:**
 - Verify `.env.example` includes all required variables but no secrets
 - Add/confirm `.git/hooks/pre-push` PII scanner (TruffleHog + detect-secrets + git-secrets)
-- Run full repository sweep for identifiers (`Ryan Thomson`, `ryanthomson`, `Finn`, `client`, `contract`, `invoice`)
+- Run full repository sweep for identifiers (`Ryan Thomson`, `user`, `Finn`, `client`, `contract`, `invoice`)
 - Add `scripts/run_all_tests.sh` for one-command local validation (runs pytest, PII scan, and lint)
 - Document clean-install steps in `README.md` under "Local Environment Setup"
 

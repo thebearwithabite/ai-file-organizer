@@ -1,5 +1,7 @@
 audio_organizer_source/.*
 \.venv/.*
 
+venv/.*
+env/.*
 node_modules/.*
 \.git/.*

@@ -35,8 +35,8 @@ def main():
 
     # Google Drive staging directories (reference - never delete from these)
     gdrive_staging = [
-        Path.home() / "Library/CloudStorage/GoogleDrive-thebearwithabite@gmail.com/My Drive/99_STAGING_EMERGENCY",
-        Path.home() / "Library/CloudStorage/GoogleDrive-thebearwithabite@gmail.com/My Drive/99_TEMP_PROCESSING"
+        Path.home() / "Library/CloudStorage/user@example.com/My Drive/99_STAGING_EMERGENCY",
+        Path.home() / "Library/CloudStorage/user@example.com/My Drive/99_TEMP_PROCESSING"
     ]
 
     # Local directories to clean (delete duplicates from these)
