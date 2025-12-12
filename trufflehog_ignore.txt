@@ -1,0 +1,5 @@
+audio_organizer_source/.*
+\.venv/.*
+Open-AI-Moving-Checklist/.*
+node_modules/.*
+\.git/.*
