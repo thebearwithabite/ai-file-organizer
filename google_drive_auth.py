@@ -59,7 +59,8 @@ class GoogleDriveAuth:
     with automatic refresh and error recovery.
     """
     
-    # OAuth 2.[REDACTED_ADDRESS]SCOPES = [
+    # OAuth 2.0 scopes
+    SCOPES = [
         'https://www.googleapis.com/auth/drive.file',     # Access files created by the app
         'https://www.googleapis.com/auth/drive',          # Full access to Drive
         'https://www.googleapis.com/auth/drive.metadata.readonly'  # Read metadata

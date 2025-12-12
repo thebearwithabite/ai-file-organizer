@@ -11,6 +11,8 @@ echo ""
 # 1. Run pytest integration tests
 echo "1️⃣  Running pytest integration tests..."
 if command -v pytest &> /dev/null; then
+    # Enable fallback for tests, as CI/Local might not have GDrive mounted
+    export AI_ORGANIZER_ALLOW_LOCAL_FALLBACK=true
     pytest tests/test_sprint_3_4_integration.py -v --asyncio-mode=auto || {
         echo "❌ Integration tests failed"
         exit 1

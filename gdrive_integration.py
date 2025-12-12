@@ -60,13 +60,29 @@ class GoogleDriveIntegration:
     
     def __init__(self):
         """Initialize Google Drive Integration"""
-        self.base_drive_paths = [
-            Path("/Users/user/Library/CloudStorage/user@example.com/My Drive"),
+        self.base_drive_paths = []
+        
+        # 1. Environment variable override (Highest priority)
+        env_root = os.environ.get("AI_ORGANIZER_GDRIVE_ROOT")
+        if env_root:
+            self.base_drive_paths.append(Path(env_root))
+            
+        # 2. Construct path from Email env var
+        email = os.environ.get("AI_ORGANIZER_GDRIVE_EMAIL")
+        if email:
+            # Check both formats: "GoogleDrive-email" and just "email" (some setups differ)
+            self.base_drive_paths.append(Path.home() / "Library/CloudStorage" / f"GoogleDrive-{email}" / "My Drive")
+            self.base_drive_paths.append(Path.home() / "Library/CloudStorage" / email / "My Drive")
+
+        # 3. Standard defaults
+        self.base_drive_paths.extend([
             Path("/Volumes/GoogleDrive/My Drive"),
             Path.home() / "Google Drive" / "My Drive"
-        ]
+        ])
         
-        self.fallback_path = Path("/Users/user/Documents")
+        # disable automatic fallback to prevent duplicates
+        self.fallback_path = None 
+        
         self.drive_root = self._detect_google_drive()
         self.emergency_staging = self._setup_emergency_staging()
         
@@ -75,19 +91,30 @@ class GoogleDriveIntegration:
         Detect mounted Google Drive path
         
         Returns:
-            Path to Google Drive root, or None if not available
+            Path to Google Drive root. Raises RuntimeError if not found.
         """
         for path in self.base_drive_paths:
             if path.exists() and path.is_dir():
                 print(f"✅ Google Drive detected: {path}")
                 return path
         
-        print(f"⚠️  Google Drive not detected at expected paths:")
-        for path in self.base_drive_paths:
-            print(f"   ❌ {path}")
-        print(f"📁 Will use fallback: {self.fallback_path}")
+        print(f"⚠️  Google Drive not detected at expected paths.")
         
-        return None
+        # Check for explicit allow-local override (e.g. for CI/Tests)
+        if os.environ.get("AI_ORGANIZER_ALLOW_LOCAL_FALLBACK") == "true":
+            print("⚠️  Falling back to local Documents (AI_ORGANIZER_ALLOW_LOCAL_FALLBACK=true)")
+            fallback = Path.home() / "Documents"
+            self.fallback_path = fallback # Restore fallback for this session
+            return fallback
+            
+        error_msg = (
+            "❌ CRITICAL ERROR: Google Drive not detected!\n"
+            "   The system is configured to require Google Drive to prevent local duplication.\n"
+            "   Please ensure Google Drive is mounted or check your configuration.\n"
+            "   To force local fallback (NOT RECOMMENDED), set AI_ORGANIZER_ALLOW_LOCAL_FALLBACK=true"
+        )
+        print(error_msg)
+        raise RuntimeError(error_msg)
     
     def _setup_emergency_staging(self) -> Path:
         """Setup emergency staging directory"""
@@ -95,10 +122,14 @@ class GoogleDriveIntegration:
             staging_path = self.drive_root / "99_STAGING_EMERGENCY"
             staging_path.mkdir(exist_ok=True)
             return staging_path
-        else:
-            staging_path = self.fallback_path / "99_STAGING_EMERGENCY"
-            staging_path.mkdir(parents=True, exist_ok=True)
-            return staging_path
+        
+        # Should not get here unless fallback was allowed in _detect_google_drive and returned valid path
+        if self.fallback_path:
+             staging_path = self.fallback_path / "99_STAGING_EMERGENCY"
+             staging_path.mkdir(parents=True, exist_ok=True)
+             return staging_path
+             
+        raise RuntimeError("No storage root available for staging")
     
     def get_ai_organizer_root(self) -> Path:
         """
@@ -112,10 +143,12 @@ class GoogleDriveIntegration:
         """
         if self.drive_root and self.drive_root.exists():
             return self.drive_root
-        else:
-            # Create fallback structure
+        
+        if self.fallback_path:
             self.fallback_path.mkdir(parents=True, exist_ok=True)
             return self.fallback_path
+            
+        raise RuntimeError("Google Drive not detected and local fallback disabled.")
     
     def get_status(self) -> DriveStatus:
         """Get current Google Drive status"""
@@ -335,7 +368,7 @@ def get_metadata_root() -> Path:
     Returns:
         Path: Local metadata system at ~/Documents/AI_METADATA_SYSTEM
     """
-    return Path("/Users/user/Documents/AI_METADATA_SYSTEM")
+    return Path.home() / "Documents/AI_METADATA_SYSTEM"
 
 def get_ai_organizer_root() -> Path:
     """
@@ -346,13 +379,25 @@ def get_ai_organizer_root() -> Path:
     Returns:
         Path: Google Drive root or fallback path
     """
-    # Check for Google Drive path
-    drive_path = Path("/Users/user/Library/CloudStorage/user@example.com/My Drive")
-    if drive_path.exists():
-        return drive_path
+    # 1. Check environment variable
+    env_root = os.environ.get("AI_ORGANIZER_GDRIVE_ROOT")
+    if env_root:
+        path = Path(env_root)
+        if path.exists():
+            return path
+
+    # 2. Check for Google Drive path via email
+    email = os.environ.get("AI_ORGANIZER_GDRIVE_EMAIL")
+    if email:
+        drive_path = Path.home() / "Library/CloudStorage" / f"GoogleDrive-{email}" / "My Drive"
+        if drive_path.exists():
+            return drive_path
+            
+    # Fallback only if explicitly allowed
+    if os.environ.get("AI_ORGANIZER_ALLOW_LOCAL_FALLBACK") == "true":
+        return Path.home() / "Documents"
         
-    # Fallback to Documents
-    return Path("/Users/user/Documents")
+    raise RuntimeError("Google Drive not detected and local fallback disabled. Set AI_ORGANIZER_ALLOW_LOCAL_FALLBACK=true to override.")
 
 def main():
     """Test the Google Drive integration"""
