@@ -39,7 +39,7 @@ fi
 
 # Check for TruffleHog
 if command -v trufflehog &> /dev/null; then
-    trufflehog filesystem . --only-verified --fail --exclude-paths trufflehog_ignore.txt --quiet 2>/dev/null && {
+    trufflehog filesystem . --only-verified --fail --exclude-paths trufflehog_ignore.txt 2>/dev/null && {
         echo "✅ TruffleHog: no verified secrets found"
     } || {
         echo "⚠️  TruffleHog found potential secrets - review manually"
