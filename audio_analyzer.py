@@ -80,14 +80,11 @@ class AudioAnalyzer:
         self.learning_data = self.load_learning_data()
         self.discovered_categories = self.load_discovered_categories()
         
-        # Base categories that can expand
+        # Base categories from Golden Taxonomy V3
         self.base_categories = {
-            "music_ambient": ["contemplative", "tension_building", "wonder_discovery", "melancholic", "mysterious"],
-            "sfx_consciousness": ["subtle_background", "narrative_support", "dramatic_punctuation"],
-            "sfx_human": ["subtle_background", "narrative_support", "dramatic_punctuation"],
-            "sfx_environmental": ["subtle_background", "narrative_support", "dramatic_punctuation"],
-            "sfx_technology": ["subtle_background", "narrative_support", "dramatic_punctuation"],
-            "voice_element": ["contemplative", "melancholic", "mysterious", "dramatic_punctuation"],
+            "audio_vox": ["contemplative", "melancholic", "mysterious", "dramatic_punctuation"],
+            "audio_sfx": ["subtle_background", "narrative_support", "dramatic_punctuation"],
+            "audio_music": ["contemplative", "tension_building", "wonder_discovery", "melancholic", "mysterious"],
         }
         
         # Dynamic folder mapping that grows over time
@@ -147,31 +144,31 @@ class AudioAnalyzer:
     def build_dynamic_folder_map(self) -> Dict[str, str]:
         """Build folder mapping that includes discovered categories"""
         base_map = {
-            "music_ambient + contemplative": "01_UNIVERSAL_ASSETS/MUSIC_LIBRARY/by_mood/contemplative/",
-            "music_ambient + tension_building": "01_UNIVERSAL_ASSETS/MUSIC_LIBRARY/by_mood/tension_building/",
-            "music_ambient + wonder_discovery": "01_UNIVERSAL_ASSETS/MUSIC_LIBRARY/by_mood/wonder_discovery/",
-            "music_ambient + melancholic": "01_UNIVERSAL_ASSETS/MUSIC_LIBRARY/by_mood/melancholic/",
-            "music_ambient + mysterious": "01_UNIVERSAL_ASSETS/MUSIC_LIBRARY/by_mood/mysterious/",
-            "sfx_consciousness + subtle_background": "01_UNIVERSAL_ASSETS/SFX_LIBRARY/by_category/consciousness/thought_processing/",
-            "sfx_consciousness + narrative_support": "01_UNIVERSAL_ASSETS/SFX_LIBRARY/by_category/consciousness/awakening_emergence/",
-            "sfx_consciousness + dramatic_punctuation": "01_UNIVERSAL_ASSETS/SFX_LIBRARY/by_category/consciousness/memory_formation/",
-            "sfx_human + subtle_background": "01_UNIVERSAL_ASSETS/SFX_LIBRARY/by_category/human_elements/breathing_heartbeat/",
-            "sfx_human + narrative_support": "01_UNIVERSAL_ASSETS/SFX_LIBRARY/by_category/human_elements/emotional_responses/",
-            "sfx_human + dramatic_punctuation": "01_UNIVERSAL_ASSETS/SFX_LIBRARY/by_category/human_elements/environmental_human/",
-            "sfx_environmental + subtle_background": "01_UNIVERSAL_ASSETS/SFX_LIBRARY/by_category/abstract_conceptual/time_space/",
-            "sfx_environmental + narrative_support": "01_UNIVERSAL_ASSETS/SFX_LIBRARY/by_category/abstract_conceptual/transformation/",
-            "sfx_environmental + dramatic_punctuation": "01_UNIVERSAL_ASSETS/SFX_LIBRARY/by_category/abstract_conceptual/connection_bridging/",
-            "voice_element + contemplative": "01_UNIVERSAL_ASSETS/VOICE_ELEMENTS/narrator_banks/",
-            "voice_element + melancholic": "01_UNIVERSAL_ASSETS/VOICE_ELEMENTS/processed_vocals/",
-            "voice_element + mysterious": "01_UNIVERSAL_ASSETS/VOICE_ELEMENTS/vocal_textures/",
-            "voice_element + dramatic_punctuation": "01_UNIVERSAL_ASSETS/VOICE_ELEMENTS/character_voices/",
+            "music_ambient_contemplative": "01_UNIVERSAL_ASSETS/MUSIC_LIBRARY/by_mood/contemplative/",
+            "music_ambient_tension_building": "01_UNIVERSAL_ASSETS/MUSIC_LIBRARY/by_mood/tension_building/",
+            "music_ambient_wonder_discovery": "01_UNIVERSAL_ASSETS/MUSIC_LIBRARY/by_mood/wonder_discovery/",
+            "music_ambient_melancholic": "01_UNIVERSAL_ASSETS/MUSIC_LIBRARY/by_mood/melancholic/",
+            "music_ambient_mysterious": "01_UNIVERSAL_ASSETS/MUSIC_LIBRARY/by_mood/mysterious/",
+            "sfx_consciousness_subtle_background": "01_UNIVERSAL_ASSETS/SFX_LIBRARY/by_category/consciousness/thought_processing/",
+            "sfx_consciousness_narrative_support": "01_UNIVERSAL_ASSETS/SFX_LIBRARY/by_category/consciousness/awakening_emergence/",
+            "sfx_consciousness_dramatic_punctuation": "01_UNIVERSAL_ASSETS/SFX_LIBRARY/by_category/consciousness/memory_formation/",
+            "sfx_human_subtle_background": "01_UNIVERSAL_ASSETS/SFX_LIBRARY/by_category/human_elements/breathing_heartbeat/",
+            "sfx_human_narrative_support": "01_UNIVERSAL_ASSETS/SFX_LIBRARY/by_category/human_elements/emotional_responses/",
+            "sfx_human_dramatic_punctuation": "01_UNIVERSAL_ASSETS/SFX_LIBRARY/by_category/human_elements/environmental_human/",
+            "sfx_environmental_subtle_background": "01_UNIVERSAL_ASSETS/SFX_LIBRARY/by_category/abstract_conceptual/time_space/",
+            "sfx_environmental_narrative_support": "01_UNIVERSAL_ASSETS/SFX_LIBRARY/by_category/abstract_conceptual/transformation/",
+            "sfx_environmental_dramatic_punctuation": "01_UNIVERSAL_ASSETS/SFX_LIBRARY/by_category/abstract_conceptual/connection_bridging/",
+            "voice_element_contemplative": "01_UNIVERSAL_ASSETS/VOICE_ELEMENTS/narrator_banks/",
+            "voice_element_melancholic": "01_UNIVERSAL_ASSETS/VOICE_ELEMENTS/processed_vocals/",
+            "voice_element_mysterious": "01_UNIVERSAL_ASSETS/VOICE_ELEMENTS/vocal_textures/",
+            "voice_element_dramatic_punctuation": "01_UNIVERSAL_ASSETS/VOICE_ELEMENTS/character_voices/",
             "default": "01_UNIVERSAL_ASSETS/UNSORTED/"
         }
         
         # Add discovered categories
         for category in self.discovered_categories.get('new_categories', []):
             for mood in self.discovered_categories.get('new_moods', []):
-                key = f"{category} + {mood}"
+                key = f"{category}_{mood}"
                 if key not in base_map:
                     # Create new folder path based on category type
                     if category.startswith('music_'):
@@ -206,13 +203,13 @@ class AudioAnalyzer:
 
         return {'duration': 'Unknown', 'duration_seconds': 0, 'bitrate': 'Unknown', 'sample_rate': 'Unknown'}
 
-    def analyze_audio_spectral(self, file_path: Path, max_duration: int = 60) -> Dict[str, Any]:
+    def analyze_audio_spectral(self, file_path: Path, max_duration: int = 120) -> Dict[str, Any]:
         """
         Perform spectral analysis on audio file using librosa
 
         Args:
             file_path: Path to audio file
-            max_duration: Maximum duration to analyze in seconds (default 60s to save time)
+            max_duration: Maximum duration to analyze in seconds (default 120s/2mins per user request)
 
         Returns:
             Dictionary with spectral features including BPM, energy, brightness, etc.
@@ -227,8 +224,17 @@ class AudioAnalyzer:
             }
 
         try:
-            # Load audio file (limit to max_duration to save processing time)
-            y, sr = librosa.load(str(file_path), duration=max_duration, sr=None)
+            # Smart sampling: Analyze the middle of the track for better representation
+            total_duration = librosa.get_duration(path=str(file_path))
+            
+            offset = 0.0
+            if total_duration > max_duration:
+                # Start from the middle (minus half duration to center it)
+                offset = (total_duration - max_duration) / 2
+                print(f"🎵 Analyzying {max_duration}s slice from {offset:.1f}s (Total: {total_duration:.1f}s)")
+            
+            # Load audio file from calculated offset
+            y, sr = librosa.load(str(file_path), offset=offset, duration=max_duration, sr=None)
 
             # Detect BPM (tempo)
             tempo, beat_frames = librosa.beat.beat_track(y=y, sr=sr)
@@ -431,8 +437,36 @@ class AudioAnalyzer:
         union = words1.union(words2)
         
         return len(intersection) / len(union) if union else 0.0
+
+    def transcribe_audio(self, file_path: Path, project_context: Optional[str] = None) -> Optional[str]:
+        """
+        Transcribe audio using OpenAI Whisper.
+        Returns the full transcript or None if failed.
+        """
+        if not self.client:
+            return None
+
+        try:
+            print(f"🎙️  Transcribing with Whisper: {file_path.name}")
+            
+            # Use project context as a prompt to Whisper to improve name/domain accuracy
+            prompt = None
+            if project_context:
+                prompt = f"Context: {project_context}. Character names and specific terminology should be prioritized."
+
+            with open(file_path, "rb") as audio_file:
+                transcript = self.client.audio.transcriptions.create(
+                    model="whisper-1", 
+                    file=audio_file,
+                    prompt=prompt,
+                    response_format="text"
+                )
+            return transcript
+        except Exception as e:
+            print(f"⚠️  Transcription failed: {e}")
+            return None
     
-    def build_adaptive_prompt(self, file_path: Path, metadata: Dict[str, str]) -> str:
+    def build_adaptive_prompt(self, file_path: Path, metadata: Dict[str, str], transcript: Optional[str] = None) -> str:
         """Build a prompt that learns from previous classifications"""
         
         # Analyze filename patterns
@@ -460,10 +494,13 @@ class AudioAnalyzer:
             context = f"\nCONTEXT from similar files:\n"
             for similar in similar_files[:3]:
                 classification = similar.get('classification', {})
-                context += f"- {similar['filename']}: {classification.get('category', 'unknown')} + {classification.get('mood', 'unknown')}\n"
+                context += f"- {similar['filename']}: {classification.get('category', 'unknown')}_{classification.get('mood', 'unknown')}\n"
         
         if filename_patterns:
             context += f"\nFILENAME PATTERNS detected: {', '.join(filename_patterns)}\n"
+
+        if transcript:
+            context += f"\n🎙️ AUDIO TRANSCRIPT (Voice/Dialogue):\n\"\"\"\n{transcript}\n\"\"\"\n"
         
         prompt = f"""You are an expert audio librarian with adaptive learning capabilities. Analyze this audio file and classify it, considering both standard categories and potentially discovering new ones.
 
@@ -542,7 +579,7 @@ Return response as JSON:
                 print(f"🆕 Discovered new mood: {mood}")
         
         # Update frequency counts
-        self.discovered_categories['frequency_counts'][f"{category}+{mood}"] += 1
+        self.discovered_categories['frequency_counts'][f"{category}_{mood}"] += 1
         
         # Learn filename patterns
         filename_patterns = self.analyze_filename_patterns(file_path.name)
@@ -560,31 +597,67 @@ Return response as JSON:
         # Rebuild folder map with new discoveries
         self.folder_map = self.build_dynamic_folder_map()
     
-    def classify_audio_file(self, file_path: Path, user_description: str = "") -> Optional[Dict[str, Any]]:
-        """Classify audio file with adaptive learning"""
+    def classify_audio_file(self, file_path: Path, user_description: str = "", project_context: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        """Classify audio file with adaptive learning and Whisper transcription"""
         
         if not self.client:
             print("Warning: OpenAI client not available. Cannot perform AI classification.")
             return None
         
         metadata = self.get_audio_metadata(file_path)
-        prompt = self.build_adaptive_prompt(file_path, metadata)
+        
+        # 1. New: High-Fidelity Transcription with Context
+        transcript = self.transcribe_audio(file_path, project_context=project_context)
+        
+        # 2. Build prompt with transcript context
+        prompt = self.build_adaptive_prompt(file_path, metadata, transcript)
         
         try:
             response = self.client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[{"role": "user", "content": prompt}],
-                temperature=0.4  # Slightly higher for more creativity
+                temperature=0.4,  # Slightly higher for more creativity
+                timeout=15.0  # Prevent indefinite hangs
             )
             
             raw_response = response.choices[0].message.content.strip()
             
-            # Handle markdown-wrapped JSON
-            if raw_response.startswith('```json'):
-                raw_response = raw_response.replace('```json', '').replace('```', '').strip()
+            # Handle markdown-wrapped JSON or plain code blocks
+            if '```' in raw_response:
+                # Extract content inside code blocks
+                import re
+                match = re.search(r'```(?:json)?\s*(.*?)\s*```', raw_response, re.DOTALL)
+                if match:
+                    raw_response = match.group(1)
             
-            classification = json.loads(raw_response)
-            
+            try:
+                classification = json.loads(raw_response)
+            except json.JSONDecodeError:
+                # Fallback: Try to find valid JSON object
+                start = raw_response.find('{')
+                end = raw_response.rfind('}')
+                if start != -1 and end != -1:
+                    try:
+                        classification = json.loads(raw_response[start:end+1])
+                    except:
+                        # Fallback 2: Treat as raw category string if it looks like one
+                        print(f"⚠️ JSON parsing failed. raw response: {raw_response[:50]}...")
+                        classification = {
+                            "category": "unknown",
+                            "mood": "unknown",
+                            "reasoning": f"AI Parsing failed. Raw: {raw_response[:100]}"
+                        }
+                else:
+                    classification = {
+                        "category": "unknown",
+                        "mood": "unknown",
+                        "reasoning": f"AI returned non-JSON: {raw_response[:100]}"
+                    }
+
+            # Inject transcript into classification for sidecar persistence
+            if transcript:
+                classification['transcript'] = transcript
+
             # Learn from this classification
             self.learn_from_classification(file_path, classification)
             
@@ -603,13 +676,19 @@ Return response as JSON:
         mood = classification.get('mood', '')
         intensity = classification.get('intensity', '')
         
-        # Try exact match first
-        key = f"{category} + {mood}"
-        if key in self.folder_map:
-            return self.folder_map[key]
         
-        # Try with intensity
-        key = f"{category} + {intensity}"
+        # Determine the best identifying tag (mood or intensity)
+        descriptor = mood if mood and mood != 'unknown' else intensity
+        
+        # Construct key, avoiding redundancy
+        if descriptor and descriptor != 'unknown':
+            if descriptor in category: # Avoid "mysterious + mysterious"
+                 key = category
+            else:
+                 key = f"{category}_{descriptor}"
+        else:
+            key = category
+
         if key in self.folder_map:
             return self.folder_map[key]
         

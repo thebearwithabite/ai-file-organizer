@@ -17,7 +17,7 @@ export default function RollbackPanel() {
     try {
       setIsLoading(true)
       const response = await api.getRollbackOperations({ days: 30 })
-      setOperations(response.operations || [])
+      setOperations(response.data?.operations || [])
     } catch (error) {
       console.error('Error fetching rollback operations:', error)
       toast.error('Failed to load rollback history')

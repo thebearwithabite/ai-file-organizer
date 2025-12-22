@@ -12,6 +12,7 @@ from pydantic import BaseModel
 import uvicorn
 import subprocess
 import os
+import re
 import asyncio
 import logging
 import threading
@@ -98,6 +99,19 @@ print("DEBUG: Initializing TriageService...")
 triage_service = TriageService(rollback_service=rollback_service)
 print("DEBUG: TriageService initialized.")
 
+# Final Initialization Check
+try:
+    import re
+    import subprocess
+    from pathlib import Path
+    logger.info("✅ Core dependencies verified.")
+except ImportError as e:
+    logger.error(f"❌ CRITICAL ERROR: Missing dependency during startup: {e}")
+    # In a production environment, we might want to exit here
+    # sys.exit(1)
+
+print("DEBUG: Application initialization sequence complete.")
+
 print("DEBUG: Initializing UniversalAdaptiveLearning...")
 learning_system = UniversalAdaptiveLearning()
 print("DEBUG: UniversalAdaptiveLearning initialized.")
@@ -118,10 +132,15 @@ print("DEBUG: EmergencySpaceProtection initialized.")
 background_monitor = None
 monitor_paths = []
 
+from api.taxonomy_router import router as taxonomy_router
+from api.identity_router import router as identity_router
+
 # Include VEO API routers (Sprint 2.0)
 app.include_router(veo_router)
 app.include_router(clip_router)
-print("DEBUG: VEO API routers included.")
+app.include_router(taxonomy_router)
+app.include_router(identity_router)
+print("DEBUG: VEO, Taxonomy, & Identity API routers included.")
 
 # Background scanning tasks
 @app.on_event("startup")
@@ -160,10 +179,20 @@ async def startup_event():
             os.path.expanduser("~/Documents")
         ]
         
-        # Combine and deduplicate
+        # Combine and deduplicate smartly
+        # 1. Normalize user paths
+        # 2. Add defaults ONLY if they aren't already covered or if list is empty (policy choice)
+        # Current policy: Always include        all_paths = set(paths_list)
         all_paths = set(paths_list)
-        if not paths_list:
-             all_paths.update(default_paths)
+        all_paths.update(default_paths)
+        
+        # CRITICAL: Watch the Library Root so we learn from internal organization
+        try:
+            library_root = get_ai_organizer_root()
+            all_paths.add(str(library_root))
+            logger.info(f"📚 Added Library Root to monitor: {library_root}")
+        except Exception as e:
+            logger.warning(f"Could not determine Library Root for monitoring: {e}")
              
         monitor_paths = list(all_paths)
 
@@ -317,6 +346,24 @@ async def get_system_status():
     """Get current system status including file counts, monitor status, and last run time"""
     # SystemService now handles aggregation of all status data
     return system_service.get_status()
+
+@app.post("/api/system/orchestrate")
+async def trigger_orchestration():
+    """Manually trigger the orchestration process in the background"""
+    try:
+        # Run in a background thread to avoid blocking
+        thread = threading.Thread(target=orchestrate)
+        thread.start()
+        
+        logger.info("Manual orchestration triggered via API")
+        
+        return {
+            "status": "success",
+            "message": "Orchestration triggered in the background"
+        }
+    except Exception as e:
+        logger.error(f"Failed to trigger orchestration: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/recent-activity")
 async def get_recent_activity(limit: int = 50):

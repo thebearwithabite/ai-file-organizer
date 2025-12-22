@@ -10,7 +10,7 @@ export interface SystemStatus {
   }
   orchestration?: {
     last_run: string | null
-    files_touched: number
+    files_processed: number
     status: string
   }
   // Legacy support for existing dashboards

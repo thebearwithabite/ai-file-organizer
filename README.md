@@ -312,6 +312,20 @@ python easy_rollback_system.py --today
 - **Memory Usage**: ~2-3GB during active processing
 - **System Reliability**: 99%+ uptime in testing
 
+### **Metadata System Paths (Strict Compliance):**
+
+**Base Root:** `~/Documents/AI_METADATA_SYSTEM`
+
+| Component | Path | Source File |
+| :--- | :--- | :--- |
+| **Authentication** | `.../config/` | `google_drive_auth.py` |
+| **Rollback Database** | `.../databases/rollback.db` | `easy_rollback_system.py` |
+| **Learning Database** | `.../databases/adaptive_learning.db` | `universal_adaptive_learning.py` |
+| **Learning Config** | `.../.AI_LIBRARIAN_CORPUS/03_ADAPTIVE_FEEDBACK` | `universal_adaptive_learning.py` |
+| **Vector DB** | `.../chroma_db/` | `main.py` |
+| **File Caches** | `.../caches/drive_files/` | `gdrive_streamer.py` |
+| **Temp Storage** | `.../temp/` | `gdrive_streamer.py` |
+
 ---
 
 ## 📋 **Current System Status (October 31, 2025)**

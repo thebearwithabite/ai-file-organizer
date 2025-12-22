@@ -1,9 +1,23 @@
 import { useNavigate } from 'react-router-dom'
-import { Upload, Search, RotateCcw } from 'lucide-react'
+import { Upload, Search, RotateCcw, Zap } from 'lucide-react'
 import { motion } from 'framer-motion'
+import { api } from '../../services/api'
+import { toast } from 'sonner'
 
 export default function QuickActionPanel() {
   const navigate = useNavigate()
+
+  const handleRunOrchestration = async () => {
+    try {
+      await api.triggerOrchestration()
+      toast.success('Orchestration triggered', {
+        description: 'The system is now organizing files in the background.'
+      })
+    } catch (error) {
+      console.error('Failed to trigger orchestration:', error)
+      toast.error('Failed to trigger orchestration')
+    }
+  }
 
   const actions = [
     {
@@ -26,6 +40,13 @@ export default function QuickActionPanel() {
       description: 'Undo operations',
       onClick: () => navigate('/rollback'),
       color: 'bg-warning hover:bg-warning/90 text-black',
+    },
+    {
+      icon: Zap,
+      label: 'Run Orchestration',
+      description: 'Manual organization run',
+      onClick: handleRunOrchestration,
+      color: 'bg-success hover:bg-success/90',
     },
   ]
 

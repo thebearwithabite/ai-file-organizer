@@ -112,17 +112,22 @@ class UniversalAdaptiveLearning:
         
         # Learning configuration
         self.config = {
-            "min_pattern_frequency": 3,  # Minimum occurrences to consider a pattern
-            "pattern_confidence_threshold": 0.7,  # Minimum confidence to suggest pattern
-            "preference_decay_days": 30,  # How quickly preferences fade without reinforcement
-            "max_learning_events": 10000,  # Maximum events to keep in memory
+            "min_pattern_frequency": 3,
+            "pattern_confidence_threshold": 0.7,
+            "preference_decay_days": 30,
+            "max_learning_events": 10000,
             "confidence_boost_rates": {
                 "user_correction": 0.3,
                 "manual_move": 0.2,
                 "pattern_match": 0.1,
                 "preference_match": 0.15
-            }
+            },
+            "flush_interval_sec": 15  # Throttle for persistence
         }
+        
+        # Persistence flags
+        self._dirty = False
+        self._last_flush = 0
         
         # Initialize database
         self._init_database()
@@ -265,8 +270,23 @@ class UniversalAdaptiveLearning:
             'category_frequencies': defaultdict(int)  # Category usage frequency
         }
 
-    def save_all_data(self):
-        """Save all learning data to persistent storage"""
+    def _maybe_flush(self, force: bool = False):
+        """Throttle persistence calls to prevent IO thrashing"""
+        now = time.time()
+        self._dirty = True
+        
+        if force or (now - self._last_flush) >= self.config.get("flush_interval_sec", 15):
+            self.save_all_data(force=True)
+            self._last_flush = now
+            self._dirty = False
+
+    def save_all_data(self, force: bool = False):
+        """Save all learning data to persistent storage (Throttled via _maybe_flush usually)"""
+        # If called directly without force, route through throttle
+        if not force:
+            self._maybe_flush()
+            return
+
         try:
             # Save pickle files
             with open(self.learning_events_file, 'wb') as f:
@@ -290,33 +310,38 @@ class UniversalAdaptiveLearning:
             self.logger.error(f"Error saving learning data: {e}")
 
     def _sync_to_database(self):
-        """Sync in-memory data to SQLite database"""
+        """Sync in-memory data to SQLite database using UPSERT (Non-destructive)"""
         with sqlite3.connect(self.db_path) as conn:
-            # Clear existing data
-            conn.execute('DELETE FROM learning_events')
-            conn.execute('DELETE FROM patterns')
-            conn.execute('DELETE FROM user_preferences')
+            conn.execute("PRAGMA journal_mode=WAL;")
+            conn.execute("PRAGMA synchronous=NORMAL;")
+
+            # Periodically prune very old events (> 120 days)
+            cutoff = (datetime.now() - timedelta(days=120)).isoformat()
+            conn.execute("DELETE FROM learning_events WHERE timestamp < ?", (cutoff,))
             
-            # Insert learning events
-            for event in self.learning_events[-1000:]:  # Keep last 1000 events in DB
+            # UPSERT learning events (Last 1000 items from memory)
+            for event in self.learning_events[-1000:]:
                 conn.execute('''
-                    INSERT INTO learning_events VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    INSERT OR REPLACE INTO learning_events 
+                    (event_id, timestamp, event_type, file_path, original_prediction, user_action,
+                     confidence_before, confidence_after, context)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     event.event_id,
                     event.timestamp.isoformat(),
                     event.event_type,
                     event.file_path,
                     json.dumps(event.original_prediction),
-                    json.dumps(event.user_action),
+                    json.dumps(event.user_action) if event.user_action else None,
                     event.confidence_before,
                     event.confidence_after,
                     json.dumps(event.context) if event.context else None
                 ))
             
-            # Insert patterns
+            # UPSERT patterns
             for pattern in self.patterns.values():
                 conn.execute('''
-                    INSERT INTO patterns VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    INSERT OR REPLACE INTO patterns VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     pattern.pattern_id,
                     pattern.pattern_type,
@@ -328,10 +353,10 @@ class UniversalAdaptiveLearning:
                     pattern.accuracy_rate
                 ))
             
-            # Insert preferences
+            # UPSERT preferences
             for pref in self.user_preferences.values():
                 conn.execute('''
-                    INSERT INTO user_preferences VALUES (?, ?, ?, ?, ?, ?, ?)
+                    INSERT OR REPLACE INTO user_preferences VALUES (?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     pref.preference_id,
                     pref.preference_type,
@@ -350,24 +375,20 @@ class UniversalAdaptiveLearning:
                             confidence_before: float,
                             context: Dict[str, Any] = None) -> str:
         """
-        Record a learning event for future pattern discovery
-        
-        Args:
-            event_type: Type of learning event
-            file_path: Path to the file involved
-            original_prediction: What the system predicted
-            user_action: What the user actually did
-            confidence_before: Confidence before user action
-            context: Additional context information
-        
-        Returns:
-            Event ID
+        Record a learning event.
+        CRITICAL: Pattern discovery and confidence boosting ONLY happen for verified events.
         """
         
-        # Calculate confidence boost from this correction
-        confidence_after = confidence_before + self.config["confidence_boost_rates"].get(event_type, 0.1)
-        confidence_after = min(1.0, confidence_after)
+        # Valid verified event types
+        VERIFIED_TYPES = {'user_correction', 'manual_move', 'preference_update', 'user_confirmed'}
         
+        # Calculate confidence boost ONLY for verified events
+        if event_type in VERIFIED_TYPES:
+            confidence_after = confidence_before + self.config["confidence_boost_rates"].get(event_type, 0.1)
+            confidence_after = min(1.0, confidence_after)
+        else:
+            confidence_after = confidence_before # No fake boost for observations
+
         # Create learning event
         event_id = hashlib.md5(f"{file_path}_{datetime.now().isoformat()}_{event_type}".encode()).hexdigest()[:12]
         
@@ -393,16 +414,15 @@ class UniversalAdaptiveLearning:
         # Update stats
         self.stats["total_learning_events"] += 1
         
-        # Trigger pattern discovery
-        self._discover_patterns_from_event(learning_event)
-        
-        # Update preferences
-        self._update_preferences_from_event(learning_event)
+        # Trigger pattern discovery ONLY for verified events
+        if event_type in VERIFIED_TYPES:
+            self._discover_patterns_from_event(learning_event)
+            self._update_preferences_from_event(learning_event)
 
-        # Save learning data to disk immediately to ensure persistence across instances
-        self.save_all_data()
+        # Throttled Save
+        self._maybe_flush()
 
-        self.logger.info(f"Recorded learning event: {event_type} for {Path(file_path).name}")
+        self.logger.info(f"Recorded event: {event_type} for {Path(file_path).name}")
 
         return event_id
 
@@ -463,19 +483,18 @@ class UniversalAdaptiveLearning:
                 features=features
             )
 
-        # Record the classification as a learning event
-        # Use 'ai_classification' as event_type to distinguish from user corrections
+        # Record the classification as an OBSERVATION, not a confirmed fact
         event_id = self.record_learning_event(
-            event_type='ai_classification',
+            event_type='ai_observation',  # Changed from 'ai_classification'
             file_path=file_path,
             original_prediction=original_prediction,
-            user_action={'accepted': True, 'category': predicted_category},
+            user_action=None,  # No user confirmation yet
             confidence_before=confidence,
             context=context
         )
 
         self.logger.info(
-            f"Recorded {media_type} classification: {predicted_category} "
+            f"Recorded observation ({media_type}): {predicted_category} "
             f"({confidence:.2f}) for {Path(file_path).name}"
         )
 
@@ -493,13 +512,16 @@ class UniversalAdaptiveLearning:
             self.visual_patterns['objects_detected'][category].extend(features['visual_objects'])
 
         if 'scene_type' in features:
-            self.visual_patterns['scene_types'][category].append(features['scene_type'])
+            if features['scene_type'] != 'unknown':
+                # Fix: Store scene types per category, not categories under scene_type key
+                if features['scene_type'] not in self.visual_patterns['scene_types'][category]:
+                    self.visual_patterns['scene_types'][category].append(features['scene_type'])
 
         if 'keywords' in features:
             self.visual_patterns['visual_keywords'][category].extend(features['keywords'])
 
-        # For screenshots, track UI context
-        if category == 'screenshot' and 'content_type' in features:
+        # For screenshots, track UI context (Fix: Substring match)
+        if 'screenshot' in category and 'content_type' in features:
             self.visual_patterns['screenshot_contexts'][category].append(features['content_type'])
 
         # Track category frequency
@@ -1330,21 +1352,36 @@ class UniversalAdaptiveLearning:
                 "category_distribution": {}
             }
 
-        # Count events by media_type
+        # Count events by media_type and split verification stats
         media_type_counts = Counter()
         categories = Counter()
         confidences = []
+        
+        verified_events_count = 0
+        observation_events_count = 0
 
         for event in self.learning_events:
-            # Extract media_type from context (added in Sprint 2.0 Task 2.4)
+            # Split stats
+            if event.event_type in {'user_correction', 'manual_move', 'preference_update', 'user_confirmed'}:
+                verified_events_count += 1
+                # For verified events, use the TARGET category (user's truth)
+                if event.user_action and 'target_category' in event.user_action:
+                     category = event.user_action['target_category']
+                     categories[category] += 1
+                elif event.user_action and 'category' in event.user_action:
+                     category = event.user_action['category']
+                     categories[category] += 1
+            else:
+                observation_events_count += 1
+                # For observations, use the prediction
+                if event.original_prediction and 'category' in event.original_prediction:
+                    category = event.original_prediction['category']
+                    categories[category] += 1
+
+            # Extract media_type from context
             if event.context and 'media_type' in event.context:
                 media_type = event.context['media_type']
                 media_type_counts[media_type] += 1
-
-            # Extract category from original_prediction
-            if event.original_prediction and 'category' in event.original_prediction:
-                category = event.original_prediction['category']
-                categories[category] += 1
 
             # Collect confidence scores
             confidences.append(event.confidence_before)
@@ -1359,17 +1396,56 @@ class UniversalAdaptiveLearning:
 
         return {
             "total_learning_events": len(self.learning_events),
+            "verified_learning_events": verified_events_count,
+            "observation_events": observation_events_count,
             "patterns_count": len(self.patterns),
             "image_events": media_type_counts.get('image', 0),
             "video_events": media_type_counts.get('video', 0),
             "audio_events": media_type_counts.get('audio', 0),
             "document_events": media_type_counts.get('document', 0),
-            "unique_categories_learned": len(categories),
-            "most_common_category": most_common_category,
-            "top_confidence_average": round(top_confidence_avg, 2),
             "media_type_breakdown": dict(media_type_counts),
-            "category_distribution": dict(categories.most_common(10))
+            "category_distribution": dict(categories.most_common(10)),
+            "top_confidence_average": round(top_confidence_avg, 2),
+            "most_common_category": most_common_category,
+            "unique_categories_learned": len(categories)
         }
+
+    def rebuild_knowledge_base(self):
+        """
+        Legacy Detox: Rebuild patterns and preferences from verified events ONLY.
+        Run this to clear out 'hallucinated' patterns from old self-reinforcing loops.
+        """
+        self.logger.warning("♻️ Starting Knowledge Base Detox...")
+        
+        # 1. Archive current state (in case of regret)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.save_all_data(force=True) # Checkpoint
+        
+        try:
+             import shutil
+             shutil.copy(self.patterns_file, f"{self.patterns_file}.{timestamp}.bak")
+             shutil.copy(self.preferences_file, f"{self.preferences_file}.{timestamp}.bak")
+        except Exception as e:
+             self.logger.error(f"Backup failed: {e}")
+
+        # 2. CLEAR Patterns and Preferences
+        self.patterns = {}
+        self.user_preferences = {}
+        
+        # 3. Replay VERIFIED events
+        verified_count = 0
+        VALID_TYPES = {'user_correction', 'manual_move', 'preference_update', 'user_confirmed'}
+        
+        for event in self.learning_events:
+            if event.event_type in VALID_TYPES:
+                verified_count += 1
+                self._discover_patterns_from_event(event)
+                self._update_preferences_from_event(event)
+        
+        # 4. Save clean state
+        self.save_all_data(force=True)
+        self.logger.info(f"✅ Knowledge Base Rebuilt! {verified_count} verified events replayed.")
+        return verified_count
 
     def cleanup_old_data(self, days_to_keep: int = 90):
         """Clean up old learning data to prevent memory bloat"""

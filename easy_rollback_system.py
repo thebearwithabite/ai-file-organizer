@@ -156,10 +156,78 @@ class EasyRollbackSystem:
         
         self._ensure_database_exists()
 
+    def record_operation(self, operation_type: str, original_path: str, original_filename: str, 
+                        new_filename: str, new_location: str, category: str, 
+                        confidence: float, notes: str, google_drive_id: Optional[str] = None) -> int:
+        """Record an operation to the database (API wrapper)"""
+        details = {
+            "category": category,
+            "notes": notes,
+            "original_filename": original_filename,
+            "google_drive_id": google_drive_id
+        }
+        return log_file_op(
+            action=operation_type,
+            src_path=original_path,
+            dst_path=str(Path(new_location) / new_filename),
+            confidence=confidence,
+            details=details
+        )
+
     @property
     def db_path(self) -> Path:
         """Get path to rollback database (for debug logging compatibility)"""
         return self.rollback_db
+
+    def was_ai_operation(self, file_path: str) -> bool:
+        """Check if a file was recently moved/renamed by the AI (within last 60s)"""
+        try:
+            with sqlite3.connect(self.rollback_db) as conn:
+                cutoff = (datetime.now() - timedelta(seconds=60)).isoformat(timespec="seconds")
+                cursor = conn.execute(
+                    "SELECT id FROM file_operations WHERE (src_path = ? OR dst_path = ?) AND timestamp > ?",
+                    (str(file_path), str(file_path), cutoff)
+                )
+                return cursor.fetchone() is not None
+        except Exception:
+            return False
+
+    def start_operation(self, operation_type: str, description: str, confidence: float = 1.0) -> int:
+        """Start a high-level operation tracking entry"""
+        return log_file_op(
+            action=operation_type,
+            confidence=confidence,
+            details={"notes": description, "status": "started"}
+        )
+
+    def record_file_operation(self, operation_id: int, original_path: str, new_path: str, operation_type: str = "move"):
+        """Record a specific file-level action linked to an operation"""
+        log_file_op(
+            action=operation_type,
+            src_path=original_path,
+            dst_path=new_path,
+            details={"parent_op_id": operation_id}
+        )
+
+    def complete_operation(self, operation_id: int, success: bool = True, error: str = None):
+        """Finalize an operation entry"""
+        try:
+            with sqlite3.connect(self.rollback_db) as conn:
+                # Load current details
+                cursor = conn.execute("SELECT details FROM file_operations WHERE id = ?", (operation_id,))
+                row = cursor.fetchone()
+                details = json.loads(row[0]) if row and row[0] else {}
+                
+                details["status"] = "success" if success else "failed"
+                if error:
+                    details["error"] = error
+                
+                conn.execute(
+                    "UPDATE file_operations SET details = ? WHERE id = ?",
+                    (json.dumps(details), operation_id)
+                )
+        except Exception as e:
+            print(f"⚠️ Failed to complete rollback operation record: {e}")
     
     def _ensure_database_exists(self):
         """Ensure rollback database exists with proper schema"""
@@ -196,6 +264,7 @@ class EasyRollbackSystem:
                     SELECT * FROM file_operations 
                     WHERE DATE(timestamp) = ?
                     ORDER BY timestamp DESC
+                    LIMIT 200
                 """, (today,))
             else:
                 # Show operations from last N days
@@ -211,6 +280,7 @@ class EasyRollbackSystem:
                         SELECT * FROM file_operations 
                         WHERE DATE(timestamp) >= ?
                         ORDER BY timestamp DESC
+                        LIMIT 200
                     """, (since_date,))
             
             operations = []

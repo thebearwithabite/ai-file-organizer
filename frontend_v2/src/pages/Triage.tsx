@@ -190,12 +190,12 @@ export default function Triage() {
           {/* Downloads Scan */}
           <div className="bg-white/5 border border-white/10 rounded-xl p-4">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-medium text-white">Downloads Folder</span>
-              {currentScanMode === 'downloads' && (
-                <span className="text-xs px-2 py-1 bg-primary/20 text-primary rounded-full">Active</span>
-              )}
+              <span className="text-sm font-medium text-white">Scan Staging Areas</span>
+              <div className={`w-4 h-4 rounded-full border-2 ${scanMutation.isPending ? 'border-primary border-t-transparent animate-spin' :
+                  currentScanMode === 'downloads' ? 'border-primary bg-primary' : 'border-white/20'
+                }`} />
             </div>
-            <p className="text-xs text-white/50 mb-4">Scan standard staging areas (Downloads, Desktop)</p>
+            <p className="text-xs text-white/50 mt-1">Scan Downloads, Desktop, and iCloud Staging</p>
             <button
               onClick={() => scanMutation.mutate()}
               disabled={scanMutation.isPending}

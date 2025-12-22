@@ -8,12 +8,17 @@ files to the appropriate analysis engine and integrating adaptive learning.
 
 import os
 from pathlib import Path
-from typing import Dict, Any, Optional, Union
+import hashlib
+import json
+import time
+from pathlib import Path
+from typing import Dict, Any, Optional, Union, List
 
 # Import the analysis engines that will be integrated
 from content_extractor import ContentExtractor
 from audio_analyzer import AudioAnalyzer
 from vision_analyzer import VisionAnalyzer
+from semantic_text_analyzer import SemanticTextAnalyzer
 
 # Import the learning system
 from universal_adaptive_learning import UniversalAdaptiveLearning
@@ -36,11 +41,22 @@ class UnifiedClassificationService:
         self._learning_system = None
         self._audio_analyzer = None
         self._vision_analyzer = None
+        self._semantic_text_analyzer = None
         self.learning_enabled = True
         self.vision_enabled = True
+        self.semantic_text_enabled = True
 
-        # Initialize obvious patterns for fast classification
-        self._init_obvious_patterns()
+
+        # Initialize Taxonomy Service (V3 Source of Truth)
+        from taxonomy_service import TaxonomyService
+        from gdrive_integration import get_metadata_root
+        
+        config_dir = get_metadata_root() / "config"
+        self.taxonomy_service = TaxonomyService(config_dir)
+        
+        # Review Queue Path (Hidden .corpus directory)
+        self.review_queue_path = get_metadata_root() / ".AI_LIBRARIAN_CORPUS" / "03_ADAPTIVE_FEEDBACK" / "review_queue.jsonl"
+        self.review_queue_path.parent.mkdir(parents=True, exist_ok=True)
 
         print("✅ Unified Classification Service Ready (lazy mode - analyzers will load on demand)")
 
@@ -90,37 +106,32 @@ class UnifiedClassificationService:
                 print(f"⚠️  Vision analysis disabled: {e}")
         return self._vision_analyzer
 
+    @property
+    def semantic_text_analyzer(self):
+        """Lazy load semantic text analyzer on first use"""
+        if self._semantic_text_analyzer is None and self.semantic_text_enabled:
+            try:
+                print("📖 Loading semantic text analyzer...")
+                self._semantic_text_analyzer = SemanticTextAnalyzer(base_dir=str(self.base_dir))
+                self.semantic_text_enabled = self._semantic_text_analyzer.api_initialized
+                if self.semantic_text_enabled:
+                    print("✅ Semantic text analysis enabled with Gemini API")
+                else:
+                    print("⚠️  Semantic text analysis disabled (API key missing)")
+            except Exception as e:
+                self._semantic_text_analyzer = None
+                self.semantic_text_enabled = False
+                print(f"⚠️  Semantic text analysis disabled: {e}")
+        return self._semantic_text_analyzer
+
     def _normalize_confidence(self, result: Dict[str, Any], file_path: Path, file_type: str) -> Dict[str, Any]:
         """
         Normalize classification results to ALWAYS include a numeric confidence field.
         Also normalizes category strings (Section E: remove + symbols).
-
-        Implements inference rules from Section D requirements.
-
-        Inference Rules:
-        - Screenshots detected → confidence = 0.9
-        - Unknown category → confidence = 0.5
-        - Audio files → confidence = 0.7 (if not already set higher)
-        - Text/PDF files → confidence = 0.6 (if not already set higher)
-        - Fallback for any classification → confidence = 0.4
-
-        Category Normalization (Section E):
-        - Strip "+" symbols and replace with underscores
-        - Example: "sfx_consciousness+mysterious" → "sfx_consciousness_mysterious"
-        - Ensures categories can be properly routed through category_mapping
-
-        Args:
-            result: Classification result from any analyzer
-            file_path: Path to file being classified
-            file_type: Detected file type (audio, image, video, text, generic)
-
-        Returns:
-            Normalized result with guaranteed confidence field and normalized category
         """
         # SECTION E: Normalize category strings - strip + symbols
         category = result.get('category', 'unknown')
         if category and '+' in category:
-            # Replace + with underscore to make valid category identifier
             normalized_category = category.replace('+', '_')
             print(f"📝 Category normalization: '{category}' → '{normalized_category}'")
             result['category'] = normalized_category
@@ -138,123 +149,216 @@ class UnifiedClassificationService:
             # Rule 1: Screenshots → 0.9
             if 'screenshot' in category.lower() or 'screenshot' in source.lower():
                 confidence = 0.9
-
-            # Rule 2: Unknown category → 0.5
             elif category == 'unknown' or category == 'needs_review':
                 confidence = 0.5
-
-            # Rule 3: Audio files → 0.7
             elif file_type == 'audio':
                 confidence = 0.7
-
-            # Rule 4: Text/PDF files → 0.6
             elif file_type == 'text':
                 confidence = 0.6
-
-            # Rule 5: Fallback → 0.4
             else:
                 confidence = 0.4
 
-        # Ensure confidence is a float between 0.0 and 1.0
         try:
             confidence = float(confidence)
             confidence = max(0.0, min(1.0, confidence))
         except (ValueError, TypeError):
-            confidence = 0.4  # Fallback if conversion fails
+            confidence = 0.4
 
-        # Update result with normalized confidence
         result['confidence'] = confidence
-
-        # Remove confidence_score if it exists to avoid confusion
         if 'confidence_score' in result:
             del result['confidence_score']
 
         return result
 
-    def _init_obvious_patterns(self):
-        """Initialize obvious patterns for fast, rule-based classification"""
-        self.obvious_patterns = {
-            'screenshot': {
-                'keywords': ['screenshot', 'screen shot', 'screen_shot'],
-                'category': 'visual_assets_screenshots',
-                'confidence': 0.95
-            },
-            'installer': {
-                'extensions': ['.dmg', '.pkg', '.iso'],
-                'keywords': ['installer', 'setup', 'install'],
-                'category': 'installers',
-                'confidence': 0.95
-            },
-            'archive': {
-                'extensions': ['.zip', '.rar', '.7z', '.tar', '.gz'],
-                'category': 'archives',
-                'confidence': 0.90
-            },
-            'document': {
-                'extensions': ['.pdf', '.docx', '.doc', '.txt', '.md', '.pages'],
-                'category': 'documents',
-                'confidence': 0.60  # Lower confidence to allow content analysis to override
-            },
-            'image': {
-                'extensions': ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.heic'],
-                'category': 'images',
-                'confidence': 0.60  # Lower confidence to allow vision analysis to override
-            },
-            'audio': {
-                'extensions': ['.mp3', '.wav', '.m4a', '.flac', '.aiff'],
-                'category': 'audio',
-                'confidence': 0.70  # Moderate confidence
-            },
-            'video': {
-                'extensions': ['.mp4', '.mov', '.avi', '.mkv', '.webm'],
-                'category': 'video',
-                'confidence': 0.70  # Moderate confidence
-            }
-        }
-
     def _check_obvious_classification(self, file_path: Path) -> Optional[Dict[str, Any]]:
         """
-        Check for obvious patterns that don't require AI analysis.
+        Check for obvious patterns dynamically using TaxonomyService.
         Returns a classification result if a strong match is found, else None.
         """
         filename = file_path.name.lower()
         extension = file_path.suffix.lower()
         
-        # Check specific patterns first
+        # Iterate over Dynamic Taxonomy (V3)
+        categories = self.taxonomy_service.get_all_categories()
         
-        # 1. Screenshots (High Confidence)
-        if 'screenshot' in filename:
-            return {
-                'source': 'Obvious Pattern (Screenshot)',
-                'category': 'visual_assets_screenshots',
-                'confidence': 0.95,
-                'reasoning': ['Filename contains "screenshot"'],
-                'suggested_filename': file_path.name
-            }
-            
-        # 2. Installers (High Confidence)
-        if extension in self.obvious_patterns['installer']['extensions']:
-            return {
-                'source': 'Obvious Pattern (Installer)',
-                'category': 'installers',
-                'confidence': 0.95,
-                'reasoning': [f'Extension {extension} indicates installer'],
-                'suggested_filename': file_path.name
-            }
-            
-        # 3. Archives (High Confidence)
-        if extension in self.obvious_patterns['archive']['extensions']:
-            return {
-                'source': 'Obvious Pattern (Archive)',
-                'category': 'archives',
-                'confidence': 0.90,
-                'reasoning': [f'Extension {extension} indicates archive'],
-                'suggested_filename': file_path.name
-            }
-
+        best_match = None
+        
+        for cat_id, meta in categories.items():
+            # Check Extension Match
+            if extension and extension in meta.get("extensions", []):
+                return {
+                    'source': f'Obvious Pattern ({meta.get("display_name")})',
+                    'category': cat_id, # Return ID as category
+                    'confidence': meta.get("confidence", 0.90),
+                    'reasoning': [f'Extension {extension} matches safe list'],
+                    'suggested_filename': file_path.name
+                }
+                
+            # Check Keyword Match
+            keywords = meta.get("keywords", [])
+            for keyword in keywords:
+                if keyword and keyword.lower() in filename:
+                    return {
+                        'source': f'Obvious Pattern ({meta.get("display_name")})',
+                        'category': cat_id,
+                        'confidence': meta.get("confidence", 0.95),
+                        'reasoning': [f'Filename contains "{keyword}"'],
+                        'suggested_filename': file_path.name
+                    }
+        
         return None
 
-    def classify_file(self, file_path: Union[str, Path]) -> Dict[str, Any]:
+
+
+
+    def _get_history_signal(self, file_path: Path) -> Dict[str, Any]:
+        """Check for verified patterns (Placeholder for now)"""
+        # In v3.2, this will query LearningSystem for pattern matches
+        return {"category": None, "confidence": 0.0, "source": "History"}
+
+    def _detect_hard_conflicts(self, file_type: str, signals: Dict[str, Any]) -> List[str]:
+        """Detect blocking conflicts that demand human review"""
+        conflicts = []
+        
+        obvious = signals['obvious']
+        modality = signals['modality']
+        
+        obvious_cat = obvious.get('category')
+        modality_cat = modality.get('category')
+        
+        # 1. Obvious Disagreement (Obvious > 0.9 vs Modality Disagrees)
+        if obvious.get('confidence', 0) > 0.9 and modality_cat and modality_cat != 'unknown':
+            if obvious_cat != modality_cat:
+                conflicts.append(f"Hard Conflict: Obvious says '{obvious_cat}' but Modality says '{modality_cat}'")
+
+        # 2. Type Mismatch
+        if file_type == 'audio' and modality_cat and ('image' in modality_cat or 'document' in modality_cat):
+             conflicts.append(f"Type Mismatch: Audio file predicted as '{modality_cat}'")
+             
+        if file_type == 'image' and modality_cat and 'audio' in modality_cat:
+             conflicts.append(f"Type Mismatch: Image file predicted as '{modality_cat}'")
+
+        return conflicts
+
+    def _fuse_signals(self, signals: Dict[str, Any], file_type: str) -> Dict[str, Any]:
+        """
+        Dominance Logic:
+        1. Obvious Wins if >= 0.93
+        2. Semantic/Modality Wins if >= 0.78 & No Hard Conflicts
+        3. History Boosts (Not fully active yet)
+        4. Keyword/Weak Modality Demoted
+        """
+        obvious = signals['obvious']
+        modality = signals['modality']
+        history = signals['history']
+        
+        candidates = []
+        
+        # Add Obvious Candidate
+        if obvious.get('confidence', 0) > 0:
+            candidates.append({
+                "source": "obvious",
+                "category": obvious['category'],
+                "confidence": obvious['confidence'],
+                "weight": 1.0,
+                "reasoning": obvious.get('reasoning', [])
+            })
+            
+        # Add Modality Candidate
+        if modality.get('confidence', 0) > 0:
+            candidates.append({
+                "source": "modality",
+                "category": modality['category'],
+                "confidence": modality['confidence'],
+                "weight": 0.8, # Slightly lower weight than obvious
+                "reasoning": modality.get('reasoning', []),
+                "suggested_filename": modality.get('suggested_filename')
+            })
+
+        # Rank Candidates
+        candidates.sort(key=lambda x: x['confidence'], reverse=True)
+        
+        # Detect Conflicts
+        conflicts = self._detect_hard_conflicts(file_type, signals)
+        
+        # Decision Logic
+        winner = None
+        trace = []
+        
+        if candidates:
+            top = candidates[0]
+            
+            # Rule 1: Obvious Dominance
+            if top['source'] == 'obvious' and top['confidence'] >= 0.93:
+                winner = top
+                trace.append(f"Obvious({top['confidence']:.2f}) wins (Dominant)")
+            
+            # Rule 2: Semantic/Modality Win
+            elif top['source'] == 'modality' and top['confidence'] >= 0.78:
+                if not conflicts:
+                    winner = top
+                    trace.append(f"Modality({top['confidence']:.2f}) wins (High Conf, No Conflict)")
+                else:
+                    trace.append(f"Modality({top['confidence']:.2f}) blocked by conflicts: {conflicts}")
+            
+            # Fallback
+            else:
+                trace.append(f"Top candidate {top['source']}({top['confidence']:.2f}) below auto-thresholds")
+                if not conflicts:
+                    # Return it but let the queue logic handle the low confidence
+                    winner = top
+        
+        if not winner:
+            winner = {
+                "category": "needs_review",
+                "confidence": 0.0,
+                "source": "Fusion (Fallback)",
+                "reasoning": ["No clear winner or blocked by conflicts"]
+            }
+
+        return {
+            "signals": signals,
+            "final": {
+                "category": winner.get('category'),
+                "confidence": winner.get('confidence', 0.0),
+                "decision_trace": " > ".join(trace),
+                "winner": winner,
+                "candidates": candidates,
+                "conflicts": conflicts
+            }
+        }
+
+    def _add_to_review_queue(self, file_path: Path, result: Dict[str, Any], file_type: str):
+        """Add ambiguous/conflicting file to review queue"""
+        try:
+            stat = file_path.stat()
+            file_hash = hashlib.md5(f"{file_path}{stat.st_size}{stat.st_mtime}".encode()).hexdigest()
+            
+            entry = {
+                "timestamp": time.time(),
+                "queue_id": file_hash,
+                "file_path": str(file_path),
+                "file_type": file_type,
+                "final_decision": {
+                    "category": result['final']['category'],
+                    "confidence": result['final']['confidence'],
+                    "trace": result['final']['decision_trace']
+                },
+                "conflicts": result['final']['conflicts'],
+                "candidates": [
+                    {"src": c['source'], "cat": c['category'], "conf": c['confidence']} 
+                    for c in result['final']['candidates']
+                ],
+                "status": "pending"
+            }
+            
+            with open(self.review_queue_path, 'a') as f:
+                f.write(json.dumps(entry) + "\n")
+                
+        except Exception as e:
+            print(f"❌ Failed to write to review queue: {e}")
+
+    def classify_file(self, file_path: Union[str, Path], project_context: Optional[str] = None) -> Dict[str, Any]:
         """
         Classifies a file by routing it to the correct analysis engine.
 
@@ -263,6 +367,7 @@ class UnifiedClassificationService:
 
         Args:
             file_path: The absolute path to the file to classify.
+            project_context: Optional string describing the active project (Phase V4).
 
         Returns:
             A dictionary containing the classification result with guaranteed 'confidence' field.
@@ -275,62 +380,79 @@ class UnifiedClassificationService:
                 "unknown"
             )
 
-        # 0. Check for obvious patterns first (Fast Path)
+        # 0. Check for obvious patterns first (Fast Path Signal)
         obvious_result = self._check_obvious_classification(file_path)
-        if obvious_result:
-            print(f"⚡ Fast classification for {file_path.name}: {obvious_result['category']}")
-            return self._normalize_confidence(obvious_result, file_path, "generic")
-
-        # PERFORMANCE OPTIMIZATION: Skip large files to avoid slow vision/audio analysis
-        try:
-            file_size_bytes = file_path.stat().st_size
-            file_size_mb = file_size_bytes / (1024 * 1024)
-            MAX_AUTO_PROCESS_SIZE_MB = 10  # 10MB limit for automatic processing
-
-            if file_size_mb > MAX_AUTO_PROCESS_SIZE_MB:
-                print(f"⚠️  Skipping {file_path.name} ({file_size_mb:.1f}MB) - too large for automatic processing")
-                return self._normalize_confidence(
-                    {
-                        'category': 'unknown',
-                        'confidence': 0.0,
-                        'reasoning': [
-                            f'File too large ({file_size_mb:.1f}MB) for automatic processing',
-                            'Large files should be manually organized to avoid performance issues'
-                        ],
-                        'suggested_filename': file_path.name,
-                        'source': 'FileSize Check (Performance Protection)'
-                    },
-                    file_path,
-                    "unknown"
-                )
-        except (OSError, PermissionError) as e:
-            print(f"⚠️  Could not check file size for {file_path.name}: {e}")
-
-        # 1. Determine file type (e.g., by MIME type or extension)
+        
+        # 1. Determine file type
         file_type = self._get_file_type(file_path)
+        
+        # 2. Run modality-specific analysis to get the PRIMARY signal
+        modality_signal = self._get_modality_signal(file_path, file_type, project_context)
 
-        # 2. Consult the Learning Service for historical context (Future Step)
-        # historical_context = self.learning_service.get_context(file_path)
+        # 3. Get History Signal (Verified Patterns)
+        history_signal = self._get_history_signal(file_path)
 
-        # 3. Route to the appropriate analysis engine
-        if file_type == 'audio':
-            result = self._classify_audio_file(file_path)
-        elif file_type == 'image':
-            result = self._classify_image_file(file_path)
-        elif file_type == 'video':
-            result = self._classify_video_file(file_path)
-        elif file_type == 'text':
-            result = self._classify_text_document(file_path)
-        else:
-            result = self._classify_generic_file(file_path)
+        # 4. Construct Evidence Bundle
+        signals = {
+            "obvious": obvious_result if obvious_result else {"category": None, "confidence": 0.0},
+            "modality": modality_signal,
+            "history": history_signal
+        }
+        
+        # 5. FUSE SIGNALS
+        fusion_result = self._fuse_signals(signals, file_type)
+        
+        # 6. Safety & Queueing Checks
+        final_confidence = fusion_result['final']['confidence']
+        final_category = fusion_result['final']['category']
+        conflicts = fusion_result['final']['conflicts']
+        
+        # Thresholds
+        AUTO_ROUTE_THRESHOLD = 0.80
+        QUEUE_THRESHOLD = 0.72
+        
+        should_queue = False
+        
+        # Queue Condition 1: Low Confidence
+        if final_confidence < QUEUE_THRESHOLD:
+            should_queue = True
+            
+        # Queue Condition 2: "Unknown" or "Needs Review"
+        if final_category in ['unknown', 'needs_review']:
+            should_queue = True
+            
+        # Queue Condition 3: Hard Conflicts present
+        if conflicts:
+            should_queue = True
+            
+        # Queue Condition 4: "Uncertain Zone" (High enough to predict, low enough to verify)
+        # If between 0.72 and 0.80, we might want to queue it BUT still return the category
+        if QUEUE_THRESHOLD <= final_confidence < AUTO_ROUTE_THRESHOLD:
+             if conflicts:
+                should_queue = True
 
-        # 4. Normalize confidence to guarantee it exists
-        result = self._normalize_confidence(result, file_path, file_type)
+        # Queue Logic
+        if should_queue:
+            self._add_to_review_queue(file_path, fusion_result, file_type)
+            
+            # If strictly below queue threshold, force 'needs_review' in final output to prevent auto-move
+            if final_confidence < QUEUE_THRESHOLD:
+               fusion_result['final']['category'] = 'needs_review'
 
-        # 5. Blend analysis with historical context (Future Step)
-        # final_result = self.learning_service.blend_with_history(result, historical_context)
-
-        return result
+        # 7. Construct Final Backward-Compatible Result
+        winner = fusion_result['final']['winner']
+        
+        final_result = {
+            "category": fusion_result['final']['category'],
+            "confidence": fusion_result['final']['confidence'],
+            "reasoning": [fusion_result['final']['decision_trace']] + winner.get('reasoning', []),
+            "source": winner.get('source', 'Fusion'),
+            "suggested_filename": winner.get('suggested_filename', file_path.name),
+            "signals": signals,
+            "fusion": fusion_result['final']
+        }
+        
+        return final_result
 
     def _get_file_type(self, file_path: Path) -> str:
         """Determine the general file type (audio, image, video, text, etc.)."""
@@ -341,22 +463,33 @@ class UnifiedClassificationService:
             return 'image'
         if extension in ['.mp4', '.mov', '.avi', '.mkv', '.webm', '.flv']:
             return 'video'
-        if extension in ['.pdf', '.docx', '.txt', '.md']:
+        if extension in ['.pdf', '.docx', '.txt', '.md', '.html', '.htm', '.json', '.xml', '.py', '.js', '.ts', '.tsx', '.css']:
             return 'text'
         return 'generic'
 
+    def _get_modality_signal(self, file_path: Path, file_type: str, project_context: Optional[str] = None) -> Dict[str, Any]:
+        """Route to specific handlers based on modality"""
+        if file_type == 'text':
+            return self._classify_text_document(file_path)
+        if file_type == 'image':
+            return self._classify_image_file(file_path, project_context)
+        if file_type == 'video':
+            return self._classify_video_file(file_path, project_context)
+        if file_type == 'audio':
+            return self._classify_audio_file(file_path, project_context)
+        return self._classify_generic_file(file_path)
+
     def _classify_text_document(self, file_path: Path) -> Dict[str, Any]:
         """
-        Classify a text document using full content analysis.
-        Uses ContentExtractor to read document content and applies keyword analysis.
+        Classify a text document using Hybrid Intelligence:
+        1. FAST: Regex-based keyword matching for obvious cases.
+        2. SMART: Semantic AI analysis for ambiguous or complex content.
         
-        Confidence Scoring Algorithm:
-        - Base confidence: 55% for any keyword match
-        - Keyword bonus: +25% for each additional keyword beyond the first
-        - Strong keyword bonus: +15% for documents with 2+ strong keywords (contract, agreement, payment, script, code)
-        - Content bonus: +10% for keywords found in document content (not just filename)
-        - 85% threshold for ADHD-friendly auto-classification without user intervention
-        - Files with "contract" + "agreement" keywords achieve 100% confidence
+        Algorithm:
+        - Extract text content.
+        - Run regex keyword check with word boundaries (fixes 'agenda' != 'nda').
+        - If Keyword Confidence > 0.85 AND contains 'strong' keywords -> Return fast result.
+        - Otherwise -> Send to SemanticTextAnalyzer (Gemini) for deep reading.
         """
         print(f"DEBUG: --- Classifying Text Document: {file_path.name} ---")
         try:
@@ -373,108 +506,151 @@ class UnifiedClassificationService:
                     'suggested_filename': file_path.name
                 }
 
-            full_text = content_data['text'].lower()
+            full_text = content_data['text']  # Keep original case for AI, lower for keywords
+            full_text_lower = full_text.lower()
             filename = file_path.name.lower()
             print(f"DEBUG: Content length: {len(full_text)} chars")
 
+            # --- PHASE 1: Fast Regex Keyword Matching ---
+            import json
+            import re
+            
             best_category = 'unknown'
             best_confidence = 0.0
             reasoning = []
-
-            # Load classification rules directly from JSON file
-            import json
+            
+            # Load classification rules
             rules_file = Path(__file__).parent / "classification_rules.json"
             if rules_file.exists():
                 with open(rules_file, 'r') as f:
                     rules_data = json.load(f)
                 rules = rules_data.get('document_types', {})
             else:
-                # Fallback rules if file doesn't exist
-                rules = {
-                    'contracts': {
-                        'keywords': ['contract', 'agreement', 'deal memo', 'nda']
-                    },
-                    'financial': {
-                        'keywords': ['payment', 'report', 'residual', 'tax', 'invoice']
-                    }
-                }
-            print(f"DEBUG: Loaded {len(rules)} classification rules.")
+                rules = {} # Fallback
+
+            matched_keywords = []
 
             for category, rule_details in rules.items():
                 keyword_matches = 0
-                matched_keywords = []
+                current_matched = []
 
                 for keyword in rule_details.get('keywords', []):
-                    if keyword.lower() in full_text:
+                    # Use Regex Word Boundaries (\b) to prevent partial matches
+                    # e.g. Match 'nda' but NOT 'agenda'
+                    pattern = r'\b' + re.escape(keyword.lower()) + r'\b'
+                    
+                    if re.search(pattern, full_text_lower):
                         keyword_matches += 1
-                        matched_keywords.append(keyword)
-                    elif keyword.lower() in filename:
+                        current_matched.append(keyword)
+                    elif keyword.lower() in filename: # Filenames might not have spaces
                         keyword_matches += 0.5
-                        matched_keywords.append(f"{keyword} (in filename)")
+                        current_matched.append(f"{keyword} (in filename)")
                 
-                category_confidence = 0.0
                 if keyword_matches > 0:
-                    print(f"DEBUG: [{category}] Found {keyword_matches} keyword matches: {matched_keywords}")
+                    # Score Calculation
                     base_confidence = 0.55
                     keyword_bonus = (keyword_matches - 1) * 0.25
-                    
-                    strong_keywords = ['contract', 'agreement', 'payment', 'script', 'code']
-                    strong_matches = sum(1 for kw in matched_keywords if kw.split(' ')[0] in strong_keywords)
-
+                    strong_keywords = ['contract', 'agreement', 'payment', 'script', 'code', 'nda']
+                    strong_matches = sum(1 for kw in current_matched if kw.split(' ')[0] in strong_keywords)
                     strong_bonus = 0.15 if strong_matches >= 2 else 0
-                    content_bonus = 0.1 if any('(in filename)' not in kw for kw in matched_keywords) else 0
+                    
+                    category_confidence = base_confidence + keyword_bonus + strong_bonus
+                    
+                    if category_confidence > best_confidence:
+                        best_confidence = category_confidence
+                        best_category = category
+                        matched_keywords = current_matched
+                        reasoning = [f"Found keywords: {', '.join(matched_keywords)}"]
 
-                    # Calculate final confidence score for ADHD-friendly auto-classification
-                    # Confidence >= 85% enables automatic file organization without user questions
-                    category_confidence = base_confidence + keyword_bonus + strong_bonus + content_bonus
-                    print(f"DEBUG: [{category}] Base: {base_confidence}, Bonus: {keyword_bonus}, Strong: {strong_bonus}, Content: {content_bonus} -> Total: {category_confidence}")
+            # --- PHASE 2: AI Decision Gate ---
+            # If confidence is high and we are sure, skip AI to save time/cost.
+            # But if it's 'NDA' (often ambiguous) or confidence is low (< 0.85), use AI.
+            
+            use_ai = False
+            
+            # Condition 1: Low confidence
+            if best_confidence < 0.85:
+                use_ai = True
+                print(f"DEBUG: Confidence {best_confidence:.2f} < 0.85. Engaging AI.")
+                
+            # Condition 2: Ambiguous Categories (Short acronyms like NDA can be tricky despite regex)
+            if 'nda' in matched_keywords or len(full_text) < 100:
+                use_ai = True
+                print("DEBUG: Ambiguous content detected. Engaging AI for verification.")
 
-                if category_confidence > best_confidence:
-                    print(f"DEBUG: [{category}] New best category! Score: {category_confidence:.2f}")
-                    best_confidence = category_confidence
-                    best_category = category
-                    reasoning = [f"Found content keywords: {', '.join(matched_keywords[:3])}"]
+            # Check if AI is available
+            if use_ai and self.semantic_text_enabled and self.semantic_text_analyzer:
+                print("✨ Engaging Semantic Text Analyzer (Gemini)...")
+                ai_result = self.semantic_text_analyzer.analyze_text(full_text, file_path.name)
+                
+                if ai_result.get("success"):
+                    ai_category = ai_result.get("category")
+                    ai_confidence = ai_result.get("confidence", 0.0)
+                    
+                    print(f"🤖 AI Analysis: Category='{ai_category}', Confidence={ai_confidence}")
+                    
+                    # Trust AI if it's confident
+                    if ai_confidence > best_confidence:
+                        best_category = ai_category
+                        best_confidence = ai_confidence
+                        reasoning = [
+                            f"AI Interpretation: {ai_result.get('document_type', 'Document')}",
+                            f"Summary: {ai_result.get('summary', '')}",
+                            f"Reasoning: {ai_result.get('reasoning', '')}"
+                        ]
+                        
+                        # Use AI suggested filename if available
+                        if ai_result.get("suggested_filename"):
+                            return {
+                                'source': 'Semantic Text Analyzer (Gemini)',
+                                'category': best_category,
+                                'confidence': best_confidence,
+                                'reasoning': reasoning,
+                                'suggested_filename': ai_result.get("suggested_filename"),
+                                'keywords': ai_result.get("keywords", [])  # Return AI keywords
+                            }
 
-            if best_confidence < 0.2:
-                print("DEBUG: No strong matches found. Defaulting to 'text_document' with 0.2 confidence.")
-                best_category = 'text_document'
-                best_confidence = 0.2
-                reasoning = ['Document contains text but no specific category indicators']
-
+            # Final Cleanup
             final_confidence = min(best_confidence, 1.0)
-            print(f"DEBUG: Final decision: Category='{best_category}', Confidence={final_confidence:.2f}")
-
-            # Generate intelligent filename if we have strong keywords
+            
+            # Generate intelligent filename (Legacy fallback)
             suggested_filename = file_path.name
-            if best_confidence > 0.6 and len(matched_keywords) > 0:
-                # Use the top 2 keywords to form a descriptive name
-                # Clean keywords (remove 'in filename' suffix)
+            if final_confidence > 0.6 and len(matched_keywords) > 0:
                 clean_keywords = [k.split(' (')[0].replace(' ', '_') for k in matched_keywords]
-                # Remove duplicates while preserving order
                 unique_keywords = list(dict.fromkeys(clean_keywords))
-                
-                # Create descriptive prefix
                 prefix = "_".join(unique_keywords[:2])
-                
-                # Preserve original extension
                 extension = file_path.suffix
-                
-                # If original name is generic (e.g. "Untitled", "Doc"), replace it entirely
-                if "untitled" in filename or "doc" in filename or "scan" in filename:
+                if any(x in filename for x in ["untitled", "doc", "scan"]):
                     suggested_filename = f"{best_category}_{prefix}{extension}"
                 else:
-                    # Otherwise append category/keywords to original name
                     suggested_filename = f"{file_path.stem}_{prefix}{extension}"
             
+            # Record observation for learning system
+            if self.learning_enabled and self.learning_system:
+                self.learning_system.record_classification(
+                    file_path=str(file_path),
+                    predicted_category=best_category,
+                    confidence=final_confidence,
+                    features={
+                        'keywords': matched_keywords,
+                        'reasoning': reasoning
+                    },
+                    media_type='document'
+                )
+
             return {
-                'source': 'Text Classifier',
+                'source': 'Text Classifier (Hybrid)',
                 'category': best_category,
                 'confidence': final_confidence,
                 'reasoning': reasoning,
-                'suggested_filename': suggested_filename
+                'suggested_filename': suggested_filename,
+                'keywords': matched_keywords  # Return discovered keywords for learning system
             }
 
         except Exception as e:
+            print(f"❌ Error in text classification: {e}")
+            import traceback
+            traceback.print_exc()
             return {
                 'source': 'Text Classifier',
                 'category': 'unknown',
@@ -483,7 +659,7 @@ class UnifiedClassificationService:
                 'suggested_filename': file_path.name
             }
 
-    def _classify_audio_file(self, file_path: Path) -> Dict[str, Any]:
+    def _classify_audio_file(self, file_path: Path, project_context: Optional[str] = None) -> Dict[str, Any]:
         """
         Classify audio file using the integrated AudioAnalyzer with AI-powered analysis
         and spectral analysis using librosa.
@@ -493,7 +669,7 @@ class UnifiedClassificationService:
             spectral_result = self.audio_analyzer.analyze_audio_spectral(file_path, max_duration=30)
 
             # Use AudioAnalyzer for intelligent classification (requires OpenAI API)
-            classification_result = self.audio_analyzer.classify_audio_file(file_path)
+            classification_result = self.audio_analyzer.classify_audio_file(file_path, project_context=project_context)
 
             if classification_result:
                 # Merge spectral analysis with AI classification
@@ -504,7 +680,8 @@ class UnifiedClassificationService:
                     'tags': classification_result.get('tags', []),
                     'thematic_notes': classification_result.get('thematic_notes'),
                     'target_folder': classification_result.get('target_folder'),
-                    'discovered_elements': classification_result.get('discovered_elements', [])
+                    'discovered_elements': classification_result.get('discovered_elements', []),
+                    'transcript': classification_result.get('transcript')
                 }
 
                 # Add spectral analysis data if available
@@ -516,6 +693,16 @@ class UnifiedClassificationService:
                     metadata['energy_level_spectral'] = spectral_result.get('energy_level_scale', 0)
 
                 # Convert AudioAnalyzer result to unified format
+                # Record observation for learning system
+                if self.learning_enabled and self.learning_system:
+                    self.learning_system.record_classification(
+                        file_path=str(file_path),
+                        predicted_category=classification_result.get('category', 'audio'),
+                        confidence=classification_result.get('confidence', 0.0),
+                        features=metadata,
+                        media_type='audio'
+                    )
+
                 return {
                     'source': 'Audio Classifier (AI + Spectral Analysis)',
                     'category': classification_result.get('category', 'audio'),
@@ -634,7 +821,7 @@ class UnifiedClassificationService:
             'suggested_filename': file_path.name
         }
 
-    def _classify_image_file(self, file_path: Path) -> Dict[str, Any]:
+    def _classify_image_file(self, file_path: Path, project_context: Optional[str] = None) -> Dict[str, Any]:
         """
         Classify image file using Gemini Vision API
 
@@ -650,7 +837,7 @@ class UnifiedClassificationService:
 
         try:
             # Analyze image with Gemini Vision
-            vision_result = self.vision_analyzer.analyze_image(str(file_path))
+            vision_result = self.vision_analyzer.analyze_image(str(file_path), project_context=project_context)
 
             if not vision_result.get('success'):
                 print(f"⚠️  Vision analysis failed for {file_path.name}, using fallback")
@@ -669,6 +856,7 @@ class UnifiedClassificationService:
                 'suggested_filename': file_path.name,
                 'metadata': {
                     'keywords': vision_result.get('keywords', []),
+                    'identified_entities': vision_result.get('identified_entities', []), # Phase V4
                     'objects_detected': vision_result.get('objects_detected', []),
                     'scene_type': vision_result.get('scene_type', 'unknown'),
                     'text_content': vision_result.get('text_content', ''),
@@ -682,10 +870,18 @@ class UnifiedClassificationService:
                 suggested_filename = vision_result.get('suggested_filename')
             elif vision_result.get('keywords'):
                 # Fallback: construct from keywords if vision didn't suggest a name
-                keywords = [k.replace(' ', '_') for k in vision_result.get('keywords', [])[:3]]
-                if keywords:
+                # Filter out stop words if keyword list exists
+                raw_keywords = vision_result.get('keywords', [])
+                stop_words = getattr(self.vision_analyzer, 'llm_stop_words', set())
+                clean_keywords = [
+                    k.replace(' ', '_') 
+                    for k in raw_keywords 
+                    if k.lower() not in stop_words and len(k) > 2
+                ][:3]
+                
+                if clean_keywords:
                     extension = file_path.suffix
-                    suggested_filename = f"{classification['category']}_{'_'.join(keywords)}{extension}"
+                    suggested_filename = f"{classification['category']}_{'_'.join(clean_keywords)}{extension}"
 
             classification['suggested_filename'] = suggested_filename
 
@@ -697,9 +893,11 @@ class UnifiedClassificationService:
                     confidence=classification['confidence'],
                     features={
                         'keywords': classification['metadata']['keywords'],
+                        'identified_entities': vision_result.get('identified_entities', []), # Phase V4
                         'visual_objects': vision_result.get('objects_detected', []),
                         'scene_type': vision_result.get('scene_type', '')
-                    }
+                    },
+                    media_type='image'
                 )
 
             return classification
@@ -708,7 +906,7 @@ class UnifiedClassificationService:
             print(f"❌ Error classifying image {file_path.name}: {e}")
             return self._fallback_classification(file_path, 'image')
 
-    def _classify_video_file(self, file_path: Path) -> Dict[str, Any]:
+    def _classify_video_file(self, file_path: Path, project_context: Optional[str] = None) -> Dict[str, Any]:
         """
         Classify video file using Gemini Vision API
 
@@ -723,7 +921,7 @@ class UnifiedClassificationService:
 
         try:
             # Analyze video with Gemini Vision (2 minute limit)
-            vision_result = self.vision_analyzer.analyze_video(str(file_path))
+            vision_result = self.vision_analyzer.analyze_video(str(file_path), project_context=project_context)
 
             if not vision_result.get('success'):
                 print(f"⚠️  Vision analysis failed for {file_path.name}, using fallback")
@@ -741,6 +939,7 @@ class UnifiedClassificationService:
                 'suggested_filename': file_path.name,
                 'metadata': {
                     'keywords': vision_result.get('keywords', []),
+                    'identified_entities': vision_result.get('identified_entities', []), # Phase V4
                     'video_type': vision_result.get('metadata', {}).get('video_type', 'unknown'),
                     'analysis_timestamp': vision_result.get('metadata', {}).get('analysis_timestamp', '')
                 }
@@ -754,8 +953,10 @@ class UnifiedClassificationService:
                     confidence=classification['confidence'],
                     features={
                         'keywords': classification['metadata']['keywords'],
+                        'identified_entities': vision_result.get('identified_entities', []), # Phase V4
                         'video_type': vision_result.get('metadata', {}).get('video_type', 'unknown')
-                    }
+                    },
+                    media_type='video'
                 )
 
             return classification
@@ -798,9 +999,16 @@ def save_metadata_sidecar(file_path: Path, classification_result: Dict[str, Any]
         file_path: Path to the organized file
         classification_result: The classification dictionary
     """
+    import json
+    from datetime import datetime
+    
     try:
-        # Create sidecar path (e.g., image.jpg -> image.jpg.json)
-        sidecar_path = file_path.with_name(f"{file_path.name}.json")
+        # Relocate sidecar to hidden .metadata folder to prevent clutter
+        # e.g., folder/image.jpg -> folder/.metadata/image.jpg.json
+        metadata_dir = file_path.parent / ".metadata"
+        metadata_dir.mkdir(parents=True, exist_ok=True)
+        
+        sidecar_path = metadata_dir / f"{file_path.name}.json"
         
         # Prepare metadata for saving
         metadata = {
@@ -810,13 +1018,10 @@ def save_metadata_sidecar(file_path: Path, classification_result: Dict[str, Any]
             'system_version': '3.1'
         }
         
-        import json
-        from datetime import datetime
-        
         with open(sidecar_path, 'w') as f:
             json.dump(metadata, f, indent=2)
             
-        print(f"📝 Saved metadata sidecar: {sidecar_path.name}")
+        print(f"📝 Saved metadata sidecar to hidden folder: .metadata/{sidecar_path.name}")
         
     except Exception as e:
         print(f"❌ Failed to save metadata sidecar for {file_path.name}: {e}")

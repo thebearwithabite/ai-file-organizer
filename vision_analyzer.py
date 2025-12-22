@@ -58,17 +58,22 @@ class VisionAnalyzer:
     # Analysis prompts for different content types
     IMAGE_ANALYSIS_PROMPT = """Analyze this image and provide the results in JSON format.
 
+{identity_context}
+
+IMPORTANT: Return ONLY a valid JSON object. Do not include any introductory text, preamble, or conversational filler.
+
 Return a valid JSON object with this structure:
-{
+{{
     "description": "Detailed description of the image content, including main subjects, setting, and action.",
     "objects_detected": ["list", "of", "main", "objects"],
+    "identified_entities": ["list", "of", "people/pets/places", "identified", "by", "ID", "or", "Unknown", "placeholder"],
     "scene_type": "indoor/outdoor/digital/unknown",
     "text_content": "Any visible text extracted verbatim",
     "visual_style": "photo/screenshot/illustration/diagram/etc",
     "emotional_tone": "Mood or tone of the image",
-    "suggested_category": "photo/screenshot/document/creative/technical/etc",
+    "suggested_category": "personal_photos/tech_reference/tech_literature/biz_contracts/biz_financials/etc",
     "keywords": ["list", "of", "relevant", "keywords", "for", "search"]
-}"""
+}}"""
 
     SCREENSHOT_TEXT_PROMPT = """This appears to be a screenshot. Please extract ALL visible text from this image.
     
@@ -82,17 +87,22 @@ Return a valid JSON object with this structure:
 
     VIDEO_ANALYSIS_PROMPT = """Analyze this video clip and provide the results in JSON format.
 
+{identity_context}
+
+IMPORTANT: Return ONLY a valid JSON object. Do not include any introductory text, preamble, or conversational filler.
+
 Return a valid JSON object with this structure:
-{
+{{
     "description": "Concise summary of the video content.",
     "objects_detected": ["list", "of", "key", "objects"],
+    "identified_entities": ["list", "of", "entities", "recognized"],
     "scene_type": "video/animation/screen_recording",
     "text_content": "Any visible text or captions",
     "visual_style": "cinematic/amateur/professional/etc",
     "mood": "Emotional tone",
-    "suggested_category": "video_recording/tutorial/presentation/creative_video/etc",
+    "suggested_category": "creative_video/presentation/tutorial/etc",
     "keywords": ["list", "of", "relevant", "keywords"]
-}"""
+}}"""
 
     def __init__(self,
                  api_key: Optional[str] = None,
@@ -140,6 +150,14 @@ Return a valid JSON object with this structure:
         # Load existing patterns
         self.vision_patterns = self._load_vision_patterns()
 
+        # Initialize Identity Service (Phase V4)
+        try:
+            from identity_service import IdentityService
+            self.identity_service = IdentityService(get_metadata_root() / "config")
+        except ImportError:
+            self.logger.warning("IdentityService not found. Identity recognition will be disabled.")
+            self.identity_service = None
+
         # Category mapping for visual content
         self.category_keywords = {
             'screenshot': ['screenshot', 'screen capture', 'desktop', 'window', 'interface', 'ui', 'app'],
@@ -160,6 +178,14 @@ Return a valid JSON object with this structure:
         self.api_calls = 0
         self.cache_hits = 0
         self.cache_misses = 0
+
+        # LLM chatter stop words for fallback keyword extraction
+        self.llm_stop_words = {
+            'here', 'is', 'the', 'analysis', 'structured', 'results', 'image', 'photo',
+            'video', 'description', 'objects', 'detected', 'scene', 'type', 'visual',
+            'style', 'emotional', 'tone', 'suggested', 'category', 'keywords', 'for',
+            'search', 'content', 'analyze', 'provide', 'format', 'json', 'object'
+        }
 
         # Rate limiting for Gemini Free Tier compliance
         # Free tier: 15 RPM (requests per minute), 1,500 requests per day
@@ -378,12 +404,13 @@ Return a valid JSON object with this structure:
         except Exception as e:
             self.logger.warning(f"Error saving to cache: {e}")
 
-    def analyze_image(self, image_path: str) -> Dict[str, Any]:
+    def analyze_image(self, image_path: str, project_context: Optional[str] = None) -> Dict[str, Any]:
         """
         Analyze an image using Gemini Vision API.
 
         Args:
             image_path: Path to the image file
+            project_context: Optional description of the creative project context (Phase V4)
 
         Returns:
             Analysis result with content description, detected objects, confidence score
@@ -408,11 +435,16 @@ Return a valid JSON object with this structure:
                 'confidence_score': 0.0
             }
 
-        # Check cache first
-        cache_key = self._get_cache_key(image_path)
-        cached_result = self._load_from_cache(cache_key)
-        if cached_result:
-            return cached_result
+        # Check cache if not in a specific project context (context might change results)
+        if not project_context:
+            cache_key = self._get_cache_key(str(image_path_obj)) # Use str() for consistency with _get_cache_key signature
+            cached_result = self._load_from_cache(cache_key)
+            if cached_result:
+                return cached_result
+        else:
+            # If project_context is present, we consider it a cache miss for the purpose of this block
+            # as the context changes the expected output.
+            self.cache_misses += 1
 
         # Check if API is available
         if not self.api_initialized:
@@ -435,11 +467,24 @@ Return a valid JSON object with this structure:
             # Enforce rate limiting (15 RPM)
             self._wait_for_rate_limit()
 
+            # Fetch identity context if available (Phase V4)
+            identity_context = ""
+            if self.identity_service:
+                identity_context = self.identity_service.generate_prompt_context()
+            
+            # Incorporate Project Context (Phase V4)
+            full_context = identity_context
+            if project_context:
+                full_context += f"\nPROJECT CONTEXT: This file belongs to the project: '{project_context}'. Tailor your descriptions and style analysis to this creative context."
+
+            # Format the prompt
+            prompt = self.IMAGE_ANALYSIS_PROMPT.format(identity_context=full_context)
+
             # Call Gemini API for analysis
             self.api_calls += 1
             self.logger.info(f"Analyzing image: {image_path_obj.name} (quota: {self.daily_requests['requests']}/{self.rate_limit_daily})")
             response = self.model.generate_content(
-                [self.IMAGE_ANALYSIS_PROMPT, image],
+                [prompt, image],
                 safety_settings={
                     HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
                     HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
@@ -583,11 +628,24 @@ Return a valid JSON object with this structure:
             if video_file.state.name == "FAILED":
                 raise ValueError(f"Video processing failed: {video_file.state.name}")
 
+            # Fetch identity context if available (Phase V4)
+            identity_context = ""
+            if self.identity_service:
+                identity_context = self.identity_service.generate_prompt_context()
+            
+            # Incorporate Project Context (Phase V4)
+            full_context = identity_context
+            if project_context:
+                full_context += f"\nPROJECT CONTEXT: This file belongs to the project: '{project_context}'. Tailor your descriptions and style analysis to this creative context."
+
+            # Format the prompt
+            prompt = self.VIDEO_ANALYSIS_PROMPT.format(identity_context=full_context)
+
             # Analyze video
             self.api_calls += 1
             self.logger.info(f"Analyzing video: {video_path_obj.name}")
             response = self.model.generate_content(
-                [video_file, self.VIDEO_ANALYSIS_PROMPT],
+                [video_file, prompt],
                 safety_settings={
                     HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
                     HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
@@ -673,14 +731,22 @@ Return a valid JSON object with this structure:
         """Parse Gemini's image analysis response into structured data"""
         
         try:
-            # Clean up potential markdown code blocks
+            # Clean up potential markdown code blocks and find JSON structure
             clean_text = analysis_text.strip()
-            if clean_text.startswith('```json'):
-                clean_text = clean_text[7:]
-            if clean_text.startswith('```'):
-                clean_text = clean_text[3:]
-            if clean_text.endswith('```'):
-                clean_text = clean_text[:-3]
+            
+            # Robust JSON extraction: Find first '{' and last '}'
+            import re
+            json_match = re.search(r'(\{.*\})', clean_text, re.DOTALL)
+            if json_match:
+                clean_text = json_match.group(1)
+            else:
+                # If no clear braces, try standard cleanup
+                if clean_text.startswith('```json'):
+                    clean_text = clean_text[7:]
+                if clean_text.startswith('```'):
+                    clean_text = clean_text[3:]
+                if clean_text.endswith('```'):
+                    clean_text = clean_text[:-3]
             clean_text = clean_text.strip()
             
             # Try parsing as JSON first
@@ -689,6 +755,7 @@ Return a valid JSON object with this structure:
             # Extract fields with defaults
             description = data.get('description', '')
             objects = data.get('objects_detected', [])
+            entities = data.get('identified_entities', []) # Phase V4
             scene_type = data.get('scene_type', 'unknown')
             text_content = data.get('text_content', '')
             keywords = data.get('keywords', [])
@@ -704,6 +771,7 @@ Return a valid JSON object with this structure:
                 'content_type': 'image',
                 'description': description,
                 'objects_detected': objects,
+                'identified_entities': entities, # Phase V4
                 'text_content': text_content,
                 'scene_type': scene_type,
                 'confidence_score': confidence,
@@ -740,9 +808,16 @@ Return a valid JSON object with this structure:
             length_bonus = 0.1 if len(analysis_text) > 100 else 0.0
             confidence = min(0.95, base_confidence + keyword_bonus + length_bonus)
 
-            # Extract objects/keywords from analysis
+            # Extract objects/keywords from analysis, filtering out stop words
             words = analysis_text.lower().split()
-            keywords = [word.strip('.,!?;:') for word in words if len(word) > 4][:10]
+            keywords = []
+            for word in words:
+                clean_word = word.strip('.,!?;:"\'()[]{}')
+                if len(clean_word) > 4 and clean_word not in self.llm_stop_words:
+                    # Also check for possessives or common chatter like "here's"
+                    if not (clean_word.endswith("'s") and clean_word[:-2] in self.llm_stop_words):
+                        keywords.append(clean_word)
+            keywords = keywords[:10]
 
             # Determine scene type
             scene_type = 'unknown'
@@ -775,14 +850,21 @@ Return a valid JSON object with this structure:
         """Parse Gemini's video analysis response into structured data"""
         
         try:
-            # Clean up potential markdown code blocks
+            # Clean up potential markdown code blocks and find JSON structure
             clean_text = analysis_text.strip()
-            if clean_text.startswith('```json'):
-                clean_text = clean_text[7:]
-            if clean_text.startswith('```'):
-                clean_text = clean_text[3:]
-            if clean_text.endswith('```'):
-                clean_text = clean_text[:-3]
+            
+            # Robust JSON extraction
+            import re
+            json_match = re.search(r'(\{.*\})', clean_text, re.DOTALL)
+            if json_match:
+                clean_text = json_match.group(1)
+            else:
+                if clean_text.startswith('```json'):
+                    clean_text = clean_text[7:]
+                if clean_text.startswith('```'):
+                    clean_text = clean_text[3:]
+                if clean_text.endswith('```'):
+                    clean_text = clean_text[:-3]
             clean_text = clean_text.strip()
             
             # Try parsing as JSON first
@@ -791,6 +873,7 @@ Return a valid JSON object with this structure:
             # Extract fields with defaults
             description = data.get('description', '')
             objects = data.get('objects_detected', [])
+            entities = data.get('identified_entities', []) # Phase V4
             scene_type = data.get('scene_type', 'video')
             keywords = data.get('keywords', [])
             suggested_category = data.get('suggested_category', 'video_recording')
@@ -803,6 +886,7 @@ Return a valid JSON object with this structure:
                 'content_type': 'video',
                 'description': description,
                 'objects_detected': objects,
+                'identified_entities': entities, # Phase V4
                 'text_content': data.get('text_content', ''),
                 'scene_type': scene_type,
                 'confidence_score': confidence,
@@ -945,6 +1029,14 @@ Return a valid JSON object with this structure:
 
         # Store scene types
         self.vision_patterns['scene_types'][scene_type].append(category)
+
+        # Store identified entities (Phase V4)
+        entities = analysis_result.get('identified_entities', [])
+        if entities:
+            if 'identified_entities' not in self.vision_patterns:
+                from collections import defaultdict
+                self.vision_patterns['identified_entities'] = defaultdict(list)
+            self.vision_patterns['identified_entities'][category].extend(entities)
 
         # Save updated patterns
         self._save_vision_patterns()

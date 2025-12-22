@@ -8,13 +8,14 @@ import logging
 import os
 import shutil
 import subprocess
+import json
 from pathlib import Path
 from typing import Dict, Any, Optional, List
-from datetime import datetime
+import datetime as dt_module
 
 from gdrive_librarian import GoogleDriveLibrarian
 from unified_classifier import UnifiedClassificationService
-from gdrive_integration import get_ai_organizer_root
+from gdrive_integration import get_ai_organizer_root, get_metadata_root
 from hierarchical_organizer import HierarchicalOrganizer
 from security_utils import validate_path_within_base
 from universal_adaptive_learning import UniversalAdaptiveLearning
@@ -41,7 +42,12 @@ class SystemService:
         if SystemService._librarian_instance is None:
             try:
                 logger.info("Creating GoogleDriveLibrarian (lazy initialization mode)...")
+                # Use centralized metadata root for config
+                from gdrive_integration import get_metadata_root
+                config_path = get_metadata_root() / "config"
+                
                 SystemService._librarian_instance = GoogleDriveLibrarian(
+                    config_dir=config_path,
                     cache_size_gb=2.0,
                     auto_sync=False  # Disable auto-sync for API stability
                 )
@@ -165,6 +171,32 @@ class SystemService:
                     }
             except Exception as e:
                 logger.error(f"Error getting Google Drive status: {e}")
+
+        # DEBUG LOGGING for Status Issue
+        logger.info(f"SystemStatus Debug - Sending Google Drive Status: {gdrive_status}")
+
+        # Orchestration Status (Read from shared JSON)
+        orchestration_info = {
+            "last_run": None,
+            "files_processed": 0,
+            "files_moved": 0,
+            "status": "idle"
+        }
+        
+        try:
+            stats_path = get_metadata_root() / "orchestration_stats.json"
+            if stats_path.exists():
+                with open(stats_path, 'r') as f:
+                    stats = json.load(f)
+                    orchestration_info = {
+                        "last_run": stats.get("last_run"),
+                        "files_processed": stats.get("files_processed", stats.get("files_touched", 0)),
+                        "status": stats.get("status", "idle")
+                    }
+        except Exception as e:
+            logger.error(f"Error reading orchestration stats: {e}")
+            # Fallback to in-memory if file read fails (though likely stale)
+            orchestration_info["status"] = "error"
 
         return {
             "backend_status": backend_status,
@@ -375,7 +407,9 @@ class TriageService:
                 self.base_dir / "99_TEMP_PROCESSING" / "Desktop_Staging",
                 self.base_dir / "99_TEMP_PROCESSING" / "Manual_Review",
                 self.base_dir / "99_STAGING_EMERGENCY",  # Emergency staging for bulk file dumps
-                self.base_dir / "00_INBOX_STAGING"  # New Primary Input Queue
+                self.base_dir / "00_INBOX_STAGING",  # New Primary Input Queue
+                # Add iCloud Staging
+                Path.home() / "Library/Mobile Documents/com~apple~CloudDocs/Documents/GDRIVE_STAGING"
             ]
 
             # Security: Validate all staging areas are within allowed base directories
@@ -406,100 +440,121 @@ class TriageService:
 
     def get_files_for_review(self) -> List[Dict[str, Any]]:
         """
-        Get list of files that require manual review based on low confidence scores
-
-        IMPORTANT: This method performs EXPENSIVE operations (AI classification, vision analysis, etc.)
-        It should ONLY be called when the user explicitly requests a triage scan,
-        NOT during server initialization.
-
-        Returns:
-            List of files with suggested categories and confidence scores below 85%
+        Get files requiring triage/review.
+        Prioritizes the Adaptive Review Queue, then falls back to live scanning of Staging Areas.
         """
         if self.classifier is None:
             logger.error("Classification engine not available - returning empty list")
             return []
 
         try:
+            logger.info("Getting files for review...")
             files_for_review = []
-            confidence_threshold = 0.85  # ADHD-friendly threshold from classifier
+            
+            # 1. READ QUEUE (V3 Priority)
+            # ------------------------------------------------------------------
+            try:
+                queue_path = get_metadata_root() / "review_queue.jsonl"
+                if queue_path.exists():
+                    logger.debug(f"Reading from Review Queue: {queue_path}")
+                    with open(queue_path, 'r') as f:
+                        for line in f:
+                            if not line.strip(): continue
+                            try:
+                                item = json.loads(line)
+                                path_str = item.get('path', '')
+                                if not path_str: continue
 
-            # Scan staging areas for unorganized files
-            for staging_area in self.staging_areas:
-                if not staging_area.exists():
-                    continue
+                                file_path = Path(path_str)
+                                if not file_path.exists():
+                                    continue
+                                
+                                # Convert Queue Item -> Triage Interface
+                                files_for_review.append({
+                                    "file_id": item.get('queue_id', str(hash(str(file_path)))),
+                                    "file_name": file_path.name,
+                                    "file_path": str(file_path),
+                                    "classification": {
+                                        # Use 'current_category' from queue (latest state)
+                                        "category": item.get("current_category", "unknown"),
+                                        "confidence": item.get("confidence", 0.0),
+                                        "reasoning": item.get("reasoning", "Flagged for review by Adaptive System"),
+                                        "needs_review": True
+                                    },
+                                    "status": "pending_review",
+                                    "source": "queue"
+                                })
+                            except Exception as e:
+                                logger.warning(f"Skipping malformed queue line: {e}")
+            except Exception as e:
+                logger.error(f"Error reading review queue: {e}")
 
-                logger.info(f"Scanning {staging_area} for files needing review")
-
-                # Get files from this staging area (limit to reasonable number for UI)
-                area_files = list(staging_area.rglob('*'))
-                file_count = 0
-
-                for file_path in area_files:
-                    # Skip directories and hidden files
-                    if not file_path.is_file() or file_path.name.startswith('.'):
-                        continue
-
-                    # Skip very large files to avoid processing delays (PERFORMANCE OPTIMIZATION)
+            # 2. FAILBACK SCAN (V2 Legacy/Hybrid)
+            # ------------------------------------------------------------------
+            # If queue is empty (or < 20 items), scan staging areas for new files
+            if len(files_for_review) < 20:
+                logger.debug("Queue low/empty - scanning staging areas for new files...")
+                confidence_threshold = 0.85 # Triage threshold
+                queued_paths = {f['file_path'] for f in files_for_review}
+                
+                for area in self.staging_areas:
+                    if len(files_for_review) >= 20: break
+                    if not area.exists(): continue
+                    
                     try:
-                        file_size_bytes = file_path.stat().st_size
-                        file_size_mb = file_size_bytes / (1024 * 1024)
+                        # Scan recent files
+                        for file_path in area.iterdir():
+                            if len(files_for_review) >= 20: break
+                            
+                            # Filter obvious junk
+                            if not file_path.is_file() or file_path.name.startswith('.'): continue
+                            if str(file_path) in queued_paths: continue
+                            if file_path.stat().st_size > 100 * 1024 * 1024: continue # Skip >100MB
+                            
+                            try:
+                                # Quick Classification
+                                result = self.classifier.classify_file(file_path)
+                                
+                                # Extract stats safely
+                                if isinstance(result, dict):
+                                    conf = result.get('confidence', 0.0)
+                                    cat = result.get('category', 'unknown')
+                                    rsn = result.get('reasoning', [])
+                                else:
+                                    conf = getattr(result, 'confidence', 0.0)
+                                    cat = getattr(result, 'category', 'unknown')
+                                    rsn = getattr(result, 'reasoning', [])
 
-                        # Reduce limit from 100MB to 10MB for faster processing
-                        if file_size_mb > 10:  # 10MB limit
-                            logger.info(f"Skipping {file_path.name} ({file_size_mb:.1f}MB) - too large for auto-processing")
-                            continue
-                    except (OSError, PermissionError):
-                        continue
-
-                    # Limit files per staging area to keep response manageable
-                    if file_count >= 10:
-                        break
-
-                    try:
-                        # Use the unified classification service for intelligent content analysis
-                        result = self.classifier.classify_file(file_path)
-
-                        # Only include files with low confidence that need manual review
-                        # Handle both dict and object result formats
-                        confidence = result.get('confidence', 0.0) if isinstance(result, dict) else getattr(result, 'confidence', 0.0)
-                        category = result.get('category', 'unknown') if isinstance(result, dict) else getattr(result, 'category', 'unknown')
-                        reasoning = result.get('reasoning', []) if isinstance(result, dict) else getattr(result, 'reasoning', [])
-                        source = result.get('source', 'Unknown') if isinstance(result, dict) else getattr(result, 'source', 'Unknown')
-
-                        if confidence < confidence_threshold:
-                            # Format to match frontend TriageFile interface
-                            files_for_review.append({
-                                "file_id": str(hash(str(file_path))),  # Generate unique ID
-                                "file_name": file_path.name,
-                                "file_path": str(file_path),
-                                "classification": {
-                                    "category": category,
-                                    "confidence": round(confidence, 2),
-                                    "reasoning": reasoning if isinstance(reasoning, str) else str(reasoning),
-                                    "needs_review": True  # All files in this list need review
-                                },
-                                "status": "pending_review"
-                            })
-                            file_count += 1
-
+                                # If low confidence, add to review list
+                                if conf < confidence_threshold:
+                                    files_for_review.append({
+                                        "file_id": str(hash(str(file_path))),
+                                        "file_name": file_path.name,
+                                        "file_path": str(file_path),
+                                        "classification": {
+                                            "category": cat,
+                                            "confidence": round(conf, 2),
+                                            "reasoning": str(rsn),
+                                            "needs_review": True
+                                        },
+                                        "status": "pending_review",
+                                        "source": "scan"
+                                    })
+                            except Exception as e:
+                                continue # Skip file on error
                     except Exception as e:
-                        logger.warning(f"Error classifying {file_path}: {e}")
-                        continue
+                        logger.warning(f"Error scanning staging area {area}: {e}")
 
-                # Limit total files to keep UI responsive
-                if len(files_for_review) >= 20:
-                    break
-
-            logger.info(f"Found {len(files_for_review)} files requiring manual review")
-
-            # Sort by confidence (lowest first - most urgent)
-            # FIX: Confidence is nested inside 'classification' dict
+            logger.info(f"Returning {len(files_for_review)} items for Triage")
+            
+            # Sort: Priority to Queue items? Or by confidence?
+            # Let's sort by confidence (lowest = most ambiguous = highest priority)
             files_for_review.sort(key=lambda x: x['classification']['confidence'])
-
+            
             return files_for_review
 
         except Exception as e:
-            logger.error(f"Error getting files for review: {e}")
+            logger.error(f"Critical error in get_files_for_review: {e}")
             return []
 
     def trigger_scan(self) -> Dict[str, Any]:
@@ -760,6 +815,7 @@ class TriageService:
 
         try:
             file_obj = Path(file_path)
+            original_name = file_obj.name  # FIX: Define early to prevent UnboundLocalError
 
             if not file_obj.exists():
                 return {
@@ -771,9 +827,17 @@ class TriageService:
             classification_result = self.classifier.classify_file(file_obj)
 
             # Handle both dict and object result formats
-            original_category = classification_result.get('category', 'unknown') if isinstance(classification_result, dict) else getattr(classification_result, 'category', 'unknown')
-            original_confidence = classification_result.get('confidence', 0.0) if isinstance(classification_result, dict) else getattr(classification_result, 'confidence', 0.0)
-            suggested_filename = classification_result.get('suggested_filename', file_obj.name) if isinstance(classification_result, dict) else getattr(classification_result, 'suggested_filename', file_obj.name)
+            if isinstance(classification_result, dict):
+                original_category = classification_result.get('category', 'unknown')
+                original_confidence = classification_result.get('confidence', 0.0)
+                suggested_filename = classification_result.get('suggested_filename', file_obj.name)
+                # FIX: Extract keywords for learning system
+                found_keywords = classification_result.get('keywords', [])
+            else:
+                original_category = getattr(classification_result, 'category', 'unknown')
+                original_confidence = getattr(classification_result, 'confidence', 0.0)
+                suggested_filename = getattr(classification_result, 'suggested_filename', file_obj.name)
+                found_keywords = getattr(classification_result, 'keywords', [])
 
             # --- Learning Step: Will record classification after successful file move ---
             logger.info(f"User classification for '{file_path}':")
@@ -805,66 +869,77 @@ class TriageService:
             else:
                 new_file_path = destination_dir / file_obj.name
 
-            # Handle filename conflicts
-            counter = 1
-            original_new_path = new_file_path
-            while new_file_path.exists():
-                stem = original_new_path.stem
-                suffix = original_new_path.suffix
-                new_file_path = destination_dir / f"{stem}_{counter}{suffix}"
-                counter += 1
+            # SAFETY CHECK: Prevent self-collision/recursion
+            # If the file is already in the target location, skip the move/rename logic
+            # This prevents infinite loops where 'file.txt' -> 'file_1.txt' -> 'file_1_1.txt'
+            if new_file_path.resolve() != file_obj.resolve():
+                # Handle filename conflicts only if we are actually moving to a new path/name
+                counter = 1
+                original_new_path = new_file_path
+                while new_file_path.exists():
+                    stem = original_new_path.stem
+                    suffix = original_new_path.suffix
+                    new_file_path = destination_dir / f"{stem}_{counter}{suffix}"
+                    counter += 1
 
-            # Move the file to its new intelligent location
-            original_full_path = str(file_obj.absolute())
-            original_name = file_obj.name
-            file_obj.rename(new_file_path)
+                # Move the file to its new intelligent location
+                original_full_path = str(file_obj.absolute())
+                # original_name defined at top now
+                
+                # Use shutil.move to handle cross-device moves (Local -> Google Drive)
+                import shutil
+                new_file_path.parent.mkdir(parents=True, exist_ok=True)
+                shutil.move(original_full_path, str(new_file_path))
+                
+                logger.info(f"Successfully moved and renamed file to: {new_file_path}")
 
-            logger.info(f"Successfully moved and renamed file to: {new_file_path}")
+                # Record operation in rollback system for easy undo
+                if self.rollback_service:
+                    try:
+                        hierarchy_notes = f"Project: {hierarchy_metadata.get('project', 'N/A')}, Episode: {hierarchy_metadata.get('episode', 'N/A')}, Media: {hierarchy_metadata.get('media_type', 'N/A')}"
+                        operation_id = self.rollback_service.record_operation(
+                            operation_type='organize',
+                            original_path=original_full_path,
+                            original_filename=original_name,
+                            new_filename=new_file_path.name,
+                            new_location=str(new_file_path.parent),
+                            category=confirmed_category,
+                            confidence=original_confidence,
+                            notes=f"AI: {original_category} ({original_confidence:.2f}), User: {confirmed_category} | {hierarchy_notes}"
+                        )
+                        logger.info(f"Recorded rollback operation ID: {operation_id}")
+                    except Exception as e:
+                        logger.warning(f"Failed to record rollback operation: {e}")
+            else:
+                logger.info(f"File is already in correct location: {new_file_path}. Skipping move.")
 
-            # Record operation in rollback system for easy undo
-            if self.rollback_service:
+                # Save Metadata Sidecar (JSON)
+                # This ensures the rich classification data travels with the file
                 try:
-                    hierarchy_notes = f"Project: {hierarchy_metadata.get('project', 'N/A')}, Episode: {hierarchy_metadata.get('episode', 'N/A')}, Media: {hierarchy_metadata.get('media_type', 'N/A')}"
-                    operation_id = self.rollback_service.record_operation(
-                        operation_type='organize',
-                        original_path=original_full_path,
-                        original_filename=original_name,
-                        new_filename=new_file_path.name,
-                        new_location=str(new_file_path.parent),
-                        category=confirmed_category,
-                        confidence=original_confidence,
-                        notes=f"AI: {original_category} ({original_confidence:.2f}), User: {confirmed_category} | {hierarchy_notes}"
-                    )
-                    logger.info(f"Recorded rollback operation ID: {operation_id}")
+                    from unified_classifier import save_metadata_sidecar
+                    
+                    # Prepare metadata dictionary
+                    metadata = {
+                        "original_filename": original_name,
+                        "classification": {
+                            "category": confirmed_category,
+                            "confidence": original_confidence,
+                            "ai_suggestion": original_category,
+                            "reasoning": classification_result.get('reasoning', []) if isinstance(classification_result, dict) else getattr(classification_result, 'reasoning', []),
+                            "keywords": found_keywords  # Save keywords in sidecar too
+                        },
+                        "hierarchy": hierarchy_metadata,
+                        "project": project,
+                        "episode": episode,
+                        "timestamp": dt_module.datetime.now().isoformat()
+                    }
+                    
+                    # Save sidecar next to the new file
+                    save_metadata_sidecar(new_file_path, metadata)
+                    logger.info(f"Saved metadata sidecar for: {new_file_path.name}")
+                    
                 except Exception as e:
-                    logger.warning(f"Failed to record rollback operation: {e}")
-
-            # --- Save Metadata Sidecar (JSON) ---
-            # This ensures the rich classification data travels with the file
-            try:
-                from unified_classifier import save_metadata_sidecar
-                
-                # Prepare metadata dictionary
-                metadata = {
-                    "original_filename": original_name,
-                    "classification": {
-                        "category": confirmed_category,
-                        "confidence": original_confidence,
-                        "ai_suggestion": original_category,
-                        "reasoning": classification_result.get('reasoning', []) if isinstance(classification_result, dict) else getattr(classification_result, 'reasoning', [])
-                    },
-                    "hierarchy": hierarchy_metadata,
-                    "project": project,
-                    "episode": episode,
-                    "timestamp": datetime.now().isoformat()
-                }
-                
-                # Save sidecar next to the new file
-                save_metadata_sidecar(new_file_path, metadata)
-                logger.info(f"Saved metadata sidecar for: {new_file_path.name}")
-                
-            except Exception as e:
-                logger.warning(f"Failed to save metadata sidecar: {e}")
+                    logger.warning(f"Failed to save metadata sidecar: {e}")
 
             # --- Record Learning Event for Adaptive Learning System ---
             try:
@@ -882,18 +957,23 @@ class TriageService:
                     media_type = 'unknown'
 
                 # Record the classification event with rich context
-                self.learning_system.record_classification(
-                    file_path=str(new_file_path),
-                    predicted_category=original_category,
-                    confidence=original_confidence,
-                    features={
+                # Pass FOUND KEYWORDS to the learning context
+                # This enables the system to learn "If keyword X is present -> User Chose Category Y"
+                context_features = {
                         'user_confirmed': confirmed_category,
                         'original_filename': original_name,
                         'hierarchy_project': hierarchy_metadata.get('project', 'N/A'),
                         'hierarchy_episode': hierarchy_metadata.get('episode', 'N/A'),
                         'hierarchy_level': hierarchy_metadata.get('hierarchy_level', 0),
-                        'media_type_detected': hierarchy_metadata.get('media_type', 'N/A')
-                    },
+                        'media_type_detected': hierarchy_metadata.get('media_type', 'N/A'),
+                        'content_keywords': found_keywords  # CRITICAL FOR LEARNING
+                }
+                
+                self.learning_system.record_classification(
+                    file_path=str(new_file_path),
+                    predicted_category=original_category,
+                    confidence=original_confidence,
+                    features=context_features,
                     media_type=media_type
                 )
                 logger.info(f"✅ Learning event recorded: {original_category} ({original_confidence:.2f}) → {confirmed_category} [{media_type}]")

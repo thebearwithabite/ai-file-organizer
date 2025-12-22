@@ -54,9 +54,17 @@ class EnhancedBackgroundMonitor:
                 
         # Add additional paths
         for path_str in self.additional_watch_paths:
-            path = Path(path_str)
+            path = Path(path_str).resolve()
             if path.exists():
-                self.watch_directories[f"custom_{path.name}"] = {"path": path, "priority": "custom"}
+                # Check if already watching this path (avoid duplicates)
+                is_duplicate = False
+                for existing_info in self.watch_directories.values():
+                    if existing_info['path'].resolve() == path:
+                        is_duplicate = True
+                        break
+                
+                if not is_duplicate:
+                    self.watch_directories[f"custom_{path.name}"] = {"path": path, "priority": "custom"}
 
     def start(self, threads: List[str] = None):
         """Start monitoring threads"""
@@ -159,6 +167,17 @@ class EnhancedBackgroundMonitor:
             
         # Skip temporary files
         if file_path.suffix in ['.tmp', '.crdownload', '.part']:
+            return False
+            
+        # USER IGNORE LOGIC:
+        # 1. Skip paths containing folder with "_NOAI" suffix (e.g. "Private_NOAI")
+        # 2. Skip paths if a ".noai" marker file exists in the folder
+        
+        for part in file_path.parts:
+            if part.endswith('_NOAI'):
+                return False
+                
+        if (file_path.parent / ".noai").exists():
             return False
             
         return True
