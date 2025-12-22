@@ -135,7 +135,7 @@ export default function SystemStatusCard() {
               <div className="text-sm font-medium text-white">Last Orchestration</div>
               <div className="text-xs text-white/60">
                 {status.orchestration?.last_run
-                  ? `${new Date(status.orchestration.last_run).toLocaleTimeString()} · ${status.orchestration.files_touched} files processed`
+                  ? `${new Date(status.orchestration.last_run).toLocaleTimeString()} · ${status.orchestration.files_processed} files processed`
                   : 'No runs yet'}
               </div>
             </div>

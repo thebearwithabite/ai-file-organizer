@@ -17,16 +17,22 @@ Example structure:
 """
 
 import re
+import logging
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, Optional, Tuple
 
 class HierarchicalOrganizer:
     """Intelligently detect project, episode, and media type structure"""
 
-    # Known projects (can be expanded dynamically)
-    KNOWN_PROJECTS = {
-        'the_papers_that_dream': 'The_Papers_That_Dream',
-        'papers_that_dream': 'The_Papers_That_Dream',
+    # Static Seed (Fallback)
+    STATIC_KNOWLEDGE = {
+        'the_papers_that_dream': 'The Papers That Dream',
+        'papers_that_dream': 'The Papers That Dream',
+        'ptd': 'The Papers That Dream',
+        'attention_island': 'Attention Island',
+        'attentionisland': 'Attention Island',
+        'csc': 'The_Papers_That_Dream',
         'veo_prompt': 'VEO_Prompt_Machine',
         'veo': 'VEO_Prompt_Machine',
         'ai_file_organizer': 'AI_File_Organizer',
@@ -35,76 +41,201 @@ class HierarchicalOrganizer:
 
     # Media type mapping
     MEDIA_TYPE_MAP = {
-        # Video formats
-        'mp4': 'Video',
-        'mov': 'Video',
-        'avi': 'Video',
-        'mkv': 'Video',
-        'webm': 'Video',
-        'flv': 'Video',
-
-        # Audio formats
-        'mp3': 'Audio',
-        'wav': 'Audio',
-        'flac': 'Audio',
-        'aiff': 'Audio',
-        'm4a': 'Audio',
-        'ogg': 'Audio',
-
-        # Image formats
-        'jpg': 'Images',
-        'jpeg': 'Images',
-        'png': 'Images',
-        'gif': 'Images',
-        'webp': 'Images',
-        'heic': 'Images',
-        'heif': 'Images',
-        'bmp': 'Images',
-
-        # Document formats
-        'pdf': 'Documents',
-        'docx': 'Documents',
-        'doc': 'Documents',
-        'txt': 'Documents',
-        'md': 'Documents',
-        'pages': 'Documents',
-
-        # Script formats
-        'py': 'Scripts',
-        'js': 'Scripts',
-        'ts': 'Scripts',
-        'jsx': 'Scripts',
-        'tsx': 'Scripts',
-        'sh': 'Scripts',
-
-        # JSON/Data formats (for VEO prompts, cue sheets, etc.)
-        'json': 'JSON_Prompts',
-        'csv': 'Cue_Sheets',
-        'xlsx': 'Cue_Sheets',
-        'xls': 'Cue_Sheets',
+        'mp4': 'Video', 'mov': 'Video', 'avi': 'Video', 'mkv': 'Video', 'webm': 'Video', 'flv': 'Video',
+        'mp3': 'Audio', 'wav': 'Audio', 'flac': 'Audio', 'aiff': 'Audio', 'm4a': 'Audio', 'ogg': 'Audio',
+        'jpg': 'Images', 'jpeg': 'Images', 'png': 'Images', 'gif': 'Images', 'webp': 'Images', 'heic': 'Images', 'heif': 'Images', 'bmp': 'Images',
+        'pdf': 'Documents', 'docx': 'Documents', 'doc': 'Documents', 'txt': 'Documents', 'md': 'Documents', 'pages': 'Documents',
+        'py': 'Scripts', 'js': 'Scripts', 'ts': 'Scripts', 'jsx': 'Scripts', 'tsx': 'Scripts', 'sh': 'Scripts',
+        'json': 'JSON_Prompts', 'csv': 'Cue_Sheets', 'xlsx': 'Cue_Sheets', 'xls': 'Cue_Sheets',
     }
 
-    def __init__(self):
-        """Initialize the hierarchical organizer"""
-        pass
+    def __init__(self, taxonomy_service: Optional[Any] = None):
+        """Initialize the hierarchical organizer with V2 Robust Dynamic Registry"""
+        self.logger = logging.getLogger(__name__)
+        self.dynamic_projects_path = Path.home() / "Documents" / "AI_METADATA_SYSTEM" / "config" / "dynamic_projects.json"
+        
+        # Instance-scoped storage (Prevents cross-instance bleed)
+        self.registries = {"projects": {}}
+        self.known_projects = dict(self.STATIC_KNOWLEDGE)
+        
+        # Safe Roots for Learning (Prevent junk from Downloads)
+        self.project_roots = ["01_ACTIVE_PROJECTS", "02_ARCHIVE", "Creative_Projects"]
+        
+        # V3 Taxonomy Service Integration
+        if taxonomy_service:
+            self.taxonomy_service = taxonomy_service
+        else:
+            try:
+                from taxonomy_service import TaxonomyService
+                from gdrive_integration import get_metadata_root
+                self.taxonomy_service = TaxonomyService(get_metadata_root() / "config")
+            except Exception as e:
+                self.logger.error(f"Failed to load TaxonomyService: {e}")
+                self.taxonomy_service = None
+        
+        self._load_dynamic_projects()
+
+    def get_media_type_folder(self, category_id: str) -> str:
+        """
+        Get the folder name for a category using V3 Taxonomy.
+        """
+        if self.taxonomy_service:
+            cat = self.taxonomy_service.get_category(category_id)
+            if cat:
+                # Taxonomy returns path like "Visual_Assets/Screenshots"
+                # But here we might just want the subfolder name if we handle parent separately?
+                # Actually, V3 organizer should respect the full path structure defined in Taxonomy ("Visual_Assets/Screenshots").
+                # But legacy logic might expect a single folder name.
+                
+                # If the category defines a folder_name and parent_path:
+                folder = cat.get("folder_name", "Other")
+                parent = cat.get("parent_path", "")
+                
+                # If we are building a path inside a Project/Episode, we might just append the folder?
+                # Or do we respect the "Visual_Assets" parent?
+                # Ideally: Project/Episode/Visual_Assets/Screenshots
+                
+                if parent:
+                    return f"{parent}/{folder}"
+                return folder
+        
+        # Fallback for unknown categories or if service fails
+        return "Other"
+
+    def _tokens(self, s: str) -> set[str]:
+        """Normalize string into tokens for safe matching"""
+        import re
+        s = s.lower()
+        parts = re.split(r"[^a-z0-9]+", s)
+        return {p for p in parts if len(p) >= 3}
+
+    def normalize_key(self, name: str) -> str:
+        """Strong normalization for collision avoidance"""
+        s = name.strip().lower()
+        s = re.sub(r'[\s\-]+', '_', s)       # spaces + hyphens -> _
+        s = re.sub(r'[^a-z0-9_]+', '', s)    # drop punctuation
+        s = re.sub(r'_+', '_', s).strip('_') # collapse underscores
+        return s
+
+    def _atomic_write_json(self, path: Path, data: dict):
+        """Atomic write to prevent corruption"""
+        import json, os, tempfile
+        path.parent.mkdir(parents=True, exist_ok=True)
+        fd, tmp = tempfile.mkstemp(prefix=path.name, dir=str(path.parent))
+        try:
+            with os.fdopen(fd, "w") as f:
+                json.dump(data, f, indent=2)
+            os.replace(tmp, path)  # atomic on mac/linux
+        finally:
+            try:
+                if os.path.exists(tmp):
+                    os.remove(tmp)
+            except Exception:
+                pass
+
+    def _load_dynamic_projects(self):
+        """Load dynamically learned projects from JSON (V2 Schema)"""
+        import json
+        try:
+            if self.dynamic_projects_path.exists():
+                with open(self.dynamic_projects_path, 'r') as f:
+                    data = json.load(f)
+                    # Support V2 Registry Schema
+                    if "projects" in data and isinstance(data["projects"], dict):
+                        self.registries = data
+                        # Populate known_projects for fast lookup
+                        for pid, pdata in self.registries["projects"].items():
+                            if pdata.get("status") in ["verified", "observed"]:
+                                # Add main name
+                                norm_name = self.normalize_key(pdata["name"])
+                                self.known_projects[norm_name] = pdata["name"]
+                                # Add aliases
+                                for alias in pdata.get("aliases", []):
+                                    self.known_projects[self.normalize_key(alias)] = pdata["name"]
+                    else:
+                        # V1 Legacy Fallback (Simple Dict)
+                        for k, v in data.items():
+                            self.known_projects[self.normalize_key(k)] = v
+        except Exception as e:
+            self.logger.warning(f"Failed to load dynamic projects: {e}")
+
+    def register_project(self, project_name: str, folder_path: str, status: str = "observed"):
+        """
+        Register a project in the dynamic registry (V2).
+        Uses UUID identity and Atomic persistence.
+        """
+        import json
+        import uuid
+        
+        # 1. Scope Check
+        path_obj = Path(folder_path)
+        is_safe = any(root in str(path_obj) for root in self.project_roots)
+        if not is_safe:
+            self.logger.info(f"Skipping project registration: {project_name} (Outside allowed roots)")
+            return
+
+        # 2. Identity & Marker (Stable ID)
+        project_id = self._get_or_create_project_id(path_obj, project_name)
+        
+        # 3. Update Registry
+        entry = {
+            "id": project_id,
+            "name": project_name,
+            "path": str(folder_path),
+            "status": status,
+            "last_seen": datetime.now().isoformat(),
+            "aliases": [project_name]
+        }
+        
+        # Merge if exists
+        if project_id in self.registries["projects"]:
+            existing = self.registries["projects"][project_id]
+            entry["aliases"] = list(set(existing.get("aliases", []) + [project_name]))
+            # Preserve verified status
+            if existing.get("status") == "verified":
+                entry["status"] = "verified"
+        
+        self.registries["projects"][project_id] = entry
+        
+        # 4. Update Runtime Lookup
+        norm_key = self.normalize_key(project_name)
+        self.known_projects[norm_key] = project_name
+        
+        self._atomic_write_json(self.dynamic_projects_path, self.registries)
+
+    def _get_or_create_project_id(self, path: Path, name: str) -> str:
+        """Get ID from marker or generate new one"""
+        import uuid
+        import json
+        
+        marker_path = path / ".project.json"
+        if marker_path.exists():
+            try:
+                with open(marker_path, 'r') as f:
+                    data = json.load(f)
+                    return data.get("project_id", str(uuid.uuid4()))
+            except:
+                pass
+        
+        # Generate new ID (Caller responsible for writing marker if verified)
+        return str(uuid.uuid5(uuid.NAMESPACE_DNS, str(path)))
 
     def detect_project_from_filename(self, filename: str) -> Optional[str]:
-        """
-        Detect project name from filename
-
-        Args:
-            filename: The filename to analyze
-
-        Returns:
-            Detected project name or None
-        """
-        filename_lower = filename.lower()
-
-        # Check for known project keywords
-        for keyword, project_name in self.KNOWN_PROJECTS.items():
-            if keyword in filename_lower:
+        """Detect project name from filename using token matching"""
+        tokens = self._tokens(filename)
+        
+        # Check against known projects (includes static + dynamic)
+        for key, project_name in self.known_projects.items():
+            # Check if key (normalized) is present as a token or sub-token
+            # Simple token check for now as requested
+            if key in tokens:
                 return project_name
-
+                
+            # Fallback: check if key is inside filename (string match) 
+            # ONLY if key length >= 4 to avoid short noise like 'ai' or 'is'
+            if len(key) >= 4 and key in filename.lower():
+                return project_name
+                
         return None
 
     def detect_episode_from_filename(self, filename: str) -> Optional[str]:
@@ -142,21 +273,72 @@ class HierarchicalOrganizer:
         if match:
             episode_num = match.group(1).zfill(2)
             return f"Episode_{episode_num}"
-
         return None
 
+    def detect_chapter_from_filename(self, filename: str) -> Optional[str]:
+        """Detect chapter information (Ch 1, Chapter 2) from filename"""
+        filename_lower = filename.lower()
+        # Pattern: Chapter 1, Ch 1, Chap 1
+        # Use more restrictive matching to avoid taking the whole filename
+        match = re.search(r'(?:chap(?:ter)?|ch)[_\s]*(\d+)', filename_lower)
+        if match:
+            ch_num = match.group(1)
+            # Find a short name following (limit to 2 words max)
+            name_match = re.search(r'(?:chap(?:ter)?|ch)[_\s]*' + ch_num + r'[_\s\-]*([a-z0-9_]{1,15})', filename_lower)
+            if name_match:
+                name = name_match.group(1).strip().title()
+                if name:
+                    return f"-Chapter {ch_num} - {name}"
+            return f"-Chapter {ch_num}"
+        return None
+
+    def detect_client_from_filename(self, filename: str) -> Optional[str]:
+        """Detect client name from filename (e.g. Finn Wolhard)"""
+        # For now, let's use a simple list or assume if it's in Business/Clients root it's a client
+        # In the future, we can query a dynamic_clients.json
+        tokens = self._tokens(filename)
+        filename_clean = filename.lower().replace('_', ' ')
+        
+        # Hardcoded seeding from user's examples
+        seed_clients = {
+            "Finn Wolhard": ["finn", "wolhard"],
+            "Danielle Reha": ["danielle", "reha"]
+        }
+        
+        for name, keywords in seed_clients.items():
+            # Check if all keywords are present in filename
+            if all(k in filename_clean for k in keywords):
+                return name
+        return None
     def get_media_type(self, file_path: Path) -> str:
         """
-        Get media type subfolder based on file extension
-
-        Args:
-            file_path: Path to the file
-
-        Returns:
-            Media type folder name (e.g., "Video", "Audio", "Images")
+        Get media type folder name based on extension (Taxonomy V3 Aware).
+        Fallback to 'Other' if unknown.
         """
-        extension = file_path.suffix.lower().lstrip('.')
-        return self.MEDIA_TYPE_MAP.get(extension, 'Other')
+        extension = file_path.suffix.lower()
+        if self.taxonomy_service:
+            cats = self.taxonomy_service.get_all_categories()
+            for cat_id, data in cats.items():
+                if extension in data.get("extensions", []):
+                    # Taxonomy returns folder name (e.g. "Installers")
+                    # If it has a parent path, we might want to include it?
+                    # For now, let's defer to get_media_type_folder which handles structure
+                    return data.get("folder_name", "Other")
+        
+        # Fallback if taxonomy missing or no match
+        return "Other"
+
+    def is_known_media_extension(self, extension: str) -> bool:
+        """Check if extension matches any taxonomy category"""
+        if not extension.startswith('.'): extension = f".{extension}"
+        extension = extension.lower()
+        
+        if self.taxonomy_service:
+            cats = self.taxonomy_service.get_all_categories()
+            for data in cats.values():
+                if extension in data.get("extensions", []):
+                    return True
+        return False
 
     def build_hierarchical_path(
         self,
@@ -166,98 +348,79 @@ class HierarchicalOrganizer:
         episode_override: Optional[str] = None
     ) -> Tuple[str, Dict[str, Any]]:
         """
-        Build a hierarchical path for file organization
-
-        Args:
-            base_category: The base category (e.g., 'creative', 'development')
-            file_path: Path to the file being organized
-            project_override: Optional manual project name
-            episode_override: Optional manual episode name
-
-        Returns:
-            Tuple of (relative_path, metadata_dict)
+        Build a hierarchical path for file organization using V3 Taxonomy
+        and the "Golden Hierarchy" templates.
         """
         filename = file_path.name
-
-        # Detect or use override for project
+        cat_data = self.taxonomy_service.get_category(base_category) if self.taxonomy_service else None
+        
+        # 1. Root & Base Determination
+        root = "99_TEMP_PROCESSING/Manual_Review"
+        if cat_data:
+            root = cat_data.get("parent_path", "99_TEMP_PROCESSING/Manual_Review")
+            media_folder = cat_data.get("folder_name", "Other")
+        else:
+            media_folder = "Other"
+        
+        # 2. Entity Detection
         project = project_override or self.detect_project_from_filename(filename)
-
-        # Detect or use override for episode
         episode = episode_override or self.detect_episode_from_filename(filename)
-
-        # Sanitize episode name: prevent filenames from being used as directory names
-        if episode and '.' in episode:
-            # Check if it ends with a known media extension (indicating user likely pasted a filename)
-            parts = episode.rsplit('.', 1)
-            if len(parts) > 1:
-                ext = parts[1].lower()
-                if ext in self.MEDIA_TYPE_MAP:
-                    # It's likely a mistake - we need to extract the meaningful name
-                    if '/' in episode or '\\' in episode:
-                        # If it looks like a path (e.g. "Episode_01/File.png"), take the parent folder
-                        # Normalize slashes
-                        normalized_episode = episode.replace('\\', '/')
-                        # Remove the filename component
-                        parent_dir = normalized_episode.rsplit('/', 1)[0]
-                        # If there are still slashes, take the last component (the folder name)
-                        if '/' in parent_dir:
-                            episode = parent_dir.split('/')[-1]
-                        else:
-                            episode = parent_dir
-                    else:
-                        # Just a filename (e.g. "File.png") - strip extension
-                        episode = parts[0]
-
-        # Get media type
-        media_type = self.get_media_type(file_path)
-
-        # Build the path based on detected components
+        chapter = self.detect_chapter_from_filename(filename)
+        client = self.detect_client_from_filename(filename)
+        
+        # Metadata for trace/API
         metadata = {
             'project': project,
             'episode': episode,
-            'media_type': media_type,
+            'chapter': chapter,
+            'client': client,
+            'media_type': media_folder,
+            'category_id': base_category,
             'hierarchy_level': 0
         }
 
-        # Base path mapping
-        category_base_paths = {
-            'creative': '01_ACTIVE_PROJECTS/Creative_Projects',
-            'entertainment': '01_ACTIVE_PROJECTS/Entertainment_Industry',
-            'development': '01_ACTIVE_PROJECTS/Development_Projects',
-            'financial': '01_ACTIVE_PROJECTS/Business_Operations/Financial_Records',
-            'audio': '01_ACTIVE_PROJECTS/Creative_Projects',
-            'image': '01_ACTIVE_PROJECTS/Creative_Projects',
-            'video': '01_ACTIVE_PROJECTS/Creative_Projects',
-            'text_document': '02_REFERENCE/Documents',
-            'unknown': '99_TEMP_PROCESSING/Manual_Review'
-        }
+        path_parts = [root]
 
-        base_path = category_base_paths.get(base_category.lower(), '99_TEMP_PROCESSING/Manual_Review')
-        path_parts = [base_path]
-        metadata['hierarchy_level'] = 2  # Base: level 2 (01_ACTIVE/Creative_Projects)
-
-        # Add project level if detected
-        if project:
+        # --- TEMPLATE: PROJECTS ---
+        if root == "Projects" and project:
             path_parts.append(project)
-            metadata['hierarchy_level'] = 3
-
-            # Add episode level if detected
             if episode:
-                path_parts.append(episode)
-                metadata['hierarchy_level'] = 4
+                path_parts.append("- Episodes")
+                if chapter:
+                    path_parts.append(chapter)
+                else:
+                    path_parts.append(episode)
+                
+                # Functional Subfolder (User's style: - Music, - SFX, etc.)
+                func_folder = f"- {media_folder}" if not media_folder.startswith('-') else media_folder
+                # Handle "Working Files" layer if it's a media asset
+                if any(x in base_category.lower() for x in ['video', 'audio', 'images', 'sfx', 'music', 'vox']):
+                    path_parts.append("- Working Files")
+                
+                path_parts.append(func_folder)
+            else:
+                # Top level project asset
+                path_parts.append(f"- {media_folder}")
 
-                # Add media type level (only if we have episode)
-                path_parts.append(media_type)
-                metadata['hierarchy_level'] = 5
+        # --- TEMPLATE: BUSINESS MANAGEMENT (CLIENTS) ---
+        elif root == "Business Management" and client:
+            path_parts.append("Clients")
+            path_parts.append(f"- {client}")
+            path_parts.append(f"- {media_folder}")
 
-        # If no project but we have a creative file, just use media type
-        elif base_category.lower() in ['creative', 'audio', 'image', 'video']:
-            # Generic creative content organization
-            path_parts.append('Uncategorized')
-            path_parts.append(media_type)
-            metadata['hierarchy_level'] = 3
+        # --- TEMPLATE: GENERAL ---
+        elif base_category != 'unknown':
+            # Default to Taxonomy's preferred folder_name
+            if cat_data:
+                # We already have root from parent_path
+                # Just add the leaf folder
+                folder = cat_data.get("folder_name", "Other")
+                path_parts.append(folder)
+            else:
+                path_parts.append(media_folder)
 
         final_path = '/'.join(path_parts)
+        metadata['hierarchy_level'] = len(path_parts)
 
         return final_path, metadata
 

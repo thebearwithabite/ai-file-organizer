@@ -120,8 +120,15 @@ class GoogleDriveAuth:
             if self._credentials and self._credentials.expired:
                 logger.info("🔄 Refreshing expired credentials...")
                 if self._credentials.refresh_token:
-                    self._credentials.refresh(Request())
-                    logger.info("✅ Credentials refreshed successfully")
+                    try:
+                        self._credentials.refresh(Request())
+                        logger.info("✅ Credentials refreshed successfully")
+                    except Exception as e:
+                        logger.warning(f"⚠️  Token refresh failed: {e}. Falling back to re-authentication.")
+                        self._credentials = None
+                        # Remove the invalid token file to ensure a clean start
+                        if self.token_file.exists():
+                            self.token_file.unlink()
                 else:
                     logger.warning("⚠️  No refresh token available, need re-authentication")
                     self._credentials = None

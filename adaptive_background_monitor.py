@@ -48,7 +48,15 @@ class AdaptiveFileHandler(FileSystemEventHandler):
         
     def on_moved(self, event):
         """Handle file move events - learn from user actions"""
-        if not event.is_directory:
+        if event.is_directory:
+            # Handle Directory Rename (Taxonomy Sync)
+            # We don't queue this for the general event loop because it's a specific V3 sync
+            # and needs debouncing managed by the monitor
+            self.monitor.handle_directory_rename(event.src_path, event.dest_path)
+            
+            # Also queue as generic folder_created for other subsystems? 
+            # Probably not needed if we handle sync.
+        else:
             self.event_queue.put({
                 'type': 'moved',
                 'src_path': event.src_path,
@@ -58,12 +66,15 @@ class AdaptiveFileHandler(FileSystemEventHandler):
     
     def on_created(self, event):
         """
-        Handle file creation events
-
-        NOTE: Files are observed immediately but NOT auto-organized.
-        See _handle_new_file_with_cooldown() for 7-day safety rule.
+        Handle file OR folder creation
         """
-        if not event.is_directory:
+        if event.is_directory:
+            self.event_queue.put({
+                'type': 'folder_created',
+                'path': event.src_path,
+                'timestamp': datetime.now()
+            })
+        else:
             self.event_queue.put({
                 'type': 'created',
                 'path': event.src_path,
@@ -94,8 +105,17 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
         # Email monitoring was breaking OS limits by scanning ~/Library/Mail
         if 'mail' in self.watch_directories:
             del self.watch_directories['mail']
-            self.logger = logging.getLogger(__name__)
-            self.logger.info("Removed ~/Library/Mail from watch directories (email monitoring disabled)")
+            
+        self.logger = logging.getLogger(__name__)
+        
+        # V3 Taxonomy Sync
+        # Lazy load TaxonomyService to avoid circular loops
+        self._taxonomy_service = None
+        
+        # Debounce tracking for renames
+        # Key: src_path, Value: Timer
+        self._rename_timers = {}
+        self._rename_lock = threading.Lock()
 
         # Initialize adaptive components
         self.learning_system = UniversalAdaptiveLearning(str(self.base_dir))
@@ -124,9 +144,6 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
             'cleanup_old_data': 86400     # Cleanup daily
         }
         
-        # Initialize logging first (needed by other methods)
-        self.logger = logging.getLogger(__name__)
-        
         # Adaptive rules database
         self.rules_db_path = get_metadata_root() /  "adaptive_rules.db"
         self._init_adaptive_database()
@@ -144,6 +161,68 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
         })
         
         self.logger.info("Adaptive Background Monitor initialized")
+
+    @property
+    def taxonomy_service(self):
+        if not self._taxonomy_service:
+            try:
+                from taxonomy_service import TaxonomyService
+                from gdrive_integration import get_metadata_root
+                self._taxonomy_service = TaxonomyService(get_metadata_root() / "config")
+            except Exception as e:
+                self.logger.error(f"Failed to load TaxonomyService: {e}")
+        return self._taxonomy_service
+
+    def handle_directory_rename(self, src_path: str, dest_path: str):
+        """
+        Handle a directory rename event with debouncing.
+        If a user renames a folder that matches a Category, we must sync the Taxonomy.
+        """
+        # Debounce window (500ms)
+        # If user is typing "Screenshots" -> "Screen_Shots", we get many events.
+        # We only want to act on the final stable state.
+        
+        with self._rename_lock:
+            # Cancel existing timer for this source if it exists
+            if src_path in self._rename_timers:
+                self._rename_timers[src_path].cancel()
+                del self._rename_timers[src_path]
+            
+            # Create new timer
+            timer = threading.Timer(0.5, self._execute_taxonomy_sync, args=[src_path, dest_path])
+            self._rename_timers[src_path] = timer
+            timer.start()
+
+    def _execute_taxonomy_sync(self, src_path: str, dest_path: str):
+        """Execute the sync after debounce"""
+        # Clean up timer reference
+        with self._rename_lock:
+            if src_path in self._rename_timers:
+                del self._rename_timers[src_path]
+        
+        try:
+            # Validate persistence
+            if not os.path.exists(dest_path):
+                self.logger.debug(f"Rename target vanished (transient): {dest_path}")
+                return
+
+            if self.taxonomy_service:
+                # Get root dir for relative path calculation
+                # We assume self.base_dir or similar is the root context
+                # Use common root logic
+                root_path = Path.home() / "Documents" # Default fallback
+                if self.base_dir:
+                    root_path = Path(self.base_dir)
+                
+                # Check if it resolved to something managed
+                # TaxonomyService expects absolute paths to handle parsing
+                self.taxonomy_service.handle_physical_rename(
+                    Path(src_path), 
+                    Path(dest_path), 
+                    root_path
+                )
+        except Exception as e:
+            self.logger.error(f"Error syncing taxonomy rename: {e}")
 
     def _init_adaptive_database(self):
         """Initialize database for adaptive rules and learning"""
@@ -338,6 +417,10 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
         elif event_type == 'created':
             # New file created - check for auto-organization opportunity
             self._handle_new_file(event['path'], event['timestamp'])
+            
+        elif event_type == 'folder_created':
+            # New folder created - learn new project structure?
+            self._handle_new_folder(event['path'])
         
         elif event_type == 'modified':
             # File modified - check if it needs re-indexing
@@ -391,9 +474,54 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
             
             self.stats["user_corrections_learned"] += 1
             self.logger.info(f"Learned from manual move: {src_file.name} -> {dest_file.parent.name}")
+
+            # --- SIDECAR FOLLOWER ---
+            # Automatically move hidden metadata sidecar if it exists
+            src_sidecar = src_file.parent / ".metadata" / f"{src_file.name}.json"
+            if src_sidecar.exists():
+                dest_metadata_dir = dest_file.parent / ".metadata"
+                dest_metadata_dir.mkdir(parents=True, exist_ok=True)
+                dest_sidecar = dest_metadata_dir / f"{dest_file.name}.json"
+                
+                try:
+                    shutil.move(str(src_sidecar), str(dest_sidecar))
+                    self.logger.info(f"✨ Sidecar Follower: Moved metadata for {src_file.name}")
+                except Exception as sidecar_error:
+                    self.logger.warning(f"⚠️ Failed to move sidecar for {src_file.name}: {sidecar_error}")
             
         except Exception as e:
             self.logger.error(f"Error learning from file move: {e}")
+
+    def _handle_new_folder(self, folder_path: str):
+        """Handle newly created folder to learn structure (V2 Robust)"""
+        try:
+            folder = Path(folder_path)
+            # ignore hidden or system folders
+            if folder.name.startswith('.') or folder.name.endswith('_NOAI'):
+                return
+                
+            from hierarchical_organizer import HierarchicalOrganizer
+            organizer = HierarchicalOrganizer()
+            
+            # Check for explicit project marker (Strongest signal)
+            status = "observed"
+            if (folder / ".project.json").exists() or (folder / "_PROJECT").exists():
+                status = "verified"
+            
+            # Register (Organizer handles Scope/Root checks internally)
+            # We pass the folder name as the project name
+            organizer.register_project(folder.name, str(folder), status=status)
+            
+            # Only log if it was actually accepted (we can't easily know return value, 
+            # but we can assume if it's in roots it's interesting)
+            if any(root in str(folder) for root in organizer.project_roots):
+                if status == "verified":
+                    self.logger.info(f"✅ Verified Project Detected: {folder.name}")
+                else:
+                    self.logger.info(f"👀 Observed New Project Folder: {folder.name}")
+                
+        except Exception as e:
+            self.logger.error(f"Error handling new folder {folder_path}: {e}")
 
     def _handle_new_file(self, file_path: str, timestamp: datetime):
         """Handle newly created file with adaptive intelligence"""

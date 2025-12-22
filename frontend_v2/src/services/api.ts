@@ -29,8 +29,8 @@ export const api = {
     return {
       ...data,
       google_drive: {
-        connected: data.authentication_status === 'authenticated' || data.authentication_status === 'local-only',
-        user_name: data.authentication_status === 'local-only' ? 'Local Mode' : (data.google_drive_user || 'Unknown'),
+        connected: data.google_drive?.connected ?? false,
+        user_name: data.google_drive?.user_name || 'DEBUG_MISSING',
         sync_status: data.sync_service_status || 'disabled',
         last_sync: data.last_run || new Date().toISOString(),
       },
@@ -295,5 +295,13 @@ export const api = {
     const response = await fetch(`${API_BASE}/api/triage/projects`)
     if (!response.ok) throw new Error('Failed to fetch known projects')
     return response.json()
+  },
+
+  triggerOrchestration: async () => {
+    const response = await fetch(`${API_BASE}/api/system/orchestrate`, {
+      method: 'POST',
+    })
+    if (!response.ok) throw new Error('Failed to trigger orchestration')
+    return await response.json()
   },
 }
