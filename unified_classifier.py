@@ -581,7 +581,21 @@ class UnifiedClassificationService:
             # Check if AI is available
             if use_ai and self.semantic_text_enabled and self.semantic_text_analyzer:
                 print("✨ Engaging Semantic Text Analyzer (Gemini)...")
-                ai_result = self.semantic_text_analyzer.analyze_text(full_text, file_path.name)
+                
+                # Fetch valid categories from TaxonomyService to guide the AI
+                allowed_categories = []
+                if self.taxonomy_service:
+                    all_cats = self.taxonomy_service.get_all_categories()
+                    allowed_categories = [
+                        {"id": cid, "name": meta.get("display_name", cid)} 
+                        for cid, meta in all_cats.items()
+                    ]
+                
+                ai_result = self.semantic_text_analyzer.analyze_text(
+                    full_text, 
+                    file_path.name,
+                    allowed_categories=allowed_categories
+                )
                 
                 if ai_result.get("success"):
                     ai_category = ai_result.get("category")

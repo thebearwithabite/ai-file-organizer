@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
 """
+ARCHITECTURAL LAW:
+- base_dir = monitored filesystem location (may be remote)
+- metadata_root = internal state (MUST be local)
+- metadata_root MUST come from get_metadata_root()
+- NEVER derive metadata paths from base_dir
+
 7-Day Staging Monitor System
 Tracks file age in Desktop/Downloads for natural transition workflow
 """
@@ -12,6 +18,9 @@ from pathlib import Path
 from typing import Dict, List, Optional
 import hashlib
 
+# Import centralized metadata root
+from gdrive_integration import get_metadata_root
+
 class StagingMonitor:
     """
     Monitors Desktop/Downloads folders for 7-day staging workflow
@@ -19,14 +28,20 @@ class StagingMonitor:
     """
     
     def __init__(self, base_dir: str = None):
-        # Default to current script directory for database files
+        # base_dir is ONLY for the monitored area
         if base_dir:
             self.base_dir = Path(base_dir)
         else:
-            self.base_dir = Path(__file__).parent
+            # Default to checking Desktop/Downloads if no GDrive path provided
+            self.base_dir = Path.home()
         
-        self.db_path = self.base_dir / "staging_monitor.db"
-        self.config_path = self.base_dir / "staging_config.json"
+        # Internal state MUST be local (RULE ONE)
+        metadata_root = get_metadata_root()
+        db_dir = metadata_root / "databases"
+        db_dir.mkdir(parents=True, exist_ok=True)
+        
+        self.db_path = db_dir / "staging_monitor.db"
+        self.config_path = metadata_root / "staging_config.json"
         
         # Monitored folders
         self.desktop_path = Path.home() / "Desktop"

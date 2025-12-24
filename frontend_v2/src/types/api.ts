@@ -19,6 +19,7 @@ export interface SystemStatus {
     user_name: string
     sync_status: string
     last_sync: string
+    drive_root?: string
   }
   disk_space: {
     free_gb: number

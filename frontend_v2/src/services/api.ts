@@ -33,6 +33,7 @@ export const api = {
         user_name: data.google_drive?.user_name || 'DEBUG_MISSING',
         sync_status: data.sync_service_status || 'disabled',
         last_sync: data.last_run || new Date().toISOString(),
+        drive_root: data.google_drive?.drive_root,
       },
       disk_space: data.disk_space || {
         free_gb: 0,
@@ -187,7 +188,8 @@ export const api = {
     const response = await fetch(`${API_BASE}/api/rollback/operations?${searchParams}`)
     if (!response.ok) throw new Error('Failed to fetch rollback operations')
 
-    return await response.json()
+    const json = await response.json()
+    return json.data
   },
 
   undoOperation: async (operationId: number) => {

@@ -103,12 +103,28 @@ def orchestrate(dry_run: bool = False, confidence_threshold: float = 0.80, scan_
             files = [f for f in staging_area.iterdir() if f.is_file() and not f.name.startswith('.')]
         
         for file_path in files:
+            # Skip if file was already moved by another parallel process
+            if not file_path.exists():
+                continue
+
+            # Skip sidecars (simple check: if it's a .json and there's a matching file or if it's in a .metadata folder)
+            if file_path.suffix.lower() == '.json' and (file_path.parent / file_path.stem).exists():
+                logger.info(f"Skipping potential sidecar: {file_path.name}")
+                continue
+            
+            if '.metadata' in str(file_path):
+                continue
+
             total_processed += 1
             
             # Update stats every file (or we could throttle)
             update_stats(total_processed, total_moved, total_skipped)
             
             try:
+                # Double check existence before calling classifier (it might have been moved in the last few ms)
+                if not file_path.exists():
+                    continue
+                    
                 # Classify
                 result = triage_service.classifier.classify_file(file_path)
                 

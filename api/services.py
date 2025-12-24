@@ -167,7 +167,8 @@ class SystemService:
                         "connected": True,
                         "user_name": auth_info.get("user_name", "Unknown"),
                         "quota_used_gb": auth_info.get("storage_used_gb", 0),
-                        "quota_total_gb": auth_info.get("storage_quota_gb", 0)
+                        "quota_total_gb": auth_info.get("storage_quota_gb", 0),
+                        "drive_root": lib_status.get("drive_root")
                     }
             except Exception as e:
                 logger.error(f"Error getting Google Drive status: {e}")
@@ -815,12 +816,14 @@ class TriageService:
 
         try:
             file_obj = Path(file_path)
-            original_name = file_obj.name  # FIX: Define early to prevent UnboundLocalError
+            original_name = file_obj.name
 
             if not file_obj.exists():
+                logger.warning(f"File already gone before processing: {file_path}")
                 return {
-                    "status": "error",
-                    "message": f"File not found: {file_path}"
+                    "status": "success",
+                    "message": f"File '{original_name}' already processed or moved.",
+                    "already_processed": True
                 }
 
             # --- Get the intelligent classification result from UnifiedClassificationService ---
@@ -876,7 +879,11 @@ class TriageService:
                 # Handle filename conflicts only if we are actually moving to a new path/name
                 counter = 1
                 original_new_path = new_file_path
+                # --- FIX: Don't treat the source file itself as a conflict! ---
                 while new_file_path.exists():
+                    if new_file_path.resolve() == file_obj.resolve():
+                        break # This is the same file, no conflict
+                        
                     stem = original_new_path.stem
                     suffix = original_new_path.suffix
                     new_file_path = destination_dir / f"{stem}_{counter}{suffix}"

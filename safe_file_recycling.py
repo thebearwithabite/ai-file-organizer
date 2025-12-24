@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
 """
+ARCHITECTURAL LAW:
+- base_dir = monitored filesystem location (may be remote)
+- metadata_root = internal state (MUST be local)
+- metadata_root MUST come from get_metadata_root()
+- NEVER derive metadata paths from base_dir
+
 Safe File Recycling System
 Creates a temporary "recycling box" for file organization operations
 Allows easy undo of file moves with automatic cleanup after 7 days
@@ -14,6 +20,9 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass, asdict
 import sqlite3
+
+# Import centralized configuration root
+from gdrive_integration import get_metadata_root
 
 @dataclass
 class RecycledFile:
@@ -34,12 +43,17 @@ class SafeFileRecycling:
     """
     
     def __init__(self, base_dir: str = None):
+        # base_dir is the monitored filesystem location (e.g. Google Drive root)
         self.base_dir = Path(base_dir) if base_dir else Path.home()
-        self.recycling_dir = self.base_dir / ".ai_organizer_recycling"
-        self.metadata_file = self.recycling_dir / "recycling_log.db"
         
-        # Create recycling directory
-        self.recycling_dir.mkdir(exist_ok=True)
+        # Internal state MUST be local (RULE ONE)
+        metadata_root = get_metadata_root()
+        self.recycling_dir = metadata_root / "recycling"
+        self.metadata_file = metadata_root / "databases" / "recycling_log.db"
+        
+        # Create directories
+        self.recycling_dir.mkdir(parents=True, exist_ok=True)
+        self.metadata_file.parent.mkdir(parents=True, exist_ok=True)
         
         # ADHD-friendly settings
         self.auto_cleanup_days = 7  # Auto-delete after 7 days

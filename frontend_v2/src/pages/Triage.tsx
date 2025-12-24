@@ -4,6 +4,8 @@ import { CheckCircle, XCircle, RefreshCw, FileText, AlertTriangle, Sparkles, Fol
 import { api } from '../services/api'
 import { toast } from 'sonner'
 import FilePreview from '../components/triage/FilePreview'
+import { formatPath } from '../lib/utils'
+import type { SystemStatus } from '../types/api'
 
 interface TriageFile {
   file_id: string
@@ -20,6 +22,11 @@ interface TriageFile {
 
 export default function Triage() {
   const queryClient = useQueryClient()
+  const { data: status } = useQuery<SystemStatus>({
+    queryKey: ['system-status'],
+    queryFn: api.getSystemStatus,
+  })
+  const driveRoot = status?.google_drive?.drive_root
   const [selectedCategory, setSelectedCategory] = useState<Record<string, string>>({})
   const [projectInput, setProjectInput] = useState<Record<string, string>>({})
   const [episodeInput, setEpisodeInput] = useState<Record<string, string>>({})
@@ -74,7 +81,7 @@ export default function Triage() {
     mutationFn: (folderPath: string) => api.scanCustomFolder(folderPath),
     onSuccess: (scanResult) => {
       const folderName = scanResult.folder_scanned?.split('/').pop() || 'folder'
-      toast.success(`Scan complete! Found ${scanResult.files_found} files in ${folderName}`)
+      toast.success(`Scan complete! Found ${scanResult.files_found} files in ${folderName} `)
 
       // Add to recent folders
       if (scanResult.folder_scanned) {
@@ -191,9 +198,9 @@ export default function Triage() {
           <div className="bg-white/5 border border-white/10 rounded-xl p-4">
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm font-medium text-white">Scan Staging Areas</span>
-              <div className={`w-4 h-4 rounded-full border-2 ${scanMutation.isPending ? 'border-primary border-t-transparent animate-spin' :
-                  currentScanMode === 'downloads' ? 'border-primary bg-primary' : 'border-white/20'
-                }`} />
+              <div className={`w - 4 h - 4 rounded - full border - 2 ${scanMutation.isPending ? 'border-primary border-t-transparent animate-spin' :
+                currentScanMode === 'downloads' ? 'border-primary bg-primary' : 'border-white/20'
+                } `} />
             </div>
             <p className="text-xs text-white/50 mt-1">Scan Downloads, Desktop, and iCloud Staging</p>
             <button
@@ -314,9 +321,12 @@ export default function Triage() {
                 {/* File Info */}
                 <div className="flex-1 min-w-0">
                   {/* Filename */}
-                  <h3 className="text-lg font-semibold text-white mb-2 truncate">
+                  <h3 className="text-lg font-semibold text-white mb-1 truncate">
                     {file.file_name}
                   </h3>
+                  <div className="text-xs text-white/40 mb-3 truncate">
+                    {formatPath(file.file_path, driveRoot)}
+                  </div>
 
                   {/* File Preview */}
                   <FilePreview filePath={file.file_path} fileName={file.file_name} />
@@ -358,13 +368,13 @@ export default function Triage() {
                       <label className="text-xs text-white/50 mb-1 block">Project Name</label>
                       <input
                         type="text"
-                        list={`projects-${file.file_id}`}
+                        list={`projects - ${file.file_id} `}
                         value={projectInput[file.file_id] || ''}
                         onChange={(e) => setProjectInput({ ...projectInput, [file.file_id]: e.target.value })}
                         placeholder="e.g., The_Papers_That_Dream, VEO_Prompt_Machine"
                         className="w-full px-3 py-2 bg-white/5 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 placeholder:text-white/30"
                       />
-                      <datalist id={`projects-${file.file_id}`}>
+                      <datalist id={`projects - ${file.file_id} `}>
                         {knownProjects?.projects.map((p) => (
                           <option key={p.id} value={p.name} />
                         ))}

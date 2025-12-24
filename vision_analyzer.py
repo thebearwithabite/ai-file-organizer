@@ -57,7 +57,7 @@ class VisionAnalyzer:
 
     # Analysis prompts for different content types
     IMAGE_ANALYSIS_PROMPT = """Analyze this image and provide the results in JSON format.
-
+{category_list_str}
 {identity_context}
 
 IMPORTANT: Return ONLY a valid JSON object. Do not include any introductory text, preamble, or conversational filler.
@@ -71,7 +71,7 @@ Return a valid JSON object with this structure:
     "text_content": "Any visible text extracted verbatim",
     "visual_style": "photo/screenshot/illustration/diagram/etc",
     "emotional_tone": "Mood or tone of the image",
-    "suggested_category": "personal_photos/tech_reference/tech_literature/biz_contracts/biz_financials/etc",
+    "suggested_category": "Pick the best ID from the ALLOWED CATEGORIES list",
     "keywords": ["list", "of", "relevant", "keywords", "for", "search"]
 }}"""
 
@@ -86,7 +86,7 @@ Return a valid JSON object with this structure:
     Format the text clearly, preserving hierarchy when possible."""
 
     VIDEO_ANALYSIS_PROMPT = """Analyze this video clip and provide the results in JSON format.
-
+{category_list_str}
 {identity_context}
 
 IMPORTANT: Return ONLY a valid JSON object. Do not include any introductory text, preamble, or conversational filler.
@@ -100,7 +100,7 @@ Return a valid JSON object with this structure:
     "text_content": "Any visible text or captions",
     "visual_style": "cinematic/amateur/professional/etc",
     "mood": "Emotional tone",
-    "suggested_category": "creative_video/presentation/tutorial/etc",
+    "suggested_category": "Pick the best ID from the ALLOWED CATEGORIES list",
     "keywords": ["list", "of", "relevant", "keywords"]
 }}"""
 
@@ -404,7 +404,7 @@ Return a valid JSON object with this structure:
         except Exception as e:
             self.logger.warning(f"Error saving to cache: {e}")
 
-    def analyze_image(self, image_path: str, project_context: Optional[str] = None) -> Dict[str, Any]:
+    def analyze_image(self, image_path: str, project_context: Optional[str] = None, allowed_categories: Optional[List[Dict[str, str]]] = None) -> Dict[str, Any]:
         """
         Analyze an image using Gemini Vision API.
 
@@ -477,8 +477,18 @@ Return a valid JSON object with this structure:
             if project_context:
                 full_context += f"\nPROJECT CONTEXT: This file belongs to the project: '{project_context}'. Tailor your descriptions and style analysis to this creative context."
 
+            # Format category list for prompt
+            cat_list_str = ""
+            if allowed_categories:
+                cat_list_str = "ALLOWED CATEGORIES (Pick the best fit from this list):\n"
+                for cat in allowed_categories:
+                    cat_list_str += f"- {cat['id']}: {cat['name']}\n"
+
             # Format the prompt
-            prompt = self.IMAGE_ANALYSIS_PROMPT.format(identity_context=full_context)
+            prompt = self.IMAGE_ANALYSIS_PROMPT.format(
+                identity_context=full_context,
+                category_list_str=cat_list_str
+            )
 
             # Call Gemini API for analysis
             self.api_calls += 1
@@ -561,7 +571,7 @@ Return a valid JSON object with this structure:
             self.logger.error(f"Error extracting text from screenshot: {e}")
             return ""
 
-    def analyze_video(self, video_path: str, max_duration: int = 120) -> Dict[str, Any]:
+    def analyze_video(self, video_path: str, max_duration: int = 120, project_context: Optional[str] = None, allowed_categories: Optional[List[Dict[str, str]]] = None) -> Dict[str, Any]:
         """
         Analyze a video file using Gemini Vision API.
 
@@ -638,8 +648,18 @@ Return a valid JSON object with this structure:
             if project_context:
                 full_context += f"\nPROJECT CONTEXT: This file belongs to the project: '{project_context}'. Tailor your descriptions and style analysis to this creative context."
 
+            # Format category list for prompt
+            cat_list_str = ""
+            if allowed_categories:
+                cat_list_str = "ALLOWED CATEGORIES (Pick the best fit from this list):\n"
+                for cat in allowed_categories:
+                    cat_list_str += f"- {cat['id']}: {cat['name']}\n"
+
             # Format the prompt
-            prompt = self.VIDEO_ANALYSIS_PROMPT.format(identity_context=full_context)
+            prompt = self.VIDEO_ANALYSIS_PROMPT.format(
+                identity_context=full_context,
+                category_list_str=cat_list_str
+            )
 
             # Analyze video
             self.api_calls += 1
