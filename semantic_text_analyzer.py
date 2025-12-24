@@ -109,13 +109,14 @@ class SemanticTextAnalyzer:
             time.sleep(self._min_request_interval - elapsed)
         self._last_request_time = time.time()
 
-    def analyze_text(self, text_content: str, filename: str) -> Dict[str, Any]:
+    def analyze_text(self, text_content: str, filename: str, allowed_categories: Optional[List[Dict[str, str]]] = None) -> Dict[str, Any]:
         """
         Analyze text content using Gemini API to determine category and context.
         
         Args:
             text_content: The extracted text from the document
             filename: Original filename (for context)
+            allowed_categories: Optional list of valid category dicts [{"id": "...", "name": "..."}]
             
         Returns:
             Dictionary with classification result, confidence, and reasoning
@@ -126,26 +127,34 @@ class SemanticTextAnalyzer:
                 "error": "API not initialized"
             }
 
-        # Truncate text if too long (Gemini 1.5 Flash has 1M context, but let's be safe/efficient)
-        # 50,000 chars is plenty for classification
+        # Truncate text if too long
         truncated_text = text_content[:50000]
+        
+        # Format allowed categories for prompt
+        category_list_str = ""
+        if allowed_categories:
+            category_list_str = "ALLOWED CATEGORIES (Pick the best fit from this list):\n"
+            for cat in allowed_categories:
+                category_list_str += f"- {cat['id']}: {cat['name']}\n"
         
         prompt = f"""
         Analyze this document text and strictly output JSON.
         
         Filename: "{filename}"
         
+        {category_list_str}
+        
         Task:
         1. Determine the exact document type (e.g., "Legal Contract", "Meeting Minutes", "Invoice", "Screenplay", "Technical Spec", "Financial Report").
         2. Assign a confidence score (0.0 to 1.0).
         3. Extract 3-5 key topics/entities.
-        4. Suggest a specific category slug (underscores, no spaces, e.g., "business_contracts").
+        4. Suggest the BEST category ID from the list above. If NO category fits, suggest a new slug.
         5. Suggest a descriptive filename (e.g., "Contract_VendorName_Date.pdf").
         
         Rules:
         - If it's an NDA, confidence must be > 0.9.
-        - If it's a Script/Screenplay, category is "creative_screenplay".
-        - If it's an Invoice/Receipt, category is "business_financial".
+        - If it's a Script/Screenplay, use "audio_vox" or "tech_scripts" if appropriate.
+        - If it's an Invoice/Receipt, use "biz_financials" or "fin_receipts".
         
         Text Content:
         \"\"\"
@@ -154,7 +163,7 @@ class SemanticTextAnalyzer:
         
         Output JSON Format:
         {{
-            "category": "category_slug",
+            "category": "category_id",
             "document_type": "Human Readable Type",
             "confidence": 0.85,
             "summary": "1-sentence summary",

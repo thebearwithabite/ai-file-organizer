@@ -352,15 +352,54 @@ class HierarchicalOrganizer:
         and the "Golden Hierarchy" templates.
         """
         filename = file_path.name
-        cat_data = self.taxonomy_service.get_category(base_category) if self.taxonomy_service else None
-        
-        # 1. Root & Base Determination
-        root = "99_TEMP_PROCESSING/Manual_Review"
+        cat_data = None
+        if self.taxonomy_service:
+            cat_data = self.taxonomy_service.get_category(base_category)
+            
+        # --- Root & Subfolder Resolution ---
         if cat_data:
             root = cat_data.get("parent_path", "99_TEMP_PROCESSING/Manual_Review")
             media_folder = cat_data.get("folder_name", "Other")
         else:
-            media_folder = "Other"
+            # Smart Fallback for unknown categories (e.g. AI suggested a new one)
+            # Try to determine a sensible root based on file extension
+            extension = file_path.suffix.lower().lstrip('.')
+            media_type = self.MEDIA_TYPE_MAP.get(extension, "Other")
+            
+            # Map media type to a sensible default root
+            if media_type in ["Scripts", "Code", "JSON_Prompts"]:
+                # --- IMPROVEMENT: Stay in Projects if a project is detected ---
+                project_peek = self.detect_project_from_filename(filename)
+                if project_peek:
+                    root = "Projects"
+                    media_folder = "JSON_Prompts" if media_type == "JSON_Prompts" else "Scripts"
+                else:
+                    root = "Technology"
+                    media_folder = "Scripts" if media_type == "Scripts" else "Data"
+            elif media_type == "Images":
+                root = "Personal"
+                media_folder = "Photos"
+            elif media_type == "Audio":
+                root = "Projects"
+                media_folder = "Audio"
+            elif media_type == "Video":
+                root = "Projects"
+                media_folder = "Video"
+            elif media_type == "3D":
+                root = "Projects"
+                media_folder = "3D Assets"
+            elif media_type == "Design":
+                root = "Projects"
+                media_folder = "Design Assets"
+            elif media_type in ["Archives", "Executables", "DiscImages"]:
+                root = "99_TEMP_PROCESSING/Software & Archives"
+                media_folder = media_type
+            else:
+                # Absolute fallback
+                root = "99_TEMP_PROCESSING/Manual_Review"
+                media_folder = "Other"
+            
+            self.logger.info(f"Unknown category '{base_category}' -> Smart mapped to {root}/{media_folder} based on extension {extension}")
         
         # 2. Entity Detection
         project = project_override or self.detect_project_from_filename(filename)

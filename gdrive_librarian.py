@@ -713,6 +713,7 @@ class GoogleDriveLibrarian:
             'authenticated': self._authenticated,
             'last_drive_scan': self._last_drive_scan.isoformat() if self._last_drive_scan else None,
             'config': self.config,
+            'drive_root': self._hybrid_librarian_base_dir,
             'components': {}
         }
         
@@ -738,6 +739,16 @@ class GoogleDriveLibrarian:
                      logger.warning(f"Status check auth failed: {e}")
                      # Keep old cache if refresh failed, or empty if none
                      auth_test = self._cached_auth_info if self._cached_auth_info else {}
+            
+            # Add Google Drive specific status to components
+            gdrive_status = {
+                "connected": True,
+                "user_name": auth_test.get("user_name", "Unknown"),
+                "quota_used_gb": auth_test.get("used_storage_gb", 0),
+                "quota_total_gb": auth_test.get("total_storage_gb", 0),
+                "drive_root": str(self._hybrid_librarian_base_dir) # Ensure Path is converted to string
+            }
+            status['components']['google_drive'] = gdrive_status
 
             status['auth_info'] = {
                 'user_name': auth_test.get('user_name', 'Unknown'),

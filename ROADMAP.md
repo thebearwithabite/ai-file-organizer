@@ -3,13 +3,17 @@
 
 If you’re low on bandwidth, this is the short version:
 
-**DO FIRST (Unblock everything):**
+**DO FIRST (Unblock everything - STATUS: COMPLETE):**
 
 1. ✅ **Fix Backend Startup**
 2. ✅ **Connect Background Monitor → API → Frontend Widget**
-3. ✅ **Fix the critical monitor / triage bugs**
+3. ✅ **Fix critical monitor / triage bugs (Infinite Loops resolved)**
 4. ✅ **Enforce AI_METADATA_SYSTEM path & kill rogue filesystem behavior**
 5. ✅ **Run / verify dedupe & migration integrity scripts**
+6. ✅ **Stabilize Rollback Center & Frontend API Integration**
+7. ✅ **Implement UI Path Truncation for GDrive paths**
+8. ✅ **Emergency Disk Space Recovery & Protection (SRE Pass)**
+9. ✅ **Fusion Brain & Review Queue implementation**
 
 Everything else is “polish / visibility / UX.”
 

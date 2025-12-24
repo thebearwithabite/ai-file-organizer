@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
 """
+ARCHITECTURAL LAW:
+- base_dir = monitored filesystem location (may be remote)
+- metadata_root = internal state (MUST be local)
+- metadata_root MUST come from get_metadata_root()
+- NEVER derive metadata paths from base_dir
+
 FastAPI Hello World Application
 Basic boilerplate for a FastAPI web application
 """
@@ -29,7 +35,7 @@ from api.services import SystemService, SearchService, TriageService
 from api.rollback_service import RollbackService
 from api.veo_api import router as veo_router, clip_router
 from security_utils import sanitize_filename, validate_path_within_base
-from gdrive_integration import get_metadata_root
+from gdrive_integration import get_metadata_root, get_ai_organizer_root
 from universal_adaptive_learning import UniversalAdaptiveLearning
 from easy_rollback_system import ensure_rollback_db
 from adaptive_background_monitor import AdaptiveBackgroundMonitor
@@ -181,8 +187,7 @@ async def startup_event():
         
         # Combine and deduplicate smartly
         # 1. Normalize user paths
-        # 2. Add defaults ONLY if they aren't already covered or if list is empty (policy choice)
-        # Current policy: Always include        all_paths = set(paths_list)
+        # Current policy: Always include all paths
         all_paths = set(paths_list)
         all_paths.update(default_paths)
         
@@ -1363,26 +1368,5 @@ async def catch_all(full_path: str):
         return FileResponse("frontend_v2/dist/index.html")
     return {"error": "Frontend build not found"}
 
-if __name__ == "__main__":
-    # Run the application directly with python main.py
-    # Enable reload=True for better development    # Print database paths for debugging
-    try:
-        from easy_rollback_system import EasyRollbackSystem
-        from universal_adaptive_learning import UniversalAdaptiveLearning
-        
-        rollback_db_path = EasyRollbackSystem().db_path
-        learning_db_path = UniversalAdaptiveLearning().db_path
-        
-        logger.info(f"DEBUG: Rollback DB Path: {rollback_db_path}")
-        logger.info(f"DEBUG: Learning DB Path: {learning_db_path}")
-        
-        if triage_service.rollback_service:
-             logger.info("DEBUG: TriageService has RollbackService initialized")
-        else:
-             logger.error("DEBUG: TriageService MISSING RollbackService")
-             
-    except Exception as e:
-        logger.error(f"DEBUG: Failed to print DB paths: {e}")
 
-    # Start uvicorn server
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+# End of file

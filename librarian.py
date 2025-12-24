@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
 """
+ARCHITECTURAL LAW:
+- base_dir = monitored filesystem location (may be remote)
+- metadata_root = internal state (MUST be local)
+- metadata_root MUST come from get_metadata_root()
+- NEVER derive metadata paths from base_dir
+
 Local LLM Librarian - Main CLI Interface
 Complete file organization and search system with natural language queries
 """

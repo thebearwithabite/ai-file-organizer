@@ -4,6 +4,8 @@ import { useQuery } from '@tanstack/react-query'
 import { Check, X, RefreshCw, FileText, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../../services/api'
+import { formatPath } from '../../lib/utils'
+import type { SystemStatus } from '../../types/api'
 
 interface ClassificationPreviewProps {
   result: any
@@ -11,7 +13,13 @@ interface ClassificationPreviewProps {
 }
 
 export default function ClassificationPreview({ result, onClose }: ClassificationPreviewProps) {
-  const { classification, file_name, status, destination_path, file_path } = result
+  const { data: systemStatus } = useQuery<SystemStatus>({
+    queryKey: ['system-status'],
+    queryFn: api.getSystemStatus,
+  })
+  const driveRoot = systemStatus?.google_drive?.drive_root
+
+  const { classification, file_name, status: classificationStatus, destination_path, file_path } = result
   const [isConfirming, setIsConfirming] = useState(false)
   const [project, setProject] = useState('')
   const [episode, setEpisode] = useState('')
@@ -73,7 +81,7 @@ export default function ClassificationPreview({ result, onClose }: Classificatio
         <FileText size={32} className="text-blue-400" />
         <div className="flex-1">
           <div className="font-medium text-white">{file_name}</div>
-          <div className="text-sm text-white/60">{status}</div>
+          <div className="text-sm text-white/60">{classificationStatus}</div>
         </div>
       </div>
 
@@ -107,7 +115,7 @@ export default function ClassificationPreview({ result, onClose }: Classificatio
         <div className="text-xs text-white/40 mb-1">Suggested Category</div>
         <div className="text-lg font-semibold text-white">{classification.category}</div>
         {destination_path && (
-          <div className="text-xs text-white/60 mt-1 truncate">→ {destination_path}</div>
+          <div className="text-xs text-white/60 mt-1 truncate">→ {formatPath(destination_path, driveRoot)}</div>
         )}
         {result.suggested_filename && result.suggested_filename !== file_name && (
           <div className="mt-2 p-2 bg-white/5 rounded-lg border border-white/10">
