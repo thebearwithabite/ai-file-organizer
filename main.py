@@ -298,7 +298,7 @@ async def periodic_orchestration():
             # Update status to running
             SystemService.update_orchestration_status({
                 "last_run": datetime.now().isoformat(),
-                "files_touched": 0, # Will update after run
+                "files_processed": 0, # Will update after run
                 "status": "running"
             })
             
@@ -310,7 +310,7 @@ async def periodic_orchestration():
             # Update status to complete
             SystemService.update_orchestration_status({
                 "last_run": datetime.now().isoformat(),
-                "files_touched": 0, # TODO: Capture actual count
+                "files_processed": 0, # TODO: Capture actual count
                 "status": "idle"
             })
             
@@ -319,7 +319,7 @@ async def periodic_orchestration():
             logger.error(f"❌ Periodic orchestration failed: {e}")
             SystemService.update_orchestration_status({
                 "last_run": datetime.now().isoformat(),
-                "files_touched": 0,
+                "files_processed": 0,
                 "status": "error"
             })
 
