@@ -53,7 +53,7 @@ export default function SystemStateStrip() {
         if (status.orchestration && status.orchestration.last_run) {
             const date = new Date(status.orchestration.last_run)
             const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-            const files = status.orchestration.files_touched ?? 0
+            const files = status.orchestration.files_processed ?? 0
             return {
                 label: `${timeStr} (${files} files)`,
                 color: 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]'

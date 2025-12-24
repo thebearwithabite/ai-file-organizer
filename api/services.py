@@ -35,7 +35,7 @@ class SystemService:
     
     # Injected dependencies
     _background_monitor = None
-    _last_orchestration_stats = {"last_run": None, "files_touched": 0}
+    _last_orchestration_stats = {"last_run": None, "files_processed": 0}
 
     def __init__(self):
         """Initialize SystemService with lazy GoogleDriveLibrarian loading"""
@@ -191,7 +191,7 @@ class SystemService:
                     stats = json.load(f)
                     orchestration_info = {
                         "last_run": stats.get("last_run"),
-                        "files_processed": stats.get("files_processed", stats.get("files_touched", 0)),
+                        "files_processed": stats.get("files_processed", 0),
                         "status": stats.get("status", "idle")
                     }
         except Exception as e:
