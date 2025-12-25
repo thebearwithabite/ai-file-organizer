@@ -871,8 +871,61 @@ class EmergencySpaceProtection:
 
     def _cleanup_temp_files(self, emergency: SpaceEmergency) -> float:
         """Clean up temporary files and return space freed in GB"""
-        # TODO: Implement temp file cleanup
-        return 0.0
+        import tempfile
+
+        freed_space_bytes = 0
+        files_deleted = 0
+
+        # 1. Define temp patterns
+        temp_patterns = [
+            "*.tmp", "*.temp", "*.bak", "*.swp", "*.~*",
+            "Thumbs.db", ".DS_Store", "*.log", "*.old",
+            "*.cache", "*.chk"
+        ]
+
+        # 2. Identify directories to scan
+        # Start with affected_directories
+        directories_to_scan = set()
+        for d in emergency.affected_directories:
+             directories_to_scan.add(Path(d))
+
+        # Add system temp directory if on the same disk
+        try:
+            temp_dir = Path(tempfile.gettempdir())
+            if temp_dir.exists():
+                temp_disk = self._get_disk_path(temp_dir)
+                if temp_disk == emergency.disk_path:
+                    directories_to_scan.add(temp_dir)
+        except Exception:
+            pass # Ignore if we can't determine disk or temp dir
+
+        self.logger.info(f"Scanning for temp files in: {[str(d) for d in directories_to_scan]}")
+
+        # 3. Scan and delete
+        for directory in directories_to_scan:
+            if not directory.exists():
+                continue
+
+            for pattern in temp_patterns:
+                try:
+                    # Use rglob for recursive search
+                    for file_path in directory.rglob(pattern):
+                        if not file_path.is_file():
+                            continue
+
+                        try:
+                            file_size = file_path.stat().st_size
+                            os.remove(file_path)
+                            freed_space_bytes += file_size
+                            files_deleted += 1
+                        except OSError as e:
+                            self.logger.debug(f"Could not delete temp file {file_path}: {e}")
+                except Exception as e:
+                    self.logger.error(f"Error scanning for pattern {pattern} in {directory}: {e}")
+
+        freed_gb = freed_space_bytes / (1024**3)
+        self.logger.info(f"Cleanup finished: {files_deleted} temp files deleted, {freed_gb:.4f} GB freed")
+        return freed_gb
 
     def _cleanup_duplicate_files(self, emergency: SpaceEmergency) -> float:
         """Clean up duplicate files and return space freed in GB"""
