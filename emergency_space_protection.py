@@ -35,6 +35,7 @@ from gdrive_integration import get_ai_organizer_root, get_metadata_root
 from universal_adaptive_learning import UniversalAdaptiveLearning
 from confidence_system import ADHDFriendlyConfidenceSystem
 from easy_rollback_system import EasyRollbackSystem
+from bulletproof_deduplication import BulletproofDeduplicator
 
 @dataclass
 class SpaceEmergency:
@@ -876,8 +877,49 @@ class EmergencySpaceProtection:
 
     def _cleanup_duplicate_files(self, emergency: SpaceEmergency) -> float:
         """Clean up duplicate files and return space freed in GB"""
-        # TODO: Integrate with bulletproof deduplication
-        return 0.0
+        self.logger.info(f"Starting duplicate cleanup for {emergency.disk_path}")
+
+        try:
+            deduplicator = BulletproofDeduplicator(str(self.base_dir))
+            total_freed_bytes = 0
+
+            # Determine safety threshold based on severity
+            # Lower threshold means more aggressive deletion (less safety required)
+            # But we should still be careful.
+            safety_threshold = 0.7
+            if emergency.severity == "emergency":
+                safety_threshold = 0.5  # More aggressive in emergency
+
+            for directory_path in emergency.affected_directories:
+                directory = Path(directory_path)
+                if not directory.exists():
+                    continue
+
+                self.logger.info(f"Scanning for duplicates in {directory}")
+                # Use BulletproofDeduplicator to find and remove duplicates
+                results = deduplicator.scan_directory(
+                    directory,
+                    execute=True,
+                    safety_threshold=safety_threshold
+                )
+
+                if results.get("errors"):
+                    for error in results["errors"]:
+                        self.logger.error(f"Deduplication error: {error}")
+
+                # space_recoverable in results includes what was deleted (if execute=True)
+                # or what could be deleted. Since we pass execute=True, we count it.
+                # Note: scan_directory returns space in bytes.
+                freed_in_dir = results.get("space_recoverable", 0)
+                total_freed_bytes += freed_in_dir
+                self.logger.info(f"Freed {freed_in_dir / (1024*1024):.2f} MB in {directory}")
+
+            freed_gb = total_freed_bytes / (1024**3)
+            return freed_gb
+
+        except Exception as e:
+            self.logger.error(f"Error in duplicate cleanup: {e}")
+            return 0.0
 
     def _cleanup_old_downloads(self, emergency: SpaceEmergency) -> float:
         """Clean up old downloads and return space freed in GB"""
