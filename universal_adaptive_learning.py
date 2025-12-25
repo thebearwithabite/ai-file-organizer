@@ -1206,8 +1206,8 @@ class UniversalAdaptiveLearning:
                     self.visual_patterns['visual_keywords'][category].append(keyword)
 
         if scene_type != 'unknown':
-            if category not in self.visual_patterns['scene_types'][scene_type]:
-                self.visual_patterns['scene_types'][scene_type].append(category)
+            if scene_type not in self.visual_patterns['scene_types'][category]:
+                self.visual_patterns['scene_types'][category].append(scene_type)
 
         # Update category frequency
         self.visual_patterns['category_frequencies'][category] += 1
