@@ -31,7 +31,10 @@ class ContentExtractor:
         
         local_db_dir = metadata_root / "databases"
         local_db_dir.mkdir(parents=True, exist_ok=True)
-        self.db_path = local_db_dir / "content_index.db"
+        initial_db_path = local_db_dir / "content_index.db"
+
+        # Enforce local storage
+        self.db_path = self._ensure_local_db_path(initial_db_path)
 
         # Cache can also be local to avoid cloud sync overhead
         local_cache_dir = metadata_root / "content_cache"
@@ -56,6 +59,34 @@ class ContentExtractor:
             '.json': self._extract_json
         }
     
+    def _ensure_local_db_path(self, db_path: Path) -> Path:
+        """
+        Ensure the database path is strictly local and not on Google Drive.
+        Returns the original path if safe, or a fallback local path.
+        """
+        # Check for Google Drive indicators
+        path_str = str(db_path.resolve())
+        unsafe_indicators = [
+            "GoogleDrive",
+            "Google Drive",
+            "CloudStorage",
+            "/Volumes/GoogleDrive",
+            "My Drive"
+        ]
+
+        is_unsafe = any(indicator in path_str for indicator in unsafe_indicators)
+
+        if is_unsafe:
+            print(f"⚠️ WARNING: Database path detected on Google Drive: {db_path}")
+            print("   Redirecting to local storage to prevent SQLite locking issues.")
+
+            # Fallback to a safe local directory
+            fallback_dir = Path.home() / ".ai_organizer_local" / "databases"
+            fallback_dir.mkdir(parents=True, exist_ok=True)
+            return fallback_dir / db_path.name
+
+        return db_path
+
     def _init_database(self):
         """Initialize content index database"""
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
