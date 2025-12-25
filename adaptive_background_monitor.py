@@ -159,6 +159,10 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
             "rules_created": 0,
             "user_corrections_learned": 0
         })
+
+        # Track last execution times
+        self.last_emergency_check_time = None
+        self.last_pattern_discovery_time = None
         
         self.logger.info("Adaptive Background Monitor initialized")
 
@@ -706,6 +710,7 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
                     self.stats["patterns_discovered"] += len(new_patterns)
                     self.logger.info(f"Discovered {len(new_patterns)} new patterns")
                 
+                self.last_pattern_discovery_time = datetime.now()
                 time.sleep(self.learning_intervals['pattern_discovery'])
                 
             except Exception as e:
@@ -725,6 +730,7 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
                     self._handle_emergency(emergency)
                     self.stats["emergencies_prevented"] += 1
                 
+                self.last_emergency_check_time = datetime.now()
                 time.sleep(self.learning_intervals['emergency_check'])
                 
             except Exception as e:
@@ -1001,8 +1007,8 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
             "monitoring_status": {
                 "observers_active": len(self.observers),
                 "threads_running": len([t for t in self.threads.values() if t.is_alive()]),
-                "last_pattern_discovery": "N/A",  # TODO: Track this
-                "last_emergency_check": "N/A"     # TODO: Track this
+                "last_pattern_discovery": self.last_pattern_discovery_time.isoformat() if self.last_pattern_discovery_time else "N/A",
+                "last_emergency_check": self.last_emergency_check_time.isoformat() if self.last_emergency_check_time else "N/A"
             }
         }
 
