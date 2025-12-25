@@ -837,10 +837,39 @@ class AutomatedDeduplicationService:
         # Clear threat queue after emergency intervention
         self.threat_queue.clear()
 
-    def _get_recent_operations(self, days: int) -> List[Dict[str, Any]]:
-        """Get recent deduplication operations"""
-        # TODO: Implement database query for recent operations
-        return []
+    def _get_recent_operations(self, days: int = 7, limit: int = 10) -> List[Dict[str, Any]]:
+        """
+        Get recent deduplication operations
+
+        Args:
+            days: Number of days to look back
+            limit: Maximum number of records to return
+
+        Returns:
+            List of recent operations
+        """
+        operations = []
+
+        try:
+            cutoff_date = (datetime.now() - timedelta(days=days)).isoformat()
+
+            with sqlite3.connect(self.service_db_path) as conn:
+                conn.row_factory = sqlite3.Row
+                cursor = conn.execute("""
+                    SELECT * FROM deduplication_operations
+                    WHERE start_time >= ?
+                    ORDER BY start_time DESC
+                    LIMIT ?
+                """, (cutoff_date, limit))
+
+                rows = cursor.fetchall()
+                for row in rows:
+                    operations.append(dict(row))
+
+        except Exception as e:
+            self.logger.error(f"Error getting recent operations: {e}")
+
+        return operations
 
     def _discover_duplicate_patterns(self, operations: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Discover patterns in duplicate creation"""
