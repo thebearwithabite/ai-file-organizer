@@ -160,6 +160,10 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
             "user_corrections_learned": 0
         })
         
+        # Tracking timestamps
+        self._last_pattern_discovery_time = None
+        self._last_emergency_check_time = None
+
         self.logger.info("Adaptive Background Monitor initialized")
 
     @property
@@ -686,50 +690,59 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
         
         while self.running:
             try:
-                self.logger.info("Starting pattern discovery cycle...")
-                
-                # Get recent learning events
-                recent_events = [
-                    event for event in self.learning_system.learning_events
-                    if (datetime.now() - event.timestamp).days <= 7
-                ]
-                
-                if len(recent_events) < 5:
-                    self.logger.info("Not enough recent events for pattern discovery")
-                    time.sleep(self.learning_intervals['pattern_discovery'])
-                    continue
-                
-                # Discover patterns
-                new_patterns = self._discover_behavioral_patterns(recent_events)
-                
-                if new_patterns:
-                    self.stats["patterns_discovered"] += len(new_patterns)
-                    self.logger.info(f"Discovered {len(new_patterns)} new patterns")
-                
+                self._run_pattern_discovery_cycle()
                 time.sleep(self.learning_intervals['pattern_discovery'])
                 
             except Exception as e:
-                self.logger.error(f"Error in pattern discovery: {e}")
+                self.logger.error(f"Error in pattern discovery loop: {e}")
                 time.sleep(300)  # Wait 5 minutes on error
+
+    def _run_pattern_discovery_cycle(self):
+        """Run a single pattern discovery cycle"""
+        # Let exceptions propagate to the main loop for proper backoff handling
+        self.logger.info("Starting pattern discovery cycle...")
+        self._last_pattern_discovery_time = datetime.now()
+
+        # Get recent learning events
+        recent_events = [
+            event for event in self.learning_system.learning_events
+            if (datetime.now() - event.timestamp).days <= 7
+        ]
+
+        if len(recent_events) < 5:
+            self.logger.info("Not enough recent events for pattern discovery")
+            return
+
+        # Discover patterns
+        new_patterns = self._discover_behavioral_patterns(recent_events)
+
+        if new_patterns:
+            self.stats["patterns_discovered"] += len(new_patterns)
+            self.logger.info(f"Discovered {len(new_patterns)} new patterns")
 
     def _periodic_emergency_check(self):
         """Periodically check for emergency conditions"""
         
         while self.running:
             try:
-                self.logger.debug("Checking for emergency conditions...")
-                
-                emergencies = self._detect_emergencies()
-                
-                for emergency in emergencies:
-                    self._handle_emergency(emergency)
-                    self.stats["emergencies_prevented"] += 1
-                
+                self._run_emergency_check_cycle()
                 time.sleep(self.learning_intervals['emergency_check'])
                 
             except Exception as e:
                 self.logger.error(f"Error in emergency check: {e}")
                 time.sleep(60)
+
+    def _run_emergency_check_cycle(self):
+        """Run a single emergency check cycle"""
+        # Let exceptions propagate to the main loop for proper backoff handling
+        self.logger.debug("Checking for emergency conditions...")
+        self._last_emergency_check_time = datetime.now()
+
+        emergencies = self._detect_emergencies()
+
+        for emergency in emergencies:
+            self._handle_emergency(emergency)
+            self.stats["emergencies_prevented"] += 1
 
     def _periodic_rule_generation(self):
         """Periodically generate new adaptive rules"""
@@ -993,6 +1006,10 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
         # Get confidence system stats
         confidence_stats = self.confidence_system.get_confidence_stats()
         
+        # Format timestamps
+        last_pattern = self._last_pattern_discovery_time.isoformat() if self._last_pattern_discovery_time else "N/A"
+        last_emergency = self._last_emergency_check_time.isoformat() if self._last_emergency_check_time else "N/A"
+
         return {
             "adaptive_monitor_stats": self.stats,
             "learning_system": learning_stats,
@@ -1001,8 +1018,8 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
             "monitoring_status": {
                 "observers_active": len(self.observers),
                 "threads_running": len([t for t in self.threads.values() if t.is_alive()]),
-                "last_pattern_discovery": "N/A",  # TODO: Track this
-                "last_emergency_check": "N/A"     # TODO: Track this
+                "last_pattern_discovery": last_pattern,
+                "last_emergency_check": last_emergency
             }
         }
 
