@@ -36,7 +36,7 @@ from background_monitor import EnhancedBackgroundMonitor
 from universal_adaptive_learning import UniversalAdaptiveLearning
 from confidence_system import ADHDFriendlyConfidenceSystem, ConfidenceLevel
 from bulletproof_deduplication import BulletproofDeduplicator
-from gdrive_integration import get_ai_organizer_root, get_metadata_root
+from gdrive_integration import get_ai_organizer_root, get_metadata_root, GoogleDriveIntegration
 from easy_rollback_system import EasyRollbackSystem
 
 class AdaptiveFileHandler(FileSystemEventHandler):
@@ -159,6 +159,13 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
             "rules_created": 0,
             "user_corrections_learned": 0
         })
+
+        # Initialize Google Drive Integration with error handling
+        try:
+            self.gdrive = GoogleDriveIntegration()
+        except Exception as e:
+            self.logger.warning(f"Google Drive Integration not available: {e}")
+            self.gdrive = None
         
         self.logger.info("Adaptive Background Monitor initialized")
 
@@ -824,9 +831,25 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
         location = emergency['location']
         self.logger.warning(f"Critical disk space at {location}")
         
-        # TODO: Implement Google Drive emergency offloading
-        # For now, just log the emergency
-        self.logger.info("Emergency disk space handling not yet implemented")
+        if not self.gdrive:
+            self.logger.error("Google Drive Integration not available. Cannot perform emergency offloading.")
+            return
+
+        try:
+            self.logger.info("Initiating Google Drive emergency offloading...")
+
+            results = self.gdrive.emergency_space_recovery()
+
+            if results.get("recovery_needed"):
+                freed_gb = results.get('space_freed_gb', 0)
+                self.logger.info(f"Emergency offloading complete. Freed {freed_gb:.2f}GB")
+                if results.get("errors"):
+                    self.logger.warning(f"Encountered errors during offloading: {results['errors']}")
+            else:
+                self.logger.info("Emergency offloading check complete. No action needed or space sufficient.")
+
+        except Exception as e:
+            self.logger.error(f"Failed to perform Google Drive emergency offloading: {e}")
 
     def _handle_duplicate_emergency(self, emergency: Dict[str, Any]):
         """Handle duplicate file crisis"""
