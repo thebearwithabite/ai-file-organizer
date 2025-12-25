@@ -884,6 +884,74 @@ class InteractiveBatchProcessor:
         return recommendation
 
     # Helper methods
+    def _resolve_category_path(self, category: str) -> Path:
+        """Resolve category to a path relative to base_dir"""
+        # Map categories to Google Drive structure (simplified version of GDriveIntegration)
+        category_mapping = {
+            "creative": "01_ACTIVE_PROJECTS/Creative_Projects",
+            "entertainment": "01_ACTIVE_PROJECTS/Entertainment_Industry",
+            "business": "01_ACTIVE_PROJECTS/Business_Operations",
+            "visual": "02_MEDIA_ASSETS/Visual_Assets",
+            "audio": "02_MEDIA_ASSETS/Audio_Library",
+            "video": "02_MEDIA_ASSETS/Video_Content",
+            "research": "03_REFERENCE_LIBRARY/Research_Papers",
+            "templates": "03_REFERENCE_LIBRARY/Templates",
+            "unknown": "99_TEMP_PROCESSING/Manual_Review"
+        }
+
+        rel_path = category_mapping.get(category, "99_TEMP_PROCESSING/Manual_Review")
+        return self.base_dir / rel_path
+
+    def _move_file_safely(self, source_path: Path, target_dir: Path, session_id: str, action_type: str, confidence: float, category: str) -> Optional[Path]:
+        """Move file safely with collision handling and rollback logging"""
+        try:
+            if not source_path.exists():
+                self.logger.warning(f"File not found for move: {source_path}")
+                return None
+
+            # Create target directory
+            target_dir.mkdir(parents=True, exist_ok=True)
+
+            target_path = target_dir / source_path.name
+
+            # Handle name conflicts
+            counter = 1
+            original_target = target_path
+            while target_path.exists():
+                stem = original_target.stem
+                suffix = original_target.suffix
+                target_path = target_dir / f"{stem}_{counter}{suffix}"
+                counter += 1
+
+            # Record operation before moving (in case it fails midway, though move is atomic-ish)
+            # Actually rollback system records what happened, so we log it.
+            # But EasyRollbackSystem needs the move to happen?
+            # Looking at EasyRollbackSystem, it just logs the operation.
+
+            import shutil
+            shutil.move(str(source_path), str(target_path))
+
+            # Log to rollback system
+            try:
+                self.rollback_system.record_operation(
+                    operation_type=action_type,
+                    original_path=str(source_path.parent),
+                    original_filename=source_path.name,
+                    new_filename=target_path.name,
+                    new_location=str(target_dir),
+                    category=category,
+                    confidence=confidence,
+                    notes=f"Batch session {session_id}"
+                )
+            except Exception as e:
+                self.logger.error(f"Failed to log rollback operation: {e}")
+
+            return target_path
+
+        except Exception as e:
+            self.logger.error(f"Error moving file {source_path}: {e}")
+            return None
+
     def _calculate_file_hash(self, file_path: Path) -> str:
         """Calculate file hash for caching"""
         try:
@@ -1054,24 +1122,216 @@ class InteractiveBatchProcessor:
 
     def _process_group_automatically(self, session_id: str, group: BatchGroup):
         """Process a group automatically based on confidence"""
-        # TODO: Implement automatic processing
+
+        # Get recommendation
+        recommendation = self._get_group_recommendation(group)
+
+        # Create decision
+        decision = {
+            "action": recommendation["action"],
+            "target_category": group.file_previews[0].predicted_category if group.file_previews else "unknown",
+            "automatic": True,
+            "confidence": recommendation["confidence"]
+        }
+
+        self.logger.info(f"Automatically processing group {group.group_id} with action {decision['action']}")
+
+        # Execute decision
+        result = self._execute_user_decision(session_id, group, decision)
+
+        # Update stats
         self.stats["automatic_decisions"] += 1
-        pass
+
+        # Log result
+        if result["success"]:
+            self.logger.info(f"Successfully processed {len(result['processed_files'])} files")
+        else:
+            self.logger.warning(f"Failed to process group: {result.get('message', 'Unknown error')}")
 
     def _execute_user_decision(self, session_id: str, group: BatchGroup, user_decision: Dict[str, Any]) -> Dict[str, Any]:
         """Execute user decision for a group"""
-        # TODO: Implement decision execution
-        return {"status": "success", "message": "Decision executed"}
+
+        action = user_decision.get("action")
+        results = {
+            "success": True,
+            "processed_files": [],
+            "failed_files": []
+        }
+
+        self.logger.info(f"Executing decision '{action}' for group {group.group_id}")
+
+        try:
+            # Handle "keep_newest" for duplicates
+            if action == "keep_newest" and group.group_type == "duplicates":
+                # Sort files by modification date (newest first)
+                sorted_files = sorted(group.file_previews, key=lambda fp: fp.modification_date, reverse=True)
+
+                # Keep the first one
+                keeper = sorted_files[0]
+                to_remove = sorted_files[1:]
+
+                # Move duplicates to a "Duplicates" folder (safer than delete)
+                # or actually delete if that's the policy. For now, let's move to a Duplicates folder
+                # inside a "99_TEMP_PROCESSING" area to be safe.
+                duplicates_dir = self.base_dir / "99_TEMP_PROCESSING" / "Duplicates"
+
+                for fp in to_remove:
+                    result = self._move_file_safely(
+                        Path(fp.file_path),
+                        duplicates_dir,
+                        session_id,
+                        "archive_duplicate",
+                        1.0,
+                        "duplicates"
+                    )
+
+                    if result:
+                        results["processed_files"].append(fp.file_path)
+                    else:
+                        results["failed_files"].append(fp.file_path)
+
+                # Ensure the keeper is in the right place (if needed) - usually it stays or moves to valid category
+                # If the group has a predicted category, move the keeper there
+                if keeper.predicted_category and keeper.predicted_category != "unknown":
+                    target_dir = self._resolve_category_path(keeper.predicted_category)
+                    self._move_file_safely(
+                        Path(keeper.file_path),
+                        target_dir,
+                        session_id,
+                        "organize",
+                        keeper.confidence_score,
+                        keeper.predicted_category
+                    )
+
+            # Handle "organize_together"
+            elif action == "organize_together":
+                # Determine target category
+                # Use the one from decision if available, otherwise from group
+                target_category = user_decision.get("target_category")
+                if not target_category and group.file_previews:
+                    target_category = group.file_previews[0].predicted_category
+
+                if not target_category:
+                    target_category = "unknown"
+
+                target_dir = self._resolve_category_path(target_category)
+
+                for fp in group.file_previews:
+                    result = self._move_file_safely(
+                        Path(fp.file_path),
+                        target_dir,
+                        session_id,
+                        "organize",
+                        fp.confidence_score,
+                        target_category
+                    )
+
+                    if result:
+                        results["processed_files"].append(fp.file_path)
+                    else:
+                        results["failed_files"].append(fp.file_path)
+
+            # Handle "organize_predicted" (or individually)
+            elif action in ["organize_predicted", "organize_individually", "organize_individual"]:
+                for fp in group.file_previews:
+                    category = fp.predicted_category
+                    target_dir = self._resolve_category_path(category)
+
+                    result = self._move_file_safely(
+                        Path(fp.file_path),
+                        target_dir,
+                        session_id,
+                        "organize",
+                        fp.confidence_score,
+                        category
+                    )
+
+                    if result:
+                        results["processed_files"].append(fp.file_path)
+                    else:
+                        results["failed_files"].append(fp.file_path)
+
+            # Handle "organize_by_type"
+            elif action == "organize_by_type":
+                # Usually map extension to a category or folder
+                # Simple mapping for now
+                for fp in group.file_previews:
+                    # Logic could be more complex, but let's stick to predicted category or a type folder
+                    # If predicted category is good, use it. Else create a folder for the type.
+                    if fp.confidence_score > 0.6:
+                         category = fp.predicted_category
+                         target_dir = self._resolve_category_path(category)
+                    else:
+                        # Fallback to type folder in Manual Review
+                        ext = fp.file_type.strip('.')
+                        target_dir = self.base_dir / "99_TEMP_PROCESSING" / "Manual_Review" / ext.upper()
+                        category = "manual_review"
+
+                    result = self._move_file_safely(
+                        Path(fp.file_path),
+                        target_dir,
+                        session_id,
+                        "organize",
+                        fp.confidence_score,
+                        category
+                    )
+
+                    if result:
+                        results["processed_files"].append(fp.file_path)
+                    else:
+                        results["failed_files"].append(fp.file_path)
+
+            elif action == "skip":
+                pass
+
+            else:
+                self.logger.warning(f"Unknown action: {action}")
+                results["success"] = False
+                results["message"] = f"Unknown action: {action}"
+
+            # Update stats
+            self.stats["files_organized"] += len(results["processed_files"])
+
+        except Exception as e:
+            self.logger.error(f"Error executing decision: {e}")
+            results["success"] = False
+            results["message"] = str(e)
+
+        return results
 
     def _record_user_decision(self, session_id: str, group: BatchGroup, user_decision: Dict[str, Any], result: Dict[str, Any]):
         """Record user decision for learning"""
-        # TODO: Implement decision recording
-        pass
+        try:
+            with sqlite3.connect(self.batch_db_path) as conn:
+                for fp in group.file_previews:
+                    conn.execute("""
+                        INSERT INTO user_feedback
+                        (feedback_id, session_id, file_path, predicted_action, user_action, feedback_time, comments)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """, (
+                        hashlib.md5(f"{session_id}_{fp.file_path}_{datetime.now().isoformat()}".encode()).hexdigest()[:12],
+                        session_id,
+                        fp.file_path,
+                        fp.predicted_category,
+                        user_decision.get("action", "unknown"),
+                        datetime.now().isoformat(),
+                        json.dumps(user_decision)
+                    ))
+                conn.commit()
+        except Exception as e:
+            self.logger.error(f"Error recording user decision: {e}")
 
     def _update_learning_from_decision(self, group: BatchGroup, user_decision: Dict[str, Any]):
         """Update learning system from user decision"""
-        # TODO: Implement learning updates
-        pass
+        # In a real system, this would feed back into the learning model
+        # For now, we'll just track that confidence is improving if the user agrees
+        action = user_decision.get("action")
+
+        # If user agreed with recommendation or high confidence prediction
+        if (action == "organize_predicted" or
+            action == "organize_together" or
+            action == "keep_newest"):  # Assuming smart defaults
+            self.stats["confidence_improvements"] += 1
 
     def _record_batch_session(self, session_data: Dict[str, Any]):
         """Record batch session in database"""
