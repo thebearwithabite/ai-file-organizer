@@ -27,7 +27,7 @@ import logging
 project_dir = Path(__file__).parent
 sys.path.insert(0, str(project_dir))
 
-from gdrive_integration import get_ai_organizer_root, get_metadata_root
+from gdrive_integration import get_ai_organizer_root, get_metadata_root, ensure_safe_local_path
 
 @dataclass
 class LearningEvent:
@@ -94,7 +94,8 @@ class UniversalAdaptiveLearning:
         # Use centralized metadata system for compliance
         local_db_dir = get_metadata_root() / "databases"
         local_db_dir.mkdir(parents=True, exist_ok=True)
-        self.db_path = local_db_dir / "adaptive_learning.db"
+        # Enforce local storage - will raise RuntimeError if unsafe
+        self.db_path = ensure_safe_local_path(local_db_dir / "adaptive_learning.db")
 
         # Load existing data
         self.learning_events: List[LearningEvent] = self._load_learning_events()
