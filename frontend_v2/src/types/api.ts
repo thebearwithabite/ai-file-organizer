@@ -150,3 +150,18 @@ export interface ProjectsResponse {
   projects: Project[]
   count: number
 }
+
+export interface MaintenanceLog {
+  task_name: string
+  last_run: string
+  success: boolean
+  details: string
+}
+
+export interface EmergencyLog {
+  timestamp: string
+  emergency_type: string
+  severity_level: string
+  details: string
+  action_taken: string
+}

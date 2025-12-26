@@ -389,23 +389,20 @@ async def emergency_cleanup():
 @app.get("/api/system/monitor-status")
 async def get_monitor_status():
     """
-    Get background monitor status for health checking and debugging
-
-    Returns:
         JSON matching MonitorStatus interface for frontend
     """
     global background_monitor
 
-    if not background_monitor:
-        return {
-            "status": "paused",
-            "paths": [],
-            "last_event": None,
-            "events_processed": 0,
-            "uptime_seconds": 0
-        }
-
     try:
+        if not background_monitor:
+            return {
+                "status": "paused",
+                "paths": [],
+                "last_event": None,
+                "events_processed": 0,
+                "uptime_seconds": 0
+            }
+        
         # Get real status from the monitor
         status = background_monitor.status()
         
@@ -434,6 +431,16 @@ async def get_monitor_status():
             "events_processed": 0,
             "uptime_seconds": 0
         }
+
+@app.get("/api/system/maintenance-logs")
+async def get_maintenance_logs(limit: int = 50):
+    """Get recent maintenance task logs"""
+    return system_service.get_maintenance_logs(limit)
+
+@app.get("/api/system/emergency-logs")
+async def get_emergency_logs(limit: int = 50):
+    """Get recent emergency logs"""
+    return system_service.get_emergency_logs(limit)
 
 @app.get("/api/settings/learning-stats")
 async def get_learning_stats():
@@ -675,23 +682,20 @@ async def scan_for_duplicates():
         - data: Duplicate statistics and threat information
     """
     try:
-        # Get deduplication service statistics
-        stats = deduplication_service.get_service_stats()
+        # Perform a fresh scan of the primary AI organizer root
+        base_dir = deduplication_service.base_dir
+        report = deduplication_service.scan_for_duplicates(str(base_dir))
 
-        logger.info(f"Duplicate scan requested - returning current statistics")
+        logger.info(f"Duplicate scan completed for {base_dir} - returning findings")
+
+        # Extract groups from report for frontend compatibility
+        groups = report.get("findings", {}).get("groups", [])
 
         return {
             "status": "success",
-            "message": f"Deduplication statistics retrieved",
-            "data": {
-                "service_stats": stats,
-                "monitoring_active": deduplication_service.monitoring_active,
-                "config": {
-                    "real_time_enabled": deduplication_service.config["real_time_enabled"],
-                    "proactive_scanning": deduplication_service.config["proactive_scanning"],
-                    "emergency_threshold": deduplication_service.config["emergency_threshold"]
-                }
-            }
+            "message": f"Deduplication scan complete",
+            "groups": groups,
+            "data": report
         }
     except Exception as e:
         logger.error(f"Failed to scan for duplicates: {e}", exc_info=True)

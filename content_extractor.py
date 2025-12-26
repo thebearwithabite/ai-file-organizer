@@ -12,7 +12,7 @@ from typing import Dict, List, Optional, Any
 from datetime import datetime
 import hashlib
 import mimetypes
-from gdrive_integration import get_ai_organizer_root, get_metadata_root
+from gdrive_integration import get_ai_organizer_root, get_metadata_root, ensure_safe_local_path
 
 class ContentExtractor:
     """
@@ -31,7 +31,8 @@ class ContentExtractor:
         
         local_db_dir = metadata_root / "databases"
         local_db_dir.mkdir(parents=True, exist_ok=True)
-        self.db_path = local_db_dir / "content_index.db"
+        # Enforce local storage - will raise RuntimeError if unsafe
+        self.db_path = ensure_safe_local_path(local_db_dir / "content_index.db")
 
         # Cache can also be local to avoid cloud sync overhead
         local_cache_dir = metadata_root / "content_cache"

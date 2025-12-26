@@ -2,7 +2,10 @@ import { useState, useEffect } from 'react'
 import { Copy, Trash2, FileCheck, AlertCircle, FolderOpen, HardDrive, CheckCircle2, Info } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../services/api'
-import type { DuplicateGroup } from '../types/api'
+import type { DuplicateGroup, SystemStatus } from '../types/api'
+import { formatPath } from '../lib/utils'
+import { useQuery } from '@tanstack/react-query'
+
 
 export default function Duplicates() {
   const [duplicateGroups, setDuplicateGroups] = useState<DuplicateGroup[]>([])
@@ -11,6 +14,13 @@ export default function Duplicates() {
   const [selectedKeepIndex, setSelectedKeepIndex] = useState<Record<string, number>>({})
   const [confirmingGroupId, setConfirmingGroupId] = useState<string | null>(null)
   const [cleaningGroupId, setCleaningGroupId] = useState<string | null>(null)
+
+  const { data: status } = useQuery<SystemStatus>({
+    queryKey: ['system-status'],
+    queryFn: api.getSystemStatus,
+  })
+  const driveRoot = status?.google_drive?.drive_root
+
 
   // Fetch duplicates on mount
   useEffect(() => {
@@ -212,11 +222,10 @@ export default function Duplicates() {
                 {group.files.map((file, index) => (
                   <div
                     key={index}
-                    className={`p-3 rounded-lg border-2 transition-all cursor-pointer ${
-                      selectedKeepIndex[group.group_id] === index
+                    className={`p-3 rounded-lg border-2 transition-all cursor-pointer ${selectedKeepIndex[group.group_id] === index
                         ? 'bg-primary/20 border-primary/40'
                         : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20'
-                    }`}
+                      }`}
                     onClick={() => setSelectedKeepIndex({ ...selectedKeepIndex, [group.group_id]: index })}
                   >
                     <div className="flex items-start gap-3">
@@ -239,8 +248,9 @@ export default function Duplicates() {
                           )}
                         </div>
                         <div className="text-xs text-white/40 font-mono truncate">
-                          {file.path}
+                          {formatPath(file.path, driveRoot)}
                         </div>
+
                         <div className="flex items-center gap-3 mt-1 text-xs text-white/60">
                           <span>{formatFileSize(file.size)}</span>
                           <span>•</span>
