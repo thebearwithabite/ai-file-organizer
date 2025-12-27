@@ -12,7 +12,7 @@ from typing import Dict, List, Optional, Any
 from datetime import datetime
 import hashlib
 import mimetypes
-from gdrive_integration import get_ai_organizer_root, get_metadata_root
+from gdrive_integration import get_ai_organizer_root, get_metadata_root, ensure_safe_local_path
 
 class ContentExtractor:
     """
@@ -31,61 +31,8 @@ class ContentExtractor:
         
         local_db_dir = metadata_root / "databases"
         local_db_dir.mkdir(parents=True, exist_ok=True)
-        initial_db_path = local_db_dir / "content_index.db"
-
-        # Enforce local storage
-        self.db_path = self._ensure_local_db_path(initial_db_path)
-
-        # Cache can also be local to avoid cloud sync overhead
-        local_cache_dir = metadata_root / "content_cache"
-        self.cache_dir = local_cache_dir
-        self.cache_dir.mkdir(parents=True, exist_ok=True)
-
-        self._init_database()
-        
-        # Supported extractors
-        self.extractors = {
-            '.pdf': self._extract_pdf,
-            '.docx': self._extract_docx,
-            '.pages': self._extract_pages,
-            '.txt': self._extract_text,
-            '.md': self._extract_markdown,
-            '.ipynb': self._extract_jupyter,
-            '.py': self._extract_code,
-            '.js': self._extract_code,
-            '.ts': self._extract_code,
-            '.html': self._extract_html,
-            '.csv': self._extract_csv,
-            '.json': self._extract_json
-        }
-    
-    def _ensure_local_db_path(self, db_path: Path) -> Path:
-        """
-        Ensure the database path is strictly local and not on Google Drive.
-        Returns the original path if safe, or a fallback local path.
-        """
-        # Check for Google Drive indicators
-        path_str = str(db_path.resolve())
-        unsafe_indicators = [
-            "GoogleDrive",
-            "Google Drive",
-            "CloudStorage",
-            "/Volumes/GoogleDrive",
-            "My Drive"
-        ]
-
-        is_unsafe = any(indicator in path_str for indicator in unsafe_indicators)
-
-        if is_unsafe:
-            print(f"⚠️ WARNING: Database path detected on Google Drive: {db_path}")
-            print("   Redirecting to local storage to prevent SQLite locking issues.")
-
-            # Fallback to a safe local directory
-            fallback_dir = Path.home() / ".ai_organizer_local" / "databases"
-            fallback_dir.mkdir(parents=True, exist_ok=True)
-            return fallback_dir / db_path.name
-
-        return db_path
+        # Enforce local storage - will raise RuntimeError if unsafe
+        self.db_path = ensure_safe_local_path(local_db_dir / "content_index.db")
 
     def _init_database(self):
         """Initialize content index database"""

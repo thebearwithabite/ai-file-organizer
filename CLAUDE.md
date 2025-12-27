@@ -54,6 +54,7 @@ User has ADHD and managing file organization is genuinely difficult. This system
 ### ADHD-Friendly Features:
 - **Natural language search**: "Find Client Name's payment terms" instead of remembering exact filenames
 - **Smart categorization**: Files get organized automatically by content, not manual sorting
+- **Manual Organization Support**: Learns from manual folder organization in Google Drive via the Adaptive Background Monitor
 - **Interactive questioning**: System asks clarifying questions until 85% confident about file placement
 - **Learning preferences**: Remembers your decisions to reduce future questions
 - **Duplicate detection**: Prevents the anxiety of "did I already save this?"
@@ -115,8 +116,8 @@ User has ADHD and managing file organization is genuinely difficult. This system
 - **Search.tsx**: Full-featured semantic search page with natural language queries
 - **Triage.tsx**: File review center with confidence scores and hierarchical inputs
 - **Organize.tsx**: Drag-and-drop file organization interface
-- **ClassificationPreview.tsx**: Real-time AI classification preview with hierarchical path display
-- **Glassmorphic UI**: Beautiful, ADHD-friendly design with visual confidence indicators
+- **ClassificationPreview.tsx**: Real-time AI classification preview with hierarchical path display and active path truncation
+- **Glassmorphic UI**: Beautiful, ADHD-friendly design with visual confidence indicators and aggressive path truncation for readability
 
 **Phase 1 Core Intelligence (OPERATIONAL - October 24, 2025):**
 - **universal_adaptive_learning.py**: Learns from all user interactions and corrections (1,087 lines)
@@ -124,7 +125,7 @@ User has ADHD and managing file organization is genuinely difficult. This system
 - **adaptive_background_monitor.py**: Observes and learns from manual file movements (1,456 lines)
 - **emergency_space_protection.py**: Proactive disk space monitoring and protection (987 lines)
 - **interactive_batch_processor.py**: Multi-file handling with content preview (1,529 lines)
-- **automated_deduplication_service.py**: Intelligent duplicate detection with rollback (1,203 lines)
+- **automated_deduplication_service.py**: Intelligent duplicate detection with rollback and detailed UI reporting (1,203 lines)
 - **integration_test_suite.py**: Comprehensive component verification
 - **final_verification.py**: End-to-end system validation
 
@@ -141,6 +142,7 @@ User has ADHD and managing file organization is genuinely difficult. This system
 - **audioai_organizer.py**: Core adaptive learning system from audio-ai-organizer
 - **Spectral Analysis**: Advanced audio understanding using librosa
 - **Adaptive Learning System**: Learns user patterns and improves over time
+- **Manual Organization Support**: Moving files manually in Google Drive trains the AI on your preferences
 - **Confidence-Based Processing**: Smart interaction modes (smart/minimal/always/never)
 - **Metadata Export**: Excel spreadsheets with comprehensive analysis data
 

@@ -14,6 +14,8 @@ import type {
   DuplicatesResponse,
   MonitorStatus,
   ProjectsResponse,
+  MaintenanceLog,
+  EmergencyLog,
 } from '../types/api'
 
 const API_BASE = 'http://localhost:8000'
@@ -137,7 +139,12 @@ export const api = {
   getDuplicates: async (): Promise<DuplicatesResponse> => {
     const response = await fetch(`${API_BASE}/api/system/deduplicate`)
     if (!response.ok) throw new Error('Failed to fetch duplicates')
-    return await response.json()
+    const json = await response.json()
+
+    // Support multiple backend response formats for robustness
+    const groups = json.groups || json.data?.service_stats?.groups || json.data?.findings?.groups || []
+
+    return { groups }
   },
 
   cleanDuplicates: async (groupId: string, keepIndex: number) => {
@@ -304,6 +311,18 @@ export const api = {
       method: 'POST',
     })
     if (!response.ok) throw new Error('Failed to trigger orchestration')
+    return await response.json()
+  },
+
+  getMaintenanceLogs: async (limit: number = 50): Promise<MaintenanceLog[]> => {
+    const response = await fetch(`${API_BASE}/api/system/maintenance-logs?limit=${limit}`)
+    if (!response.ok) throw new Error('Failed to fetch maintenance logs')
+    return await response.json()
+  },
+
+  getEmergencyLogs: async (limit: number = 50): Promise<EmergencyLog[]> => {
+    const response = await fetch(`${API_BASE}/api/system/emergency-logs?limit=${limit}`)
+    if (!response.ok) throw new Error('Failed to fetch emergency logs')
     return await response.json()
   },
 }

@@ -960,7 +960,8 @@ class AutomatedDeduplicationService:
                     "duplicate_groups": scan_results.get("duplicate_groups", 0),
                     "total_duplicates": scan_results.get("duplicates_found", 0),
                     "safe_to_delete": scan_results.get("safe_to_delete", 0),
-                    "space_recoverable_mb": scan_results.get("space_recoverable", 0) / (1024 * 1024)
+                    "space_recoverable_mb": scan_results.get("space_recoverable", 0) / (1024 * 1024),
+                    "groups": scan_results.get("groups", [])
                 },
                 "errors": scan_results.get("errors", []),
                 "note": "DRY-RUN mode - No files were modified or deleted"
