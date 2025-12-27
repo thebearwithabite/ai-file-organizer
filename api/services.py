@@ -888,7 +888,7 @@ class TriageService:
                 original_category = classification_result.get('category', 'unknown')
                 original_confidence = classification_result.get('confidence', 0.0)
                 suggested_filename = classification_result.get('suggested_filename', file_obj.name)
-                # FIX: Extract keywords for learning system
+                # Extract keywords for learning system
                 found_keywords = classification_result.get('keywords', [])
             else:
                 original_category = getattr(classification_result, 'category', 'unknown')
