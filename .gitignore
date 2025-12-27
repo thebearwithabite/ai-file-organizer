@@ -46,6 +46,7 @@ test_veo_output/
 
 # Claude Code local settings
 .claude/settings.local.json
+2025-11-23-start-message-to-claude.txt
 
 # Legacy audio organizer source
 audio_organizer_source/
