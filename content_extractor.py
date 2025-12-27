@@ -34,29 +34,6 @@ class ContentExtractor:
         # Enforce local storage - will raise RuntimeError if unsafe
         self.db_path = ensure_safe_local_path(local_db_dir / "content_index.db")
 
-        # Cache can also be local to avoid cloud sync overhead
-        local_cache_dir = metadata_root / "content_cache"
-        self.cache_dir = local_cache_dir
-        self.cache_dir.mkdir(parents=True, exist_ok=True)
-
-        self._init_database()
-        
-        # Supported extractors
-        self.extractors = {
-            '.pdf': self._extract_pdf,
-            '.docx': self._extract_docx,
-            '.pages': self._extract_pages,
-            '.txt': self._extract_text,
-            '.md': self._extract_markdown,
-            '.ipynb': self._extract_jupyter,
-            '.py': self._extract_code,
-            '.js': self._extract_code,
-            '.ts': self._extract_code,
-            '.html': self._extract_html,
-            '.csv': self._extract_csv,
-            '.json': self._extract_json
-        }
-    
     def _init_database(self):
         """Initialize content index database"""
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
