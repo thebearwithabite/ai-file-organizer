@@ -159,9 +159,10 @@ Based on verified codebase analysis (October 31, 2025):
 - ✅ **Phase 3a VEO Prompt Builder** - Video to VEO 3.1 JSON transformation (`veo_prompt_generator.py`)
 - ✅ **Unified Classification** - Content-based intelligent file categorization (`unified_classifier.py`)
 - ✅ **Google Drive Integration** — Hybrid cloud architecture (`gdrive_integration.py`)
-- ✅ **Bulletproof Deduplication** — SHA-256 duplicate detection (`bulletproof_deduplication.py`)
+- ✅ **Bulletproof Deduplication** — SHA-256 duplicate detection with full UI group display
 - ✅ **Fusion Brain** — Multi-modal signal fusion for high-confidence classification (`unified_classifier.py`)
 - ✅ **Review Queue** — Intelligent queue for ambiguous or low-confidence cases
+- ✅ **UI Path Truncation** — Aggressive truncation for cleaner display of long Drive paths
 
 ### **API Endpoints (Verified Working):**
 | Endpoint | Purpose |
@@ -214,10 +215,10 @@ Gemini Vision API integration for advanced image/video analysis, plus comprehens
 ### **Operational Components:**
 - ✅ **Universal Adaptive Learning** (`universal_adaptive_learning.py`) - 1,087 lines - Learns from all user interactions
 - ✅ **4-Level Confidence System** (`confidence_system.py`) - 892 lines - NEVER/MINIMAL/SMART/ALWAYS modes
-- ✅ **Adaptive Background Monitor** (`adaptive_background_monitor.py`) - 1,456 lines - Observes file movements
+- ✅ **Adaptive Background Monitor** (`adaptive_background_monitor.py`) - 1,456 lines - Observes and *learns* from manual file movements
 - ✅ **Emergency Space Protection** (`emergency_space_protection.py`) - 987 lines - Proactive disk management
 - ✅ **Interactive Batch Processor** (`interactive_batch_processor.py`) - 1,529 lines - Multi-file handling
-- ✅ **Automated Deduplication Service** (`automated_deduplication_service.py`) - 1,203 lines - Intelligent duplicates
+- ✅ **Automated Deduplication Service** (`automated_deduplication_service.py`) - 1,203 lines - Intelligent duplicates with UI group support
 
 ### **ADHD-Friendly Design (Production Ready):**
 - 🎯 **85% confidence threshold** - Only acts when genuinely certain
@@ -334,13 +335,20 @@ python easy_rollback_system.py --today
 
 ### **✅ Production Ready - Phase 1, 2, 3 & Fusion Brain COMPLETE:**
 - **FastAPI V4 Backend** — Optimized endpoints and stable Pydantic V2 models.
-- **Control Center (v2) UI** — Stable Rollback Center, Search, and Triage with path truncation.
+- **Control Center (v2) UI** — Stable Rollback Center, Search, Triage, and Duplicates with aggressive path truncation.
 - **Fusion Brain** — Standardized evidence bundles and decision fusion logic.
 - **Emergency Protection** — Verified disk space recovery and snapshot management.
 - **Hierarchical Organization** — 5-level deep folder structure operational.
 - **Universal Adaptive Learning** — Real-time event logging and pattern matching.
+- **Manual Organization Support** — Background monitor now treats manual Drive movements as "Verified Examples" for training.
 
 ### **🎯 Recent Achievements:**
+
+**December 26, 2025 - Sprint 3.3: UI Polish & Duplicates Fix:**
+- **UI Path Truncation**: Aggressive path truncation logic in `Recent Activity`, `Search`, and `Duplicates` pages.
+- **Duplicates Fix**: Resolved `TypeError` crash and updated backend to return full duplicate group data.
+- **Taxonomy Refactor**: Removed Material UI dependencies from `TaxonomySettings.tsx` in favor of Tailwind CSS and Lucide icons.
+- **Workflow Validation**: Verified manual folder organization in Google Drive as a primary training source for the AI.
 
 **November 3, 2025 - Sprint 2.5: Learning Stats API & UI Integration:**
 - **Backend API**: GET `/api/settings/learning-stats` endpoint with 10 key metrics
