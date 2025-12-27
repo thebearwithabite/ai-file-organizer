@@ -81,6 +81,7 @@ class EmergencySpaceProtection:
         self.learning_system = UniversalAdaptiveLearning(str(self.base_dir))
         self.confidence_system = ADHDFriendlyConfidenceSystem(str(self.base_dir))
         self.rollback_system = EasyRollbackSystem()
+        self.deduplicator = BulletproofDeduplicator(str(self.base_dir))
         
         # Space protection database
         self.protection_db_path = get_metadata_root() /  "space_protection.db"
@@ -872,20 +873,41 @@ class EmergencySpaceProtection:
 
     def _cleanup_temp_files(self, emergency: SpaceEmergency) -> float:
         """Clean up temporary files and return space freed in GB"""
-        # TODO: Implement temp file cleanup
-        return 0.0
+        self.logger.info("Cleaning up temporary files...")
+        
+        temp_patterns = ['*.tmp', '*.bak', '*.log', 'npm-debug.log*', 'yarn-error.log*']
+        total_freed = 0
+        
+        for directory_path in emergency.affected_directories:
+            directory = Path(directory_path)
+            if not directory.exists():
+                continue
+                
+            for pattern in temp_patterns:
+                for temp_file in directory.rglob(pattern):
+                    if temp_file.is_file():
+                        try:
+                            file_size = temp_file.stat().st_size
+                            # Safe check - only delete if not recently modified (e.g. > 1 hour)
+                            if time.time() - temp_file.stat().st_mtime > 3600:
+                                temp_file.unlink()
+                                total_freed += file_size
+                                self.logger.debug(f"Purged temp file: {temp_file}")
+                        except Exception as e:
+                            self.logger.warning(f"Failed to delete {temp_file}: {e}")
+                            
+        freed_gb = total_freed / (1024**3)
+        self.logger.info(f"Cleanup finished. Freed {freed_gb:.2f} GB")
+        return freed_gb
 
     def _cleanup_duplicate_files(self, emergency: SpaceEmergency) -> float:
         """Clean up duplicate files and return space freed in GB"""
         self.logger.info(f"Starting duplicate cleanup for {emergency.disk_path}")
+        total_freed_bytes = 0
 
         try:
-            deduplicator = BulletproofDeduplicator(str(self.base_dir))
-            total_freed_bytes = 0
-
             # Determine safety threshold based on severity
             # Lower threshold means more aggressive deletion (less safety required)
-            # But we should still be careful.
             safety_threshold = 0.7
             if emergency.severity == "emergency":
                 safety_threshold = 0.5  # More aggressive in emergency
@@ -897,7 +919,7 @@ class EmergencySpaceProtection:
 
                 self.logger.info(f"Scanning for duplicates in {directory}")
                 # Use BulletproofDeduplicator to find and remove duplicates
-                results = deduplicator.scan_directory(
+                results = self.deduplicator.scan_directory(
                     directory,
                     execute=True,
                     safety_threshold=safety_threshold
@@ -907,14 +929,14 @@ class EmergencySpaceProtection:
                     for error in results["errors"]:
                         self.logger.error(f"Deduplication error: {error}")
 
-                # space_recoverable in results includes what was deleted (if execute=True)
-                # or what could be deleted. Since we pass execute=True, we count it.
-                # Note: scan_directory returns space in bytes.
+                # space_recoverable in results includes what was deleted (since execute=True)
                 freed_in_dir = results.get("space_recoverable", 0)
                 total_freed_bytes += freed_in_dir
-                self.logger.info(f"Freed {freed_in_dir / (1024*1024):.2f} MB in {directory}")
+                if freed_in_dir > 0:
+                    self.logger.info(f"Freed {freed_in_dir / (1024*1024):.2f} MB in {directory}")
 
             freed_gb = total_freed_bytes / (1024**3)
+            self.logger.info(f"Emergency deduplication finished. Freed {freed_gb:.2f} GB total")
             return freed_gb
 
         except Exception as e:

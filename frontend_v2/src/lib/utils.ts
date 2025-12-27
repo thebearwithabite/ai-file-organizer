@@ -17,12 +17,42 @@ export function cn(...inputs: ClassValue[]) {
  */
 export function formatPath(path: string | undefined, root: string | undefined): string {
   if (!path) return ''
-  if (!root) return path
 
-  if (path.startsWith(root)) {
-    // Return path relative to root, ensuring it starts with / or just the relative part
-    const truncated = path.replace(root, '')
-    return truncated.startsWith('/') ? truncated : `/${truncated}`
+  // 1. Google Drive Truncation: Keep only what's after "My Drive/"
+  const driveMarker = "My Drive/"
+  const driveIndex = path.indexOf(driveMarker)
+  if (driveIndex !== -1) {
+    return path.substring(driveIndex + driveMarker.length)
   }
+
+  // 2. Incoming Local Truncation: Keep "Downloads/" or "Desktop/" and relative path
+  const downloadsMarker = "Downloads/"
+  const downloadsIndex = path.indexOf(downloadsMarker)
+  if (downloadsIndex !== -1) {
+    return "Downloads/" + path.substring(downloadsIndex + downloadsMarker.length)
+  }
+
+  const desktopMarker = "Desktop/"
+  const desktopIndex = path.indexOf(desktopMarker)
+  if (desktopIndex !== -1) {
+    return "Desktop/" + path.substring(desktopIndex + desktopMarker.length)
+  }
+
+  // 3. Fallback to root truncation if provided
+  if (root && path.startsWith(root)) {
+    let truncated = path.replace(root, '')
+    if (truncated.startsWith('/')) truncated = truncated.substring(1)
+    return truncated || '/'
+  }
+
+  // 4. General Mac Home Truncation
+  if (path.startsWith('/Users/')) {
+    const parts = path.split('/')
+    if (parts.length > 4) {
+      return '.../' + parts.slice(-2).join('/')
+    }
+  }
+
   return path
 }
+

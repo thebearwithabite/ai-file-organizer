@@ -3,6 +3,9 @@ import { useQuery } from '@tanstack/react-query'
 import { Search as SearchIcon, FileText, FolderOpen, ExternalLink, Loader2, Sparkles } from 'lucide-react'
 import { api } from '../services/api'
 import { toast } from 'sonner'
+import { formatPath } from '../lib/utils'
+import type { SystemStatus } from '../types/api'
+
 
 interface SearchResult {
   file_id: string
@@ -29,6 +32,13 @@ export default function Search() {
     queryFn: () => api.searchFiles(searchQuery),
     enabled: searchQuery.length > 0,
   })
+
+  const { data: status } = useQuery<SystemStatus>({
+    queryKey: ['system-status'],
+    queryFn: api.getSystemStatus,
+  })
+  const driveRoot = status?.google_drive?.drive_root
+
 
   const results: SearchResult[] = data?.results || []
 
@@ -221,8 +231,9 @@ export default function Search() {
 
                       {/* File Path */}
                       <div className="text-xs text-white/40 mb-3 truncate">
-                        {result.local_path || result.drive_path || 'Path not available'}
+                        {formatPath(result.local_path || result.drive_path, driveRoot) || 'Path not available'}
                       </div>
+
 
                       {/* Actions */}
                       <div className="flex gap-3">
