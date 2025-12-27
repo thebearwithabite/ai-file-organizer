@@ -370,6 +370,36 @@ def get_metadata_root() -> Path:
     """
     return Path.home() / "Documents/AI_METADATA_SYSTEM"
 
+def ensure_safe_local_path(path: Path) -> Path:
+    """
+    Validation function to ensure a path is strictly local and not on Google Drive.
+    Raises RuntimeError if an unsafe path is detected.
+    Used for SQLite databases to prevent corruption/locking.
+    """
+    resolved_path = str(path.resolve())
+    unsafe_indicators = [
+        "GoogleDrive",
+        "Google Drive",
+        "CloudStorage",
+        "/Volumes/GoogleDrive",
+        "My Drive"
+    ]
+    
+    is_unsafe = any(indicator in resolved_path for indicator in unsafe_indicators)
+    
+    if is_unsafe:
+        error_msg = (
+            f"❌ CRITICAL PATH ERROR: Unsafe database path detected!\n"
+            f"   Target: {resolved_path}\n"
+            f"   VIOLATION: Rule #5 - 'Write any databases into CloudStorage.'\n"
+            f"   SECURITY: SQLite databases must remain on local disk to prevent corruption.\n"
+            f"   ACTION: Please ensure get_metadata_root() points to a local non-synced directory."
+        )
+        print(error_msg)
+        raise RuntimeError(error_msg)
+        
+    return path
+
 def get_ai_organizer_root() -> Path:
     """
     Get the PRIMARY root directory for AI File Organizer.

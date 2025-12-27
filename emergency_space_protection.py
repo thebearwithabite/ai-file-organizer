@@ -35,6 +35,7 @@ from gdrive_integration import get_ai_organizer_root, get_metadata_root
 from universal_adaptive_learning import UniversalAdaptiveLearning
 from confidence_system import ADHDFriendlyConfidenceSystem
 from easy_rollback_system import EasyRollbackSystem
+from bulletproof_deduplication import BulletproofDeduplicator
 
 @dataclass
 class SpaceEmergency:
@@ -80,6 +81,7 @@ class EmergencySpaceProtection:
         self.learning_system = UniversalAdaptiveLearning(str(self.base_dir))
         self.confidence_system = ADHDFriendlyConfidenceSystem(str(self.base_dir))
         self.rollback_system = EasyRollbackSystem()
+        self.deduplicator = BulletproofDeduplicator(str(self.base_dir))
         
         # Space protection database
         self.protection_db_path = get_metadata_root() /  "space_protection.db"
@@ -871,13 +873,57 @@ class EmergencySpaceProtection:
 
     def _cleanup_temp_files(self, emergency: SpaceEmergency) -> float:
         """Clean up temporary files and return space freed in GB"""
-        # TODO: Implement temp file cleanup
-        return 0.0
+        self.logger.info("Cleaning up temporary files...")
+        
+        temp_patterns = ['*.tmp', '*.bak', '*.log', 'npm-debug.log*', 'yarn-error.log*']
+        total_freed = 0
+        
+        for directory_path in emergency.affected_directories:
+            directory = Path(directory_path)
+            if not directory.exists():
+                continue
+                
+            for pattern in temp_patterns:
+                for temp_file in directory.rglob(pattern):
+                    if temp_file.is_file():
+                        try:
+                            file_size = temp_file.stat().st_size
+                            # Safe check - only delete if not recently modified (e.g. > 1 hour)
+                            if time.time() - temp_file.stat().st_mtime > 3600:
+                                temp_file.unlink()
+                                total_freed += file_size
+                                self.logger.debug(f"Purged temp file: {temp_file}")
+                        except Exception as e:
+                            self.logger.warning(f"Failed to delete {temp_file}: {e}")
+                            
+        freed_gb = total_freed / (1024**3)
+        self.logger.info(f"Cleanup finished. Freed {freed_gb:.2f} GB")
+        return freed_gb
 
     def _cleanup_duplicate_files(self, emergency: SpaceEmergency) -> float:
         """Clean up duplicate files and return space freed in GB"""
-        # TODO: Integrate with bulletproof deduplication
-        return 0.0
+        self.logger.info("Starting emergency deduplication cleanup...")
+        
+        total_freed = 0
+        
+        for directory_path in emergency.affected_directories:
+            directory = Path(directory_path)
+            if not directory.exists():
+                continue
+            
+            # Use BulletproofDeduplicator in auto-execute mode
+            # We set a high safety threshold (0.9) for emergency auto-cleanup
+            results = self.deduplicator.scan_directory(directory, execute=True, safety_threshold=0.9)
+            
+            freed_bytes = results.get("space_recovered", 0)
+            total_freed += freed_bytes
+            
+            if freed_bytes > 0:
+                self.logger.info(f"Deduplicated {directory}: Freed {freed_bytes / (1024**2):.1f} MB")
+                
+        freed_gb = total_freed / (1024**3)
+        self.logger.info(f"Emergency deduplication finished. Freed {freed_gb:.2f} GB total")
+        return freed_gb
 
     def _cleanup_old_downloads(self, emergency: SpaceEmergency) -> float:
         """Clean up old downloads and return space freed in GB"""

@@ -21,18 +21,19 @@ Clarify exactly what the `AdaptiveBackgroundMonitor` does, which folders it watc
 **Default Root:** `get_ai_organizer_root()` (e.g. `~/Documents/GDRIVE_STAGING`)
 
 **Automatically Watches:**
-- `${base_dir}/Downloads_Staging`
-- `${base_dir}/Desktop_Staging`
-- `${base_dir}/Documents_Staging`
+- OS Desktop (`~/Desktop`)
+- OS Downloads (`~/Downloads`)
+- Google Drive (`~/Library/CloudStorage/GoogleDrive-.../My Drive`)
+- Documents (`~/Documents`)
 
 **Learns From:**
-- Manual file moves/renames within those staging folders
+- Manual file moves/renames within Google Drive (treats them as "Verified Examples")
 - System-initiated changes the organizer makes (via the rollback logger)
 
-**Limitations:**
-- Does not yet monitor the real OS Desktop or Downloads
-- Does not auto-start unless triggered by FastAPI startup event
-- Health status available only in logs, not via API
+**Operational Status (v3.3):**
+- Full health status available via API: `/api/system/monitor-status`
+- Real-time event tracking and learning calibration active
+- Intelligent path truncation for UI display active
 
 ### Safety Rules (v3.2) 🛡️
 

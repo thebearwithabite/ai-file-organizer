@@ -36,6 +36,13 @@ except ImportError:
     LIBROSA_AVAILABLE = False
     print("Warning: librosa not available. Spectral analysis will be disabled.")
 
+try:
+    from faster_whisper import WhisperModel
+    FASTER_WHISPER_AVAILABLE = True
+except ImportError:
+    FASTER_WHISPER_AVAILABLE = False
+    print("Information: faster-whisper not available. Local transcription disabled.")
+
 
 class AudioAnalyzer:
     """
@@ -69,6 +76,10 @@ class AudioAnalyzer:
         self.client = None
         if openai_api_key and OPENAI_AVAILABLE:
             self.client = OpenAI(api_key=openai_api_key)
+        
+        # Local Whisper initialization
+        self.local_whisper = None
+        self.use_local_whisper = FASTER_WHISPER_AVAILABLE
         
         # Learning system files
         from gdrive_integration import get_metadata_root
@@ -438,16 +449,48 @@ class AudioAnalyzer:
         
         return len(intersection) / len(union) if union else 0.0
 
+    def _init_local_whisper(self):
+        """Lazy initialization of the local Whisper model"""
+        if self.local_whisper is None and self.use_local_whisper:
+            try:
+                print("🧠 Loading local faster-whisper model (base)...")
+                # Using 'base' for a good balance of speed and accuracy on Mac
+                # device="cpu" is safest, compute_type="int8" for efficiency
+                self.local_whisper = WhisperModel("base", device="cpu", compute_type="int8")
+                print("✅ Local Whisper model loaded.")
+            except Exception as e:
+                print(f"⚠️ Failed to load local Whisper model: {e}")
+                self.use_local_whisper = False
+        return self.local_whisper
+
     def transcribe_audio(self, file_path: Path, project_context: Optional[str] = None) -> Optional[str]:
         """
-        Transcribe audio using OpenAI Whisper.
+        Transcribe audio using local faster-whisper with OpenAI fallback.
         Returns the full transcript or None if failed.
         """
+        # 1. Try local transcription first
+        if self.use_local_whisper:
+            try:
+                model = self._init_local_whisper()
+                if model:
+                    print(f"🎙️  Transcribing LOCALLY with faster-whisper: {file_path.name}")
+                    
+                    # initial_prompt helps with context
+                    initial_prompt = project_context if project_context else None
+                    
+                    segments, info = model.transcribe(str(file_path), initial_prompt=initial_prompt, beam_size=5)
+                    
+                    transcript = "".join([segment.text for segment in segments])
+                    return transcript.strip()
+            except Exception as e:
+                print(f"⚠️ Local transcription failed: {e}. Falling back to API.")
+
+        # 2. Fallback to OpenAI API
         if not self.client:
             return None
 
         try:
-            print(f"🎙️  Transcribing with Whisper: {file_path.name}")
+            print(f"🎙️  Transcribing with OpenAI API: {file_path.name}")
             
             # Use project context as a prompt to Whisper to improve name/domain accuracy
             prompt = None
@@ -463,8 +506,32 @@ class AudioAnalyzer:
                 )
             return transcript
         except Exception as e:
-            print(f"⚠️  Transcription failed: {e}")
+            print(f"⚠️ OpenAI Transcription failed: {e}")
             return None
+
+    def _retry_openai_call(self, func, *args, max_retries=3, initial_delay=2, **kwargs):
+        """Execute an OpenAI call with exponential backoff for rate limits"""
+        import time
+        import random
+        from openai import RateLimitError
+        
+        retries = 0
+        while retries <= max_retries:
+            try:
+                return func(*args, **kwargs)
+            except RateLimitError as e:
+                if retries == max_retries:
+                    raise
+                
+                # Exponential backoff with jitter
+                delay = initial_delay * (2 ** retries) + random.uniform(0, 1)
+                print(f"⚠️ Rate limited. Retrying in {delay:.2f}s (Attempt {retries + 1}/{max_retries})...")
+                time.sleep(delay)
+                retries += 1
+            except Exception as e:
+                # Other errors shouldn't necessarily be retried the same way
+                print(f"❌ OpenAI Call Error: {e}")
+                raise
     
     def build_adaptive_prompt(self, file_path: Path, metadata: Dict[str, str], transcript: Optional[str] = None) -> str:
         """Build a prompt that learns from previous classifications"""
@@ -613,7 +680,8 @@ Return response as JSON:
         prompt = self.build_adaptive_prompt(file_path, metadata, transcript)
         
         try:
-            response = self.client.chat.completions.create(
+            response = self._retry_openai_call(
+                self.client.chat.completions.create,
                 model="gpt-4o-mini",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.4,  # Slightly higher for more creativity

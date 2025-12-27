@@ -71,12 +71,13 @@ export default function RecentActivityFeed() {
               </div>
 
               {op.new_location && op.new_location !== op.original_path && (
-                <div className="flex items-center gap-1 text-xs text-white/50 mt-1">
-                  <span className="truncate max-w-[150px]">{formatPath(op.original_path, driveRoot)}</span>
-                  <span>→</span>
-                  <span className="text-white/70 truncate">{formatPath(op.new_location, driveRoot)}</span>
+                <div className="flex items-center gap-1.5 text-xs text-white/50 mt-1.5 p-1 px-2 bg-white/5 rounded-lg border border-white/5">
+                  <span className="truncate font-mono">{formatPath(op.original_path, driveRoot)}</span>
+                  <span className="text-white/20">→</span>
+                  <span className="text-white/80 truncate font-mono">{formatPath(op.new_location, driveRoot)}</span>
                 </div>
               )}
+
 
               {op.notes && (
                 <div className="text-xs text-white/30 mt-1 italic truncate">

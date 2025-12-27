@@ -119,8 +119,10 @@ class GoogleDriveLibrarian:
         
         # Set up configuration
         if config_dir is None:
-            config_dir = Path.home() / ".ai_organizer_config"
-        config_dir.mkdir(exist_ok=True)
+            from gdrive_integration import get_metadata_root
+            config_dir = get_metadata_root() / "config"
+        
+        config_dir.mkdir(parents=True, exist_ok=True)
         self.config_dir = config_dir
         
         # Initialize core components
@@ -132,8 +134,9 @@ class GoogleDriveLibrarian:
         )
         
         # Metadata store
+        from gdrive_integration import get_metadata_root
         self.metadata_store = LocalMetadataStore(
-            db_path=config_dir / "file_metadata.db"
+            db_path=get_metadata_root() / "databases" / "metadata.db"
         )
         
         # File streamer

@@ -13,6 +13,7 @@ The Interactive Organizer routes:
 2. Confirm categories using the organizer interface
 3. Files are classified and relocated
 4. Learning system records patterns and updates stats
+5. **Direct Organization**: You can also organize files manually in Google Drive. The **Adaptive Background Monitor** watches these movements and treats them as "Verified Examples" to train the AI on your preferences automatically.
 
 ## Backend Systems
 - **Gemini Vision Adapter**: Handles static images
