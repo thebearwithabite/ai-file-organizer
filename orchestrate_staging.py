@@ -114,6 +114,20 @@ def orchestrate(dry_run: bool = False, confidence_threshold: float = 0.80, scan_
             
             if '.metadata' in str(file_path):
                 continue
+            
+            # --- LOOP PREVENTION: Skip if file is already organized ---
+            # If the file is already inside the AI Organizer root taxonomy, don't re-orchestrate it
+            # This prevents infinite loops where organized files are scanned again
+            try:
+                ai_root = get_ai_organizer_root()
+                if ai_root and str(file_path.absolute()).startswith(str(ai_root.absolute())):
+                    # Check if it's in a staging area. If it's NOT in a staging area but IS in the AI Root, it's organized.
+                    is_in_staging = any(str(file_path.absolute()).startswith(str(area.absolute())) for area in triage_service.staging_areas)
+                    if not is_in_staging:
+                        logger.debug(f"Skipping already organized file in AI root: {file_path.name}")
+                        continue
+            except Exception as e:
+                logger.warning(f"Error checking AI root for {file_path.name}: {e}")
 
             total_processed += 1
             

@@ -34,7 +34,7 @@ import time
 import hashlib
 import logging
 import threading
-from gdrive_integration import get_metadata_root
+from gdrive_integration import get_metadata_root, ensure_safe_local_path
 from pathlib import Path
 from typing import Dict, List, Optional, Any, Tuple, Union
 from datetime import datetime, timedelta
@@ -124,7 +124,10 @@ class LocalMetadataStore:
         self.metadata_root = get_metadata_root()
         self.metadata_root.mkdir(parents=True, exist_ok=True)
         
-        self.db_path = db_path or (self.metadata_root / 'metadata.db')
+        self.db_path = db_path or (self.metadata_root / 'databases' / 'metadata.db')
+        # Enforce local storage if no explicit path provided (or even if it is)
+        self.db_path = ensure_safe_local_path(self.db_path)
+        self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self.config = {**self.DEFAULT_CONFIG, **(config or {})}
         
         # Connection management
