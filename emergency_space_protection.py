@@ -873,13 +873,34 @@ class EmergencySpaceProtection:
 
     def _cleanup_temp_files(self, emergency: SpaceEmergency) -> float:
         """Clean up temporary files and return space freed in GB"""
+        import tempfile
         self.logger.info("Cleaning up temporary files...")
         
-        temp_patterns = ['*.tmp', '*.bak', '*.log', 'npm-debug.log*', 'yarn-error.log*']
+        # Extended patterns from PR #28
+        temp_patterns = [
+            "*.tmp", "*.temp", "*.bak", "*.swp", "*.~*",
+            "Thumbs.db", ".DS_Store", "*.log", "*.old",
+            "*.cache", "*.chk", "npm-debug.log*", "yarn-error.log*"
+        ]
         total_freed = 0
         
-        for directory_path in emergency.affected_directories:
-            directory = Path(directory_path)
+        # Identify directories to scan (affected + system temp if on same disk)
+        directories_to_scan = set()
+        for d in emergency.affected_directories:
+             directories_to_scan.add(Path(d))
+
+        try:
+            temp_dir = Path(tempfile.gettempdir())
+            if temp_dir.exists():
+                # We reuse the _get_disk_path helper from the class if available
+                # but it's easier to just check if it's on the home disk if we are monitoring home
+                temp_disk = self._get_disk_path(temp_dir)
+                if temp_disk == emergency.disk_path:
+                    directories_to_scan.add(temp_dir)
+        except Exception:
+            pass 
+        
+        for directory in directories_to_scan:
             if not directory.exists():
                 continue
                 
