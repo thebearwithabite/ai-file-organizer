@@ -1,5 +1,8 @@
 # AI File Organizer v3.2
 
+[![Run in Smithery](https://smithery.ai/badge/skills/thebearwithabite)](https://smithery.ai/skills?ns=thebearwithabite&utm_source=github&utm_medium=badge)
+
+
 ## 🎯 **What This System Actually Does**
 
 An ADHD-friendly AI file organizer that helps manage complex document workflows with semantic search, interactive classification, and complete safety rollbacks.
