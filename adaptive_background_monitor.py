@@ -141,11 +141,12 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
             'pattern_discovery': 1800,    # Discover patterns every 30 minutes
             'emergency_check': 600,       # Check emergencies every 10 minutes
             'rule_generation': 3600,      # Generate new rules hourly
-            'cleanup_old_data': 86400     # Cleanup daily
+            'cleanup_old_data': 86400,    # Cleanup daily
+            'maintenance_cycle': 21600     # Check maintenance every 6 hours
         }
         
         # Adaptive rules database
-        self.rules_db_path = get_metadata_root() /  "adaptive_rules.db"
+        self.rules_db_path = get_metadata_root() / "databases" / "adaptive_rules.db"
         self._init_adaptive_database()
         
         # Load existing adaptive rules
@@ -160,6 +161,10 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
             "user_corrections_learned": 0
         })
         
+        # Tracking timestamps
+        self._last_pattern_discovery_time = None
+        self._last_emergency_check_time = None
+
         self.logger.info("Adaptive Background Monitor initialized")
 
     @property
@@ -271,6 +276,17 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
                 )
             """)
             
+            # Maintenance history
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS maintenance_history (
+                    task_id TEXT PRIMARY KEY,
+                    task_name TEXT,
+                    last_run TEXT,
+                    success BOOLEAN,
+                    details TEXT
+                )
+            """)
+            
             conn.commit()
 
     def _load_adaptive_rules(self) -> List[Dict[str, Any]]:
@@ -374,6 +390,12 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
             target=self._periodic_rule_generation, daemon=True
         )
         self.threads['rule_generator'].start()
+        
+        # Maintenance cycle thread
+        self.threads['maintenance_cycle'] = threading.Thread(
+            target=self._periodic_maintenance_cycle, daemon=True
+        )
+        self.threads['maintenance_cycle'].start()
 
     def _process_file_events(self):
         """Process file system events and learn from user actions"""
@@ -686,50 +708,59 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
         
         while self.running:
             try:
-                self.logger.info("Starting pattern discovery cycle...")
-                
-                # Get recent learning events
-                recent_events = [
-                    event for event in self.learning_system.learning_events
-                    if (datetime.now() - event.timestamp).days <= 7
-                ]
-                
-                if len(recent_events) < 5:
-                    self.logger.info("Not enough recent events for pattern discovery")
-                    time.sleep(self.learning_intervals['pattern_discovery'])
-                    continue
-                
-                # Discover patterns
-                new_patterns = self._discover_behavioral_patterns(recent_events)
-                
-                if new_patterns:
-                    self.stats["patterns_discovered"] += len(new_patterns)
-                    self.logger.info(f"Discovered {len(new_patterns)} new patterns")
-                
+                self._run_pattern_discovery_cycle()
                 time.sleep(self.learning_intervals['pattern_discovery'])
                 
             except Exception as e:
-                self.logger.error(f"Error in pattern discovery: {e}")
+                self.logger.error(f"Error in pattern discovery loop: {e}")
                 time.sleep(300)  # Wait 5 minutes on error
+
+    def _run_pattern_discovery_cycle(self):
+        """Run a single pattern discovery cycle"""
+        # Let exceptions propagate to the main loop for proper backoff handling
+        self.logger.info("Starting pattern discovery cycle...")
+        self._last_pattern_discovery_time = datetime.now()
+
+        # Get recent learning events
+        recent_events = [
+            event for event in self.learning_system.learning_events
+            if (datetime.now() - event.timestamp).days <= 7
+        ]
+
+        if len(recent_events) < 5:
+            self.logger.info("Not enough recent events for pattern discovery")
+            return
+
+        # Discover patterns
+        new_patterns = self._discover_behavioral_patterns(recent_events)
+
+        if new_patterns:
+            self.stats["patterns_discovered"] += len(new_patterns)
+            self.logger.info(f"Discovered {len(new_patterns)} new patterns")
 
     def _periodic_emergency_check(self):
         """Periodically check for emergency conditions"""
         
         while self.running:
             try:
-                self.logger.debug("Checking for emergency conditions...")
-                
-                emergencies = self._detect_emergencies()
-                
-                for emergency in emergencies:
-                    self._handle_emergency(emergency)
-                    self.stats["emergencies_prevented"] += 1
-                
+                self._run_emergency_check_cycle()
                 time.sleep(self.learning_intervals['emergency_check'])
                 
             except Exception as e:
                 self.logger.error(f"Error in emergency check: {e}")
                 time.sleep(60)
+
+    def _run_emergency_check_cycle(self):
+        """Run a single emergency check cycle"""
+        # Let exceptions propagate to the main loop for proper backoff handling
+        self.logger.debug("Checking for emergency conditions...")
+        self._last_emergency_check_time = datetime.now()
+
+        emergencies = self._detect_emergencies()
+
+        for emergency in emergencies:
+            self._handle_emergency(emergency)
+            self.stats["emergencies_prevented"] += 1
 
     def _periodic_rule_generation(self):
         """Periodically generate new adaptive rules"""
@@ -750,6 +781,130 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
             except Exception as e:
                 self.logger.error(f"Error in rule generation: {e}")
                 time.sleep(300)
+
+    def _periodic_maintenance_cycle(self):
+        """Periodically run scheduled maintenance tasks"""
+        
+        while self.running:
+            try:
+                self.logger.info("Checking scheduled maintenance tasks...")
+                
+                # 1. Weekly Temp Cleanup (Every 7 days)
+                if self._should_run_maintenance("weekly_temp_cleanup", days=7):
+                    self._run_weekly_temp_cleanup()
+                
+                # 2. Bi-weekly Deduplication (Every 14 days)
+                if self._should_run_maintenance("biweekly_deduplication", days=14):
+                    self._run_biweekly_deduplication()
+                
+                # Sleep for the configured interval before checking again
+                time.sleep(self.learning_intervals.get('maintenance_cycle', 21600))
+                
+            except Exception as e:
+                self.logger.error(f"Error in maintenance cycle: {e}")
+                time.sleep(3600)
+
+    def _should_run_maintenance(self, task_name: str, days: int) -> bool:
+        """Check if a maintenance task is due"""
+        try:
+            with sqlite3.connect(self.rules_db_path) as conn:
+                cursor = conn.execute(
+                    "SELECT last_run FROM maintenance_history WHERE task_name = ?",
+                    (task_name,)
+                )
+                result = cursor.fetchone()
+                
+                if not result:
+                    return True  # Never run before
+                
+                last_run = datetime.fromisoformat(result[0])
+                if datetime.now() - last_run >= timedelta(days=days):
+                    return True
+                    
+        except Exception as e:
+            self.logger.error(f"Error checking maintenance status for {task_name}: {e}")
+            return False
+            
+        return False
+
+    def _run_weekly_temp_cleanup(self):
+        """Run weekly temporary file cleanup"""
+        self.logger.info("🚀 Starting weekly scheduled temp file cleanup...")
+        
+        try:
+            # We reuse the logic from EmergencySpaceProtection but run it as a normal task
+            from emergency_space_protection import EmergencySpaceProtection, SpaceEmergency
+            protector = EmergencySpaceProtection(str(self.base_dir))
+            
+            # Create a mock emergency object to reuse the cleanup logic
+            mock_emergency = SpaceEmergency(
+                emergency_id=f"weekly_maint_{datetime.now().strftime('%Y%m%d')}",
+                detection_time=datetime.now(),
+                severity="scheduled",
+                disk_path="/",
+                total_space_gb=0,
+                free_space_gb=0,
+                usage_percent=0,
+                projected_full_hours=None,
+                recommended_actions=["cleanup_temp_files"],
+                affected_directories=[str(config['path']) for config in self.watch_directories.values() if config['path'].exists()]
+            )
+            
+            freed_gb = protector._cleanup_temp_files(mock_emergency)
+            
+            self._record_maintenance_run("weekly_temp_cleanup", True, f"Freed {freed_gb:.2f} GB of temporary files")
+            self.logger.info(f"✅ Weekly temp cleanup completed. Freed {freed_gb:.2f} GB")
+            
+        except Exception as e:
+            self.logger.error(f"❌ Weekly temp cleanup failed: {e}")
+            self._record_maintenance_run("weekly_temp_cleanup", False, str(e))
+
+    def _run_biweekly_deduplication(self):
+        """Run bi-weekly deduplication across all watched paths"""
+        self.logger.info("🚀 Starting bi-weekly scheduled deduplication...")
+        
+        try:
+            total_removed = 0
+            total_freed_bytes = 0
+            
+            for name, config in self.watch_directories.items():
+                watch_path = config['path']
+                if not watch_path.exists():
+                    continue
+                
+                self.logger.info(f"Deduplicating {name} ({watch_path})...")
+                # Use high safety threshold for scheduled auto-cleanup
+                results = self.deduplicator.scan_directory(watch_path, execute=True, safety_threshold=0.9)
+                
+                total_removed += results.get("files_removed", 0)
+                total_freed_bytes += results.get("space_recovered", 0)
+            
+            freed_mb = total_freed_bytes / (1024 * 1024)
+            self._record_maintenance_run("biweekly_deduplication", True, f"Removed {total_removed} duplicates, freed {freed_mb:.1f} MB")
+            self.logger.info(f"✅ Bi-weekly deduplication completed. Freed {freed_mb:.1f} MB")
+            
+        except Exception as e:
+            self.logger.error(f"❌ Bi-weekly deduplication failed: {e}")
+            self._record_maintenance_run("biweekly_deduplication", False, str(e))
+
+    def _record_maintenance_run(self, task_name: str, success: bool, details: str):
+        """Record maintenance task run in database"""
+        try:
+            with sqlite3.connect(self.rules_db_path) as conn:
+                conn.execute("""
+                    INSERT OR REPLACE INTO maintenance_history 
+                    (task_id, task_name, last_run, success, details)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (
+                    task_name, # Use task_name as ID for simplicity
+                    task_name,
+                    datetime.now().isoformat(),
+                    success,
+                    details
+                ))
+                conn.commit()
+        except Exception as e:
+            self.logger.error(f"Error recording maintenance run for {task_name}: {e}")
 
     def _detect_emergencies(self) -> List[Dict[str, Any]]:
         """Detect potential file organization emergencies"""
@@ -993,6 +1148,10 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
         # Get confidence system stats
         confidence_stats = self.confidence_system.get_confidence_stats()
         
+        # Format timestamps
+        last_pattern = self._last_pattern_discovery_time.isoformat() if self._last_pattern_discovery_time else "N/A"
+        last_emergency = self._last_emergency_check_time.isoformat() if self._last_emergency_check_time else "N/A"
+
         return {
             "adaptive_monitor_stats": self.stats,
             "learning_system": learning_stats,
@@ -1001,8 +1160,8 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
             "monitoring_status": {
                 "observers_active": len(self.observers),
                 "threads_running": len([t for t in self.threads.values() if t.is_alive()]),
-                "last_pattern_discovery": "N/A",  # TODO: Track this
-                "last_emergency_check": "N/A"     # TODO: Track this
+                "last_pattern_discovery": last_pattern,
+                "last_emergency_check": last_emergency
             }
         }
 
