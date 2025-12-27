@@ -973,15 +973,46 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
         except Exception as e:
             self.logger.error(f"Error handling emergency: {e}")
 
-    def _handle_disk_space_emergency(self, emergency: Dict[str, Any]):
+    def _handle_disk_space_emergency(self, emergency_dict: Dict[str, Any]):
         """Handle critical disk space emergency"""
         
-        location = emergency['location']
+        location = emergency_dict['location']
         self.logger.warning(f"Critical disk space at {location}")
         
-        # TODO: Implement Google Drive emergency offloading
-        # For now, just log the emergency
-        self.logger.info("Emergency disk space handling not yet implemented")
+        try:
+            # Re-use the logic from EmergencySpaceProtection
+            from emergency_space_protection import EmergencySpaceProtection, SpaceEmergency
+            protector = EmergencySpaceProtection(str(self.base_dir))
+            
+            # Create a real emergency object for the protector
+            disk_path = protector._get_disk_path(Path(location))
+            total, used, free = shutil.disk_usage(disk_path)
+            
+            emergency = SpaceEmergency(
+                emergency_id=f"auto_{int(time.time())}",
+                detection_time=datetime.now(),
+                severity="emergency" if (used/total) > 0.95 else "critical",
+                disk_path=disk_path,
+                total_space_gb=total / (1024**3),
+                free_space_gb=free / (1024**3),
+                usage_percent=(used/total)*100,
+                projected_full_hours=None,
+                recommended_actions=["emergency_offload"],
+                affected_directories=[location]
+            )
+            
+            self.logger.info(f"Initiating emergency recovery for {location}...")
+            
+            # Run the same response logic as the dedicated service
+            if emergency.severity == "emergency":
+                protector._execute_emergency_offloading(emergency)
+            else:
+                protector._execute_critical_cleanup(emergency)
+                
+            self.logger.info("Emergency space recovery check complete.")
+            
+        except Exception as e:
+            self.logger.error(f"Error in emergency space recovery: {e}")
 
     def _handle_duplicate_emergency(self, emergency: Dict[str, Any]):
         """Handle duplicate file crisis"""
