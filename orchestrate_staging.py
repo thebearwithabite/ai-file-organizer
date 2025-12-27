@@ -198,6 +198,12 @@ def orchestrate(dry_run: bool = False, confidence_threshold: float = 0.80, scan_
     logger.info(f"Moved: {total_moved}")
     logger.info(f"Skipped (Needs Review): {total_skipped}")
 
+    return {
+        "files_processed": total_processed,
+        "files_moved": total_moved,
+        "files_skipped": total_skipped
+    }
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Orchestrate AI File Organization")
     parser.add_argument("--dry-run", action="store_true", help="Simulate without moving files")
