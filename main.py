@@ -304,13 +304,13 @@ async def periodic_orchestration():
             
             loop = asyncio.get_event_loop()
             # Run orchestration with dry_run=False and default threshold
-            # Capture result if orchestrate returns stats (it currently doesn't return much, but we can track time)
-            await loop.run_in_executor(None, lambda: orchestrate(dry_run=False))
+            # Capture result if orchestrate returns stats
+            result = await loop.run_in_executor(None, lambda: orchestrate(dry_run=False))
             
             # Update status to complete
             SystemService.update_orchestration_status({
                 "last_run": datetime.now().isoformat(),
-                "files_processed": 0, # TODO: Capture actual count
+                "files_processed": result.get("files_processed", 0) if result else 0,
                 "status": "idle"
             })
             
