@@ -137,7 +137,7 @@ class BulletproofDeduplicator:
 
             sha256_hash = hashlib.sha256()
             with open(file_path, 'rb') as f:
-                # Read file in chunks for memory efficiency (64KB buffer)
+                # Read file in chunks (64KB) for better performance than 4KB
                 for chunk in iter(lambda: f.read(65536), b""):
                     sha256_hash.update(chunk)
             
