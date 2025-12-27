@@ -75,7 +75,12 @@ class SystemService:
         if cls._librarian_instance is None:
             try:
                 logger.info("Creating GoogleDriveLibrarian (lazy initialization mode)...")
+                # Use centralized metadata root for config
+                from gdrive_integration import get_metadata_root
+                config_path = get_metadata_root() / "config"
+                
                 cls._librarian_instance = GoogleDriveLibrarian(
+                    config_dir=config_path,
                     cache_size_gb=2.0,
                     auto_sync=False
                 )
@@ -286,7 +291,6 @@ class SystemService:
                 'freed_mb': int(freed_mb),
                 'status': 'success' if moved_count > 0 else 'no_action_needed'
             }
-
         except Exception as e:
             logger.error(f"Emergency cleanup failed: {e}")
             return {
@@ -295,6 +299,56 @@ class SystemService:
                 'status': 'error',
                 'error': str(e)
             }
+
+    def get_maintenance_logs(self, limit: int = 50) -> List[Dict[str, Any]]:
+        """Get recent maintenance task logs from adaptive_rules.db"""
+        import sqlite3
+        from gdrive_integration import get_metadata_root
+        
+        db_path = get_metadata_root() / "adaptive_rules.db"
+        logs = []
+        
+        if not db_path.exists():
+            return []
+            
+        try:
+            with sqlite3.connect(str(db_path)) as conn:
+                conn.row_factory = sqlite3.Row
+                cursor = conn.execute(
+                    "SELECT task_name, last_run, success, details FROM maintenance_history ORDER BY last_run DESC LIMIT ?",
+                    (limit,)
+                )
+                for row in cursor:
+                    logs.append(dict(row))
+        except Exception as e:
+            logger.error(f"Error fetching maintenance logs: {e}")
+            
+        return logs
+
+    def get_emergency_logs(self, limit: int = 50) -> List[Dict[str, Any]]:
+        """Get recent emergency events from adaptive_rules.db"""
+        import sqlite3
+        from gdrive_integration import get_metadata_root
+        
+        db_path = get_metadata_root() / "adaptive_rules.db"
+        logs = []
+        
+        if not db_path.exists():
+            return []
+            
+        try:
+            with sqlite3.connect(str(db_path)) as conn:
+                conn.row_factory = sqlite3.Row
+                cursor = conn.execute(
+                    "SELECT timestamp, emergency_type, severity_level, details, action_taken FROM emergency_events ORDER BY timestamp DESC LIMIT ?",
+                    (limit,)
+                )
+                for row in cursor:
+                    logs.append(dict(row))
+        except Exception as e:
+            logger.error(f"Error fetching emergency logs: {e}")
+            
+        return logs
 
     @classmethod
     def cleanup(cls):
@@ -834,7 +888,7 @@ class TriageService:
                 original_category = classification_result.get('category', 'unknown')
                 original_confidence = classification_result.get('confidence', 0.0)
                 suggested_filename = classification_result.get('suggested_filename', file_obj.name)
-                # FIX: Extract keywords for learning system
+                # Extract keywords for learning system
                 found_keywords = classification_result.get('keywords', [])
             else:
                 original_category = getattr(classification_result, 'category', 'unknown')

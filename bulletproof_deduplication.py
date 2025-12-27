@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Set
 import time
 import json
+from datetime import datetime
 from gdrive_integration import get_metadata_root
 
 class BulletproofDeduplicator:
@@ -136,8 +137,8 @@ class BulletproofDeduplicator:
 
             sha256_hash = hashlib.sha256()
             with open(file_path, 'rb') as f:
-                # Read file in chunks for memory efficiency
-                for chunk in iter(lambda: f.read(4096), b""):
+                # Read file in chunks (64KB) for better performance than 4KB
+                for chunk in iter(lambda: f.read(65536), b""):
                     sha256_hash.update(chunk)
             
             secure_hash = sha256_hash.hexdigest()
@@ -414,6 +415,8 @@ class BulletproofDeduplicator:
         
         print(f"🛡️  Confirmed {len(confirmed_duplicates)} duplicate groups with SHA-256")
         
+        results["groups"] = []
+        
         # Process each duplicate group
         for secure_hash, duplicate_group in confirmed_duplicates.items():
             results["duplicates_found"] += len(duplicate_group)
@@ -425,15 +428,32 @@ class BulletproofDeduplicator:
             for file_info in duplicate_group:
                 file_path = file_info['path']
                 safety_score = self.calculate_safety_score(file_path, duplicate_group)
-                file_scores.append((file_path, safety_score, file_info['size']))
+                
+                # Get more file info for the group
+                file_info_full = {
+                    'path': str(file_path),
+                    'name': file_path.name,
+                    'size': file_info['size'],
+                    'mtime': datetime.fromtimestamp(file_info['mtime']).isoformat() if hasattr(file_info, 'mtime') else time.strftime('%Y-%m-%dT%H:%M:%S', time.localtime(file_info.get('mtime', time.time()))),
+                    'safety_score': safety_score
+                }
+                file_scores.append((file_path, safety_score, file_info['size'], file_info_full))
                 print(f"   📄 {file_path.name} (safety: {safety_score:.2f})")
             
             # Sort by safety score (highest = safest to delete)
             file_scores.sort(key=lambda x: x[1], reverse=True)
             
+            # Add to results groups
+            group_data = {
+                "group_id": secure_hash,
+                "total_size": sum(f[2] for f in file_scores),
+                "files": [f[3] for f in file_scores]
+            }
+            results["groups"].append(group_data)
+            
             # Keep the original (lowest safety score) and mark others for deletion
             files_to_keep = 1
-            for i, (file_path, safety_score, file_size) in enumerate(file_scores):
+            for i, (file_path, safety_score, file_size, _) in enumerate(file_scores):
                 if i >= files_to_keep and safety_score > safety_threshold:  # Use configurable safety threshold
                     results["safe_to_delete"] += 1
                     results["space_recoverable"] += file_size
