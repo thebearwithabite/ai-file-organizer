@@ -902,28 +902,46 @@ class EmergencySpaceProtection:
 
     def _cleanup_duplicate_files(self, emergency: SpaceEmergency) -> float:
         """Clean up duplicate files and return space freed in GB"""
-        self.logger.info("Starting emergency deduplication cleanup...")
-        
-        total_freed = 0
-        
-        for directory_path in emergency.affected_directories:
-            directory = Path(directory_path)
-            if not directory.exists():
-                continue
-            
-            # Use BulletproofDeduplicator in auto-execute mode
-            # We set a high safety threshold (0.9) for emergency auto-cleanup
-            results = self.deduplicator.scan_directory(directory, execute=True, safety_threshold=0.9)
-            
-            freed_bytes = results.get("space_recovered", 0)
-            total_freed += freed_bytes
-            
-            if freed_bytes > 0:
-                self.logger.info(f"Deduplicated {directory}: Freed {freed_bytes / (1024**2):.1f} MB")
-                
-        freed_gb = total_freed / (1024**3)
-        self.logger.info(f"Emergency deduplication finished. Freed {freed_gb:.2f} GB total")
-        return freed_gb
+        self.logger.info(f"Starting duplicate cleanup for {emergency.disk_path}")
+        total_freed_bytes = 0
+
+        try:
+            # Determine safety threshold based on severity
+            # Lower threshold means more aggressive deletion (less safety required)
+            safety_threshold = 0.7
+            if emergency.severity == "emergency":
+                safety_threshold = 0.5  # More aggressive in emergency
+
+            for directory_path in emergency.affected_directories:
+                directory = Path(directory_path)
+                if not directory.exists():
+                    continue
+
+                self.logger.info(f"Scanning for duplicates in {directory}")
+                # Use BulletproofDeduplicator to find and remove duplicates
+                results = self.deduplicator.scan_directory(
+                    directory,
+                    execute=True,
+                    safety_threshold=safety_threshold
+                )
+
+                if results.get("errors"):
+                    for error in results["errors"]:
+                        self.logger.error(f"Deduplication error: {error}")
+
+                # space_recoverable in results includes what was deleted (since execute=True)
+                freed_in_dir = results.get("space_recoverable", 0)
+                total_freed_bytes += freed_in_dir
+                if freed_in_dir > 0:
+                    self.logger.info(f"Freed {freed_in_dir / (1024*1024):.2f} MB in {directory}")
+
+            freed_gb = total_freed_bytes / (1024**3)
+            self.logger.info(f"Emergency deduplication finished. Freed {freed_gb:.2f} GB total")
+            return freed_gb
+
+        except Exception as e:
+            self.logger.error(f"Error in duplicate cleanup: {e}")
+            return 0.0
 
     def _cleanup_old_downloads(self, emergency: SpaceEmergency) -> float:
         """Clean up old downloads and return space freed in GB"""
