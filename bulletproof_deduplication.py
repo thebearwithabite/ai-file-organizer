@@ -125,7 +125,7 @@ class BulletproofDeduplicator:
             print(f"⚠️ Quick hash error for {file_path.name}: {e}")
             return None
     
-    def calculate_secure_hash(self, file_path: Path) -> Optional[str]:
+    def calculate_secure_hash(self, file_path: Path, db_connection: Optional[sqlite3.Connection] = None) -> Optional[str]:
         """
         Tier 2: Bulletproof SHA-256 verification (~2ms per file)
         Used for cryptographic certainty before deletion
@@ -137,16 +137,17 @@ class BulletproofDeduplicator:
 
             sha256_hash = hashlib.sha256()
             with open(file_path, 'rb') as f:
-                # Read file in chunks (64KB) for better performance than 4KB
-                for chunk in iter(lambda: f.read(65536), b""):
+                # Read file in chunks (1MB) for better performance than 64KB
+                for chunk in iter(lambda: f.read(1048576), b""):
                     sha256_hash.update(chunk)
             
             secure_hash = sha256_hash.hexdigest()
             
             # Persist to database
             try:
-                with sqlite3.connect(self.db_path) as conn:
-                    conn.execute("""
+                if db_connection:
+                    # Use provided connection (faster for batch operations)
+                    db_connection.execute("""
                         INSERT OR REPLACE INTO file_hashes 
                         (file_path, secure_hash, file_size, last_modified)
                         VALUES (?, ?, ?, ?)
@@ -154,6 +155,17 @@ class BulletproofDeduplicator:
                         str(file_path), secure_hash, 
                         file_path.stat().st_size, file_path.stat().st_mtime
                     ))
+                else:
+                    # Create new connection (slower)
+                    with sqlite3.connect(self.db_path) as conn:
+                        conn.execute("""
+                            INSERT OR REPLACE INTO file_hashes
+                            (file_path, secure_hash, file_size, last_modified)
+                            VALUES (?, ?, ?, ?)
+                        """, (
+                            str(file_path), secure_hash,
+                            file_path.stat().st_size, file_path.stat().st_mtime
+                        ))
             except Exception as db_err:
                 # Don't fail if DB write fails, just log it
                 print(f"⚠️ Failed to persist hash for {file_path.name}: {db_err}")
@@ -383,24 +395,26 @@ class BulletproofDeduplicator:
         confirmed_duplicates = {}
         total_groups = len(potential_duplicates)
 
-        for group_idx, (quick_hash, file_list) in enumerate(potential_duplicates.items()):
-            # Show progress for verification phase
-            if (group_idx + 1) % 10 == 0 or (group_idx + 1) == total_groups:
-                print(f"   Verifying group {group_idx + 1}/{total_groups} ({((group_idx+1)/total_groups*100):.1f}%)")
+        # Reuse database connection for batch processing
+        with sqlite3.connect(self.db_path) as conn:
+            for group_idx, (quick_hash, file_list) in enumerate(potential_duplicates.items()):
+                # Show progress for verification phase
+                if (group_idx + 1) % 10 == 0 or (group_idx + 1) == total_groups:
+                    print(f"   Verifying group {group_idx + 1}/{total_groups} ({((group_idx+1)/total_groups*100):.1f}%)")
 
-            # Calculate secure hashes for this group
-            secure_hash_groups = {}
+                # Calculate secure hashes for this group
+                secure_hash_groups = {}
 
-            for file_path in file_list:
-                secure_hash = self.calculate_secure_hash(file_path)
-                if secure_hash:
-                    if secure_hash not in secure_hash_groups:
-                        secure_hash_groups[secure_hash] = []
-                    secure_hash_groups[secure_hash].append({
-                        'path': file_path,
-                        'size': file_path.stat().st_size,
-                        'mtime': file_path.stat().st_mtime
-                    })
+                for file_path in file_list:
+                    secure_hash = self.calculate_secure_hash(file_path, db_connection=conn)
+                    if secure_hash:
+                        if secure_hash not in secure_hash_groups:
+                            secure_hash_groups[secure_hash] = []
+                        secure_hash_groups[secure_hash].append({
+                            'path': file_path,
+                            'size': file_path.stat().st_size,
+                            'mtime': file_path.stat().st_mtime
+                        })
 
             # Only groups with multiple files are true duplicates
             for secure_hash, duplicate_group in secure_hash_groups.items():
