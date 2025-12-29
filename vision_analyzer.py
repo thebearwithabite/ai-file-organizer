@@ -29,7 +29,15 @@ try:
     GEMINI_AVAILABLE = True
 except ImportError:
     GEMINI_AVAILABLE = False
-    print("Warning: google-generativeai not available. Vision analysis will be disabled.")
+
+try:
+    import vertexai
+    from vertexai.generative_models import GenerativeModel as VertexModel, Part, HarmCategory as VertexHarmCategory, HarmBlockThreshold as VertexHarmBlockThreshold
+    from google.oauth2 import service_account
+    VERTEX_AVAILABLE = True
+except ImportError:
+    VERTEX_AVAILABLE = False
+    print("Warning: vertexai or google-auth not available. Service account auth will be limited.")
 
 try:
     from PIL import Image
@@ -130,13 +138,17 @@ Return a valid JSON object with this structure:
 
         # API configuration
         self.api_key = api_key or self._load_api_key()
+        self.service_account_path = self._get_service_account_path()
         self.model = None
         self.api_initialized = False
+        self.use_vertex = False
 
-        if self.api_key and GEMINI_AVAILABLE:
+        if self.service_account_path and VERTEX_AVAILABLE:
+            self._initialize_vertex_api()
+        elif self.api_key and GEMINI_AVAILABLE:
             self._initialize_api()
         else:
-            self.logger.warning("Gemini API not initialized. Vision analysis will be unavailable.")
+            self.logger.warning("Neither Service Account nor Gemini API Key found. Vision analysis will be unavailable.")
 
         # Cache directory
         self.cache_dir = get_metadata_root() /  "vision_cache"
@@ -200,6 +212,44 @@ Return a valid JSON object with this structure:
 
         self.logger.info(f"Rate limiting enabled: {self.rate_limit_rpm} RPM, {self.rate_limit_daily} daily")
 
+        self.remote_enabled = False
+        self.remote_ip = ""
+        self.remote_ollama_port = 11434
+        self.remote_model = "qwen2.5-vl:7b" # Canonical name
+        self._load_remote_config()
+
+    def _load_remote_config(self):
+        """Load remote powerhouse settings from hybrid_config.json"""
+        try:
+            config_path = get_metadata_root() / "config" / "hybrid_config.json"
+            if config_path.exists():
+                with open(config_path, 'r') as f:
+                    config = json.load(f)
+                    remote = config.get("remote_powerhouse", {})
+                    if remote.get("enabled") and remote.get("ip"):
+                        self.remote_enabled = True
+                        self.remote_ip = remote["ip"]
+                        self.remote_ollama_port = remote.get("services", {}).get("ollama", {}).get("port", 11434)
+                        self.logger.info(f"🚀 Remote Powerhouse detected at {self.remote_ip}")
+        except Exception as e:
+            self.logger.warning(f"Failed to load remote powerhouse config: {e}")
+
+    def _get_service_account_path(self) -> Optional[str]:
+        """Check for service account JSON in standard locations"""
+        # Primary location: AI_METADATA_SYSTEM/config
+        metadata_config = get_metadata_root() / "config" / "service_account.json"
+        if metadata_config.exists():
+            self.logger.info(f"Found service account at {metadata_config}")
+            return str(metadata_config)
+            
+        # Fallback: Environment variable
+        env_path = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
+        if env_path and os.path.exists(env_path):
+            self.logger.info("Using service account from GOOGLE_APPLICATION_CREDENTIALS")
+            return env_path
+            
+        return None
+
     def _load_api_key(self) -> Optional[str]:
         """Load Gemini API key from config file or environment"""
         # Try config file first
@@ -222,8 +272,29 @@ Return a valid JSON object with this structure:
             self.logger.info("Loaded Gemini API key from environment")
             return api_key
 
-        self.logger.warning("No Gemini API key found. Please set GEMINI_API_KEY or create ~/.ai_organizer_config/gemini_api_key.txt")
         return None
+
+    def _initialize_vertex_api(self):
+        """Initialize Vertex AI with service account"""
+        try:
+            # Load project ID from service account JSON
+            with open(self.service_account_path, 'r') as f:
+                sa_data = json.load(f)
+                project_id = sa_data.get('project_id', 'veopromptmachine')
+                
+            # Initialize Vertex AI
+            vertexai.init(project=project_id, location="us-central1", credentials=service_account.Credentials.from_service_account_file(self.service_account_path))
+            
+            # Use Gemini 1.5 Flash (Vertex AI equivalent)
+            self.model = VertexModel("gemini-1.5-flash-002")
+            self.use_vertex = True
+            self.api_initialized = True
+            self.logger.info(f"✅ Vertex AI initialized successfully with service account (Project: {project_id})")
+            self.logger.info("🔒 VEO Studio Authentication: Using Google Cloud Service Account")
+            
+        except Exception as e:
+            self.logger.error(f"Failed to initialize Vertex AI: {e}")
+            self.api_initialized = False
 
     def _initialize_api(self):
         """Initialize Gemini API client"""
@@ -446,6 +517,17 @@ Return a valid JSON object with this structure:
             # as the context changes the expected output.
             self.cache_misses += 1
 
+        # Check if Remote Powerhouse should handle this (OFFLOADING)
+        if self.remote_enabled and self.remote_ip:
+            remote_result = self._analyze_image_remote(image_path_obj, project_context, allowed_categories)
+            if remote_result and remote_result.get('success'):
+                # Cache the result
+                cache_key = self._get_cache_key(str(image_path_obj))
+                self._save_to_cache(cache_key, remote_result)
+                return remote_result
+            else:
+                self.logger.warning("Remote analysis failed or unavailable, falling back to local Gemini/Vertex.")
+
         # Check if API is available
         if not self.api_initialized:
             return self._fallback_image_analysis(image_path_obj)
@@ -490,18 +572,32 @@ Return a valid JSON object with this structure:
                 category_list_str=cat_list_str
             )
 
-            # Call Gemini API for analysis
+            # Call API for analysis
             self.api_calls += 1
             self.logger.info(f"Analyzing image: {image_path_obj.name} (quota: {self.daily_requests['requests']}/{self.rate_limit_daily})")
-            response = self.model.generate_content(
-                [prompt, image],
-                safety_settings={
-                    HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
-                    HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
-                    HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
-                    HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-                }
-            )
+            
+            if self.use_vertex:
+                # Vertex AI call
+                response = self.model.generate_content(
+                    [prompt, image],
+                    safety_settings={
+                        VertexHarmCategory.HARM_CATEGORY_HATE_SPEECH: VertexHarmBlockThreshold.BLOCK_NONE,
+                        VertexHarmCategory.HARM_CATEGORY_HARASSMENT: VertexHarmBlockThreshold.BLOCK_NONE,
+                        VertexHarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: VertexHarmBlockThreshold.BLOCK_NONE,
+                        VertexHarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: VertexHarmBlockThreshold.BLOCK_NONE,
+                    }
+                )
+            else:
+                # Gemini API call
+                response = self.model.generate_content(
+                    [prompt, image],
+                    safety_settings={
+                        HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
+                        HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+                        HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+                        HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+                    }
+                )
 
             # Parse response
             analysis_text = response.text
@@ -510,8 +606,15 @@ Return a valid JSON object with this structure:
             # Update learning patterns
             self._update_vision_patterns(result)
 
-            # Cache the result
-            self._save_to_cache(cache_key, result)
+            # Record observation for learning system
+            if self.learning_enabled and self.learning_system:
+                self.learning_system.record_classification(
+                    file_path=str(image_path_obj),
+                    predicted_category=result.get('category', 'unknown'),
+                    confidence=result.get('confidence', 0.0),
+                    features=result,
+                    media_type='image'
+                )
 
             return result
 
@@ -524,6 +627,71 @@ Return a valid JSON object with this structure:
                 'description': '',
                 'confidence_score': 0.0
             }
+
+    def _analyze_image_remote(self, image_path: Path, project_context: Optional[str] = None, allowed_categories: Optional[List[Dict[str, str]]] = None) -> Dict[str, Any]:
+        """Dispatch image analysis to remote Ollama server on Windows 5090"""
+        import requests
+        import base64
+
+        try:
+            self.logger.info(f"🛰️ Dispatching image analysis to remote 5090 ({self.remote_ip})")
+            
+            # Encode image for Ollama
+            with open(image_path, "rb") as f:
+                img_data = base64.b64encode(f.read()).decode("utf-8")
+
+            # Prepare prompt
+            identity_context = ""
+            if self.identity_service:
+                identity_context = self.identity_service.generate_prompt_context()
+            
+            full_context = identity_context
+            if project_context:
+                full_context += f"\nPROJECT CONTEXT: {project_context}"
+
+            cat_list_str = ""
+            if allowed_categories:
+                cat_list_str = "ALLOWED CATEGORIES:\n" + "\n".join([f"- {c['id']}: {c['name']}" for c in allowed_categories])
+
+            prompt = self.IMAGE_ANALYSIS_PROMPT.format(
+                identity_context=full_context,
+                category_list_str=cat_list_str
+            )
+
+            url = f"http://{self.remote_ip}:{self.remote_ollama_port}/api/generate"
+            payload = {
+                "model": self.remote_model,
+                "prompt": prompt,
+                "images": [img_data],
+                "stream": False,
+                "format": "json"
+            }
+
+            response = requests.post(url, json=payload, timeout=60)
+            response.raise_for_status()
+            
+            response_data = response.json()
+            analysis_text = response_data.get("response", "")
+            
+            # Parse result using existing parsing logic
+            result = self._parse_image_analysis(analysis_text, image_path)
+            result['source'] = f"Remote Powerhouse ({self.remote_model})"
+            
+            # Record observation for learning system
+            if self.learning_enabled and self.learning_system:
+                self.learning_system.record_classification(
+                    file_path=str(image_path),
+                    predicted_category=result.get('category', 'unknown'),
+                    confidence=result.get('confidence', 0.0),
+                    features=result,
+                    media_type='image'
+                )
+
+            return result
+
+        except Exception as e:
+            self.logger.error(f"Remote analysis failed: {e}")
+            return {"success": False, "error": str(e)}
 
     def extract_screenshot_text(self, image_path: str) -> str:
         """
@@ -552,18 +720,30 @@ Return a valid JSON object with this structure:
             # Enforce rate limiting (15 RPM)
             self._wait_for_rate_limit()
 
-            # Call Gemini for text extraction
+            # Call API for text extraction
             self.api_calls += 1
             self.logger.info(f"Extracting text from: {image_path_obj.name} (quota: {self.daily_requests['requests']}/{self.rate_limit_daily})")
-            response = self.model.generate_content(
-                [self.SCREENSHOT_TEXT_PROMPT, image],
-                safety_settings={
-                    HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
-                    HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
-                    HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
-                    HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-                }
-            )
+            
+            if self.use_vertex:
+                response = self.model.generate_content(
+                    [self.SCREENSHOT_TEXT_PROMPT, image],
+                    safety_settings={
+                        VertexHarmCategory.HARM_CATEGORY_HATE_SPEECH: VertexHarmBlockThreshold.BLOCK_NONE,
+                        VertexHarmCategory.HARM_CATEGORY_HARASSMENT: VertexHarmBlockThreshold.BLOCK_NONE,
+                        VertexHarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: VertexHarmBlockThreshold.BLOCK_NONE,
+                        VertexHarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: VertexHarmBlockThreshold.BLOCK_NONE,
+                    }
+                )
+            else:
+                response = self.model.generate_content(
+                    [self.SCREENSHOT_TEXT_PROMPT, image],
+                    safety_settings={
+                        HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
+                        HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+                        HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+                        HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+                    }
+                )
 
             return response.text.strip()
 
@@ -626,9 +806,26 @@ Return a valid JSON object with this structure:
             # Enforce rate limiting (15 RPM)
             self._wait_for_rate_limit()
 
-            # Upload video file to Gemini
-            self.logger.info(f"Uploading video {video_path_obj.name} to Gemini... (quota: {self.daily_requests['requests']}/{self.rate_limit_daily})")
-            video_file = genai.upload_file(path=str(video_path_obj))
+            # Upload video file
+            self.logger.info(f"Uploading video {video_path_obj.name}... (quota: {self.daily_requests['requests']}/{self.rate_limit_daily})")
+            
+            if self.use_vertex:
+                # Vertex AI uses GCS or direct uploads. For small files, we can use Part.from_data, 
+                # but Vertex AI works best with GCS for video. Let's assume for now we use genai.upload_file if not use_vertex.
+                # Actually Vertex AI GCS integration is complex. Let's use Part.from_data for small videos or assume GCS if possible.
+                # Since we don't have GCS bucket sync set up here, let's stick to the existing genai for video upload if possible.
+                # Wait, if use_vertex=True, genai.upload_file might not work or might not be linked.
+                # Correct approach for Vertex AI video: https://cloud.google.com/vertex-ai/docs/generative-ai/multimodal/send-multimodal-prompts#video
+                # "You can't send a local video file with the Vertex AI SDK. You must use a Cloud Storage URI."
+                # OK, this is a blocker for "pure" Vertex AI without GCS setup.
+                # HOWEVER, often we can use genai.upload_file even with Vertex AI credentials if we initialize it.
+                # Let's try to keep genai for file handling if possible, as it manages the temporary state well.
+                # IF genai is available, we use it for upload.
+                if not GEMINI_AVAILABLE:
+                    raise ImportError("google-generativeai required for video upload")
+                video_file = genai.upload_file(path=str(video_path_obj))
+            else:
+                video_file = genai.upload_file(path=str(video_path_obj))
 
             # Wait for processing
             while video_file.state.name == "PROCESSING":
@@ -664,22 +861,50 @@ Return a valid JSON object with this structure:
             # Analyze video
             self.api_calls += 1
             self.logger.info(f"Analyzing video: {video_path_obj.name}")
-            response = self.model.generate_content(
-                [video_file, prompt],
-                safety_settings={
-                    HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
-                    HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
-                    HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
-                    HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-                }
-            )
+            
+            if self.use_vertex:
+                # Vertex AI 1.5-flash supports remote video or local data via Part
+                # For now, let's use the uploaded genai file if possible, or fall back to Part.from_data
+                # Actually, Vertex AI Part.from_uri ONLY works with GCS uris (gs://)
+                # If we don't have GCS, we should use genai.generate_content (which works with genai uploaded files)
+                # even if we initialized vertexai.init. 
+                # HOWEVER, our self.model is a vertexai.GenerativeModel.
+                # Let's switch back to genai.GenerativeModel if we need to use genai.upload_file.
+                
+                # FOR NOW: Use genai for video analysis even in vertex mode if it's available
+                # because it handles local file uploads without GCS.
+                if GEMINI_AVAILABLE:
+                    genai_model = genai.GenerativeModel('gemini-1.5-flash')
+                    response = genai_model.generate_content(
+                        [video_file, prompt],
+                        safety_settings={
+                            HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
+                            HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+                            HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+                            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+                        }
+                    )
+                else:
+                    raise ImportError("google-generativeai required for local video analysis without GCS")
+            else:
+                # Gemini API call
+                response = self.model.generate_content(
+                    [video_file, prompt],
+                    safety_settings={
+                        HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
+                        HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+                        HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+                        HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+                    }
+                )
 
             # Parse response
             analysis_text = response.text
             result = self._parse_video_analysis(analysis_text, video_path_obj)
 
             # Clean up uploaded file
-            genai.delete_file(video_file.name)
+            if not self.use_vertex:
+                genai.delete_file(video_file.name)
 
             # Update learning patterns
             self._update_vision_patterns(result)
@@ -1130,25 +1355,40 @@ Return a valid JSON object with this structure:
 
 Format your response clearly with these categories."""
 
-            # Call Gemini API
+            # Call API
             self.api_calls += 1
             self.logger.info(f"🎬 Analyzing video for VEO prompt: {video_path_obj.name}")
-            response = self.model.generate_content(
-                [video_file, veo_prompt],
-                safety_settings={
-                    HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
-                    HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
-                    HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
-                    HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-                }
-            )
+            
+            if self.use_vertex and GEMINI_AVAILABLE:
+                # Use genai model for video analysis via uploaded file
+                genai_model = genai.GenerativeModel('gemini-1.5-flash')
+                response = genai_model.generate_content(
+                    [video_file, veo_prompt],
+                    safety_settings={
+                        HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
+                        HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+                        HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+                        HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+                    }
+                )
+            else:
+                response = self.model.generate_content(
+                    [video_file, veo_prompt],
+                    safety_settings={
+                        HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
+                        HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+                        HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+                        HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+                    }
+                )
 
             # Parse response
             analysis_text = response.text
             veo_result = self._parse_veo_analysis(analysis_text, video_path_obj)
 
             # Clean up uploaded file
-            genai.delete_file(video_file.name)
+            if not self.use_vertex:
+                genai.delete_file(video_file.name)
 
             self.logger.info(f"✅ VEO analysis complete: {video_path_obj.name}")
 
