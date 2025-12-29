@@ -215,7 +215,7 @@ Return a valid JSON object with this structure:
         self.remote_enabled = False
         self.remote_ip = ""
         self.remote_ollama_port = 11434
-        self.remote_model = "qwen2.5-vl:7b" # Canonical name
+        self.remote_model = "qwen2.5vl:7b" # Verified in user's ollama list
         self._load_remote_config()
 
     def _load_remote_config(self):
