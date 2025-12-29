@@ -29,8 +29,8 @@ else
 fi
 
 # Ensure the vision model is pulled
-echo "🤖 Pulling vision model (qwen2.5-vl:7b)..."
-ollama pull qwen2.5-vl:7b
+echo "🤖 Pulling vision model (qwen2.5vl:7b)..."
+ollama pull qwen2.5vl:7b
 
 # 4. Setup MCP Bridge for Resolve
 echo "🏗️ Setting up Resolve MCP Bridge..."
