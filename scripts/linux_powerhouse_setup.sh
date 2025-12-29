@@ -28,6 +28,19 @@ else
     echo "✅ Ollama is already installed."
 fi
 
+# Enable remote access for Ollama (important for Mac-to-WSL communication)
+echo "🌐 Configuring Ollama for remote access (OLLAMA_HOST=0.0.0.0)..."
+if [ -d "/etc/systemd/system/ollama.service.d" ] || [ -f "/etc/systemd/system/ollama.service" ]; then
+    echo "Setting Environment variable in systemd..."
+    sudo mkdir -p /etc/systemd/system/ollama.service.d
+    echo -e "[Service]\nEnvironment=\"OLLAMA_HOST=0.0.0.0\"" | sudo tee /etc/systemd/system/ollama.service.d/override.conf > /dev/null
+    sudo systemctl daemon-reload
+    sudo systemctl restart ollama
+else
+    echo "⚠️ systemd not detected or ollama service not found. If running manually, use:"
+    echo "   export OLLAMA_HOST=0.0.0.0 && ollama serve"
+fi
+
 # Ensure the vision model is pulled
 echo "🤖 Pulling vision model (qwen2.5vl:7b)..."
 ollama pull qwen2.5vl:7b
