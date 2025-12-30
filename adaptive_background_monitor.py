@@ -413,9 +413,18 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
                         except queue.Empty:
                             break
                 
-                # Process collected events
-                for event in events_to_process:
-                    self._learn_from_file_event(event)
+                if events_to_process:
+                    # OPTIMIZATION: Reuse database connection for batch processing
+                    try:
+                        with sqlite3.connect(self.rules_db_path) as conn:
+                            # Process collected events
+                            for event in events_to_process:
+                                self._learn_from_file_event(event, db_connection=conn)
+                    except Exception as db_err:
+                        self.logger.error(f"Database error in event loop: {db_err}")
+                        # Fallback to individual processing if batch fails
+                        for event in events_to_process:
+                            self._learn_from_file_event(event)
                 
                 time.sleep(10)  # Check every 10 seconds
                 
@@ -423,7 +432,7 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
                 self.logger.error(f"Error processing file events: {e}")
                 time.sleep(30)
 
-    def _learn_from_file_event(self, event: Dict[str, Any]):
+    def _learn_from_file_event(self, event: Dict[str, Any], db_connection: Optional[sqlite3.Connection] = None):
         """Learn from a file system event"""
         
         event_type = event['type']
@@ -433,7 +442,8 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
             self._learn_from_file_move(
                 event['src_path'], 
                 event['dest_path'], 
-                event['timestamp']
+                event['timestamp'],
+                db_connection=db_connection
             )
         
         elif event_type == 'created':
@@ -448,7 +458,7 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
             # File modified - check if it needs re-indexing
             self._handle_file_modification(event['path'], event['timestamp'])
 
-    def _learn_from_file_move(self, src_path: str, dest_path: str, timestamp: datetime):
+    def _learn_from_file_move(self, src_path: str, dest_path: str, timestamp: datetime, db_connection: Optional[sqlite3.Connection] = None):
         """Learn from user manually moving a file"""
         
         try:
@@ -491,7 +501,8 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
                 file_path=src_path,
                 source_location=str(src_file.parent),
                 target_location=str(dest_file.parent),
-                context_data=json.dumps(context)
+                context_data=json.dumps(context),
+                db_connection=db_connection
             )
             
             self.stats["user_corrections_learned"] += 1
@@ -974,11 +985,11 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
             self.logger.error(f"❌ Bi-weekly deduplication failed: {e}")
             self._record_maintenance_run("biweekly_deduplication", False, str(e))
 
-    def _record_maintenance_run(self, task_name: str, success: bool, details: str):
+    def _record_maintenance_run(self, task_name: str, success: bool, details: str, db_connection: Optional[sqlite3.Connection] = None):
         """Record maintenance task run in database"""
         try:
-            with sqlite3.connect(self.rules_db_path) as conn:
-                conn.execute("""
+            if db_connection:
+                db_connection.execute("""
                     INSERT OR REPLACE INTO maintenance_history 
                     (task_id, task_name, last_run, success, details)
                     VALUES (?, ?, ?, ?, ?)
@@ -989,7 +1000,20 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
                     success,
                     details
                 ))
-                conn.commit()
+            else:
+                with sqlite3.connect(self.rules_db_path) as conn:
+                    conn.execute("""
+                        INSERT OR REPLACE INTO maintenance_history
+                        (task_id, task_name, last_run, success, details)
+                        VALUES (?, ?, ?, ?, ?)
+                    """, (
+                        task_name, # Use task_name as ID for simplicity
+                        task_name,
+                        datetime.now().isoformat(),
+                        success,
+                        details
+                    ))
+                    conn.commit()
         except Exception as e:
             self.logger.error(f"Error recording maintenance run for {task_name}: {e}")
 
@@ -1161,12 +1185,13 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
         keywords = [word for word in words if word not in stop_words]
         return keywords[:5]  # Return top 5 keywords
 
-    def _record_user_behavior(self, action_type: str, file_path: str, source_location: str, target_location: str, context_data: str):
+    def _record_user_behavior(self, action_type: str, file_path: str, source_location: str, target_location: str, context_data: str, db_connection: Optional[sqlite3.Connection] = None):
         """Record user behavior in database"""
         
         try:
-            with sqlite3.connect(self.rules_db_path) as conn:
-                conn.execute("""
+            if db_connection:
+                # Use provided connection
+                db_connection.execute("""
                     INSERT INTO user_behavior 
                     (timestamp, action_type, file_path, source_location, target_location, context_data)
                     VALUES (?, ?, ?, ?, ?, ?)
@@ -1178,17 +1203,33 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
                     target_location,
                     context_data
                 ))
-                conn.commit()
+                # Note: We do NOT commit here if using shared connection, let the caller commit
+            else:
+                # Create new connection
+                with sqlite3.connect(self.rules_db_path) as conn:
+                    conn.execute("""
+                        INSERT INTO user_behavior
+                        (timestamp, action_type, file_path, source_location, target_location, context_data)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    """, (
+                        datetime.now().isoformat(),
+                        action_type,
+                        file_path,
+                        source_location,
+                        target_location,
+                        context_data
+                    ))
+                    conn.commit()
                 
         except Exception as e:
             self.logger.error(f"Error recording user behavior: {e}")
 
-    def _record_emergency_event(self, emergency: Dict[str, Any]):
+    def _record_emergency_event(self, emergency: Dict[str, Any], db_connection: Optional[sqlite3.Connection] = None):
         """Record emergency event in database"""
         
         try:
-            with sqlite3.connect(self.rules_db_path) as conn:
-                conn.execute("""
+            if db_connection:
+                db_connection.execute("""
                     INSERT INTO emergency_events 
                     (timestamp, emergency_type, severity_level, details, action_taken)
                     VALUES (?, ?, ?, ?, ?)
@@ -1199,7 +1240,20 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
                     emergency['details'],
                     emergency.get('recommended_action', 'none')
                 ))
-                conn.commit()
+            else:
+                with sqlite3.connect(self.rules_db_path) as conn:
+                    conn.execute("""
+                        INSERT INTO emergency_events
+                        (timestamp, emergency_type, severity_level, details, action_taken)
+                        VALUES (?, ?, ?, ?, ?)
+                    """, (
+                        datetime.now().isoformat(),
+                        emergency['type'],
+                        emergency['severity'],
+                        emergency['details'],
+                        emergency.get('recommended_action', 'none')
+                    ))
+                    conn.commit()
                 
         except Exception as e:
             self.logger.error(f"Error recording emergency event: {e}")
