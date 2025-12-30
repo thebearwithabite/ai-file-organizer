@@ -165,3 +165,70 @@ export interface EmergencyLog {
   details: string
   action_taken: string
 }
+
+// ===== VEO Studio Types =====
+
+export interface VEOAsset {
+  type: 'character' | 'location' | 'prop' | 'other'
+  name: string
+  description?: string
+  occurrences: number
+}
+
+export interface VEOScriptAnalysis {
+  success: boolean
+  assets: VEOAsset[]
+  shot_count: number
+  scene_count: number
+  metadata: {
+    word_count: number
+    line_count: number
+    analyzed_at: string
+    project_name?: string
+  }
+  error?: string
+}
+
+export interface VEOShot {
+  shot_id: string
+  scene_number?: number
+  shot_number: number
+  description: string
+  duration_estimate?: number
+  camera_angle?: string
+  characters: string[]
+  location?: string
+  assets_needed: string[]
+}
+
+export interface VEOShotList {
+  success: boolean
+  shots: VEOShot[]
+  total_shots: number
+  total_duration_estimate?: number
+  error?: string
+}
+
+export interface VEOKeyframe {
+  success: boolean
+  keyframe_url?: string
+  keyframe_path?: string
+  generation_method: 'gemini' | 'flux' | 'stub'
+  error?: string
+}
+
+export interface VEOProject {
+  id: number
+  project_name: string
+  created_at: string
+  updated_at: string
+  shot_count: number
+  status: 'active' | 'archived' | 'completed'
+}
+
+export interface VEOProjectResponse {
+  success: boolean
+  project?: VEOProject
+  projects?: VEOProject[]
+  error?: string
+}
