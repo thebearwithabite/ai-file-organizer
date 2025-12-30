@@ -140,13 +140,15 @@ monitor_paths = []
 
 from api.taxonomy_router import router as taxonomy_router
 from api.identity_router import router as identity_router
+from api.veo_studio_api import router as veo_studio_router
 
-# Include VEO API routers (Sprint 2.0)
+# Include VEO API routers (Sprint 2.0 + Phase 1 Integration)
 app.include_router(veo_router)
 app.include_router(clip_router)
+app.include_router(veo_studio_router)  # VEO Studio Phase 1
 app.include_router(taxonomy_router)
 app.include_router(identity_router)
-print("DEBUG: VEO, Taxonomy, & Identity API routers included.")
+print("DEBUG: VEO, VEO Studio, Taxonomy, & Identity API routers included.")
 
 # Background scanning tasks
 @app.on_event("startup")
