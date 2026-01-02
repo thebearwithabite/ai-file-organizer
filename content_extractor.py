@@ -33,45 +33,72 @@ class ContentExtractor:
         local_db_dir.mkdir(parents=True, exist_ok=True)
         # Enforce local storage - will raise RuntimeError if unsafe
         self.db_path = ensure_safe_local_path(local_db_dir / "content_index.db")
+        print(f"DEBUG: ContentExtractor DB Path: {self.db_path}")
+
+        # Initialize extractor mapping
+        self.extractors = {
+            '.pdf': self._extract_pdf,
+            '.docx': self._extract_docx,
+            '.pages': self._extract_pages,
+            '.txt': self._extract_text,
+            '.md': self._extract_markdown,
+            '.ipynb': self._extract_jupyter,
+            '.py': self._extract_code,
+            '.js': self._extract_code,
+            '.ts': self._extract_code,
+            '.tsx': self._extract_code,
+            '.html': self._extract_html,
+            '.csv': self._extract_csv,
+            '.json': self._extract_json
+        }
+        
+        # Ensure database is initialized
+        self._init_database()
 
     def _init_database(self):
         """Initialize content index database"""
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         
-        with sqlite3.connect(self.db_path) as conn:
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS content_index (
-                    file_path TEXT PRIMARY KEY,
-                    file_hash TEXT,
-                    content_hash TEXT,
-                    extracted_text TEXT,
-                    metadata TEXT,
-                    extraction_method TEXT,
-                    extracted_at TIMESTAMP,
-                    file_size INTEGER,
-                    content_length INTEGER,
-                    extraction_success BOOLEAN
-                )
-            """)
-            
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS extraction_stats (
-                    date DATE PRIMARY KEY,
-                    files_processed INTEGER DEFAULT 0,
-                    files_successful INTEGER DEFAULT 0,
-                    total_content_length INTEGER DEFAULT 0,
-                    avg_extraction_time REAL DEFAULT 0.0
-                )
-            """)
-            
-            # Create full-text search index
-            conn.execute("""
-                CREATE VIRTUAL TABLE IF NOT EXISTS content_fts USING fts5(
-                    file_path,
-                    extracted_text,
-                    metadata
-                )
-            """)
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                conn.execute("PRAGMA journal_mode=WAL;")
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS content_index (
+                        file_path TEXT PRIMARY KEY,
+                        file_hash TEXT,
+                        content_hash TEXT,
+                        extracted_text TEXT,
+                        metadata TEXT,
+                        extraction_method TEXT,
+                        extracted_at TIMESTAMP,
+                        file_size INTEGER,
+                        content_length INTEGER,
+                        extraction_success BOOLEAN
+                    )
+                """)
+                print("DEBUG: Table content_index created (if not existed)")
+                
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS extraction_stats (
+                        date DATE PRIMARY KEY,
+                        files_processed INTEGER DEFAULT 0,
+                        files_successful INTEGER DEFAULT 0,
+                        total_content_length INTEGER DEFAULT 0,
+                        avg_extraction_time REAL DEFAULT 0.0
+                    )
+                """)
+                
+                # Create full-text search index
+                conn.execute("""
+                    CREATE VIRTUAL TABLE IF NOT EXISTS content_fts USING fts5(
+                        file_path,
+                        extracted_text,
+                        metadata
+                    )
+                """)
+                conn.commit()
+        except Exception as e:
+            print(f"ERROR: Failed to initialize ContentExtractor database: {e}")
     
     def _get_file_hash(self, file_path: Path) -> str:
         """Generate hash for file change detection"""

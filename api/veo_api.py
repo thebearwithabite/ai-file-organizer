@@ -29,12 +29,13 @@ from gemini_vision_adapter import (
     create_adapter_with_learning,
     analyze_and_learn
 )
+from api.resolve_service import resolve_instance
 
 logger = logging.getLogger(__name__)
 
 # Database path - local metadata system only
 from gdrive_integration import get_metadata_root
-DB_PATH = get_metadata_root() / "metadata.db"
+DB_PATH = get_metadata_root() / "databases" / "metadata.db"
 
 # Create routers
 router = APIRouter(prefix="/api/veo", tags=["veo"])
@@ -587,6 +588,200 @@ async def get_clip(clip_id: int):
         raise HTTPException(status_code=404, detail=f"Clip {clip_id} not found")
 
     return prompt
+
+
+# ===== Resolve Automation Endpoints =====
+
+@router.get("/resolve/status")
+async def get_resolve_status():
+    """Check if DaVinci Resolve is connected via MCP"""
+    try:
+        await resolve_instance.connect()
+        version = await resolve_instance.get_version()
+        page = await resolve_instance.call_tool("get_current_page")
+        return {
+            "connected": True,
+            "version": version,
+            "current_page": page.content[0].text if page.content else "Unknown"
+        }
+    except Exception as e:
+        return {
+            "connected": False,
+            "error": str(e)
+        }
+
+
+@router.post("/resolve/push")
+async def push_veo_to_resolve(session_id: str):
+    """
+    Push a VEO session (shot list and markers) into DaVinci Resolve.
+    
+    1. Reads session from MetadataService
+    2. Creates a bin for the session
+    3. Imports assets if they exist
+    4. Creates a timeline
+    5. Adds markers for each shot
+    """
+    try:
+        from metadata_service import MetadataService
+        ms = MetadataService()
+        session = ms.get_veo_session(session_id)
+        
+        if not session:
+            raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
+            
+        await resolve_instance.connect()
+        
+        # 0. Dedicated Project Scaffolding
+        # We try to create a project named after the session, or just work in the current one if preferred.
+        session_name = session.get('session_name', session_id)
+        project_name = f"VEO_{session_name}"
+        
+        # Try to create project (will return error if exists)
+        create_res = await resolve_instance.call_tool("create_project", {"name": project_name})
+        # If created or already exists, try to open it
+        await resolve_instance.call_tool("open_project", {"name": project_name})
+        
+        # 1. Create Bin (Ensure organization within the project)
+        bin_name = f"SHOT_LIST_{session_id}"
+        await resolve_instance.call_tool("create_bin", {"name": bin_name})
+        
+        # 2. Import Assets (if any)
+        assets = session.get('assets', [])
+        for asset in assets:
+            if os.path.exists(asset):
+                await resolve_instance.call_tool("import_media", {"file_path": asset})
+        
+        # 3. Create Timeline
+        timeline_name = f"VEO_Timeline_{session_id}"
+        await resolve_instance.call_tool("create_timeline", {"name": timeline_name})
+        
+        # 4. Add Markers for Shots
+        shot_list = session.get('shot_list', [])
+        for i, shot in enumerate(shot_list):
+            # Example: Add markers every 5 seconds for simulation if frames aren't known
+            frame = i * 120 # Assuming 24fps * 5s
+            await resolve_instance.call_tool("add_marker", {
+                "frame": frame,
+                "color": "Blue",
+                "note": f"Shot {shot.get('shot_id')}: {shot.get('scene_context', '')[:50]}"
+            })
+            
+        return {"success": True, "message": f"Session {session_id} pushed to Resolve"}
+        
+    except Exception as e:
+        logger.error(f"Failed to push to Resolve: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ===== VEO Brain Generation Endpoints =====
+
+from veo_brain import VeoBrain
+
+# Initialize Brain
+_veo_brain = None
+
+def get_veo_brain():
+    global _veo_brain
+    if _veo_brain is None:
+        _veo_brain = VeoBrain()
+    return _veo_brain
+
+class ScriptInput(BaseModel):
+    script: str
+
+class ShotListInput(BaseModel):
+    scene_id: str
+    scene_pitches: str
+    script: str
+
+class VeoShotGenInput(BaseModel):
+    pitch: str
+    shot_id: str
+    script: str
+    scene_plan: Optional[Dict[str, Any]] = None
+
+class KeyframeGenInput(BaseModel):
+    prompt: Optional[str] = None
+    veo_shot: Optional[Dict[str, Any]] = None
+    aspect_ratio: str = "16:9"
+    ingredients: List[Dict[str, Any]] = []
+
+@router.post("/generate/keyframe")
+async def generate_keyframe_endpoint(input_data: KeyframeGenInput):
+    """Generate a keyframe image (Local Flux or Cloud)."""
+    brain = get_veo_brain()
+    
+    # Generate prompt if not provided but VEO shot is
+    prompt = input_data.prompt
+    if not prompt and input_data.veo_shot:
+        prompt = await brain.generate_keyframe_prompt(input_data.veo_shot)
+        
+    if not prompt:
+        raise HTTPException(status_code=400, detail="Must provide prompt or veo_shot")
+        
+    # Generate Image
+    image_base64 = await brain.generate_keyframe_image(
+        prompt, 
+        aspect_ratio=input_data.aspect_ratio,
+        ingredients=input_data.ingredients
+    )
+    
+    return {
+        "result": image_base64, # Base64 string
+        "prompt_used": prompt
+    }
+
+
+# ===== KIE.ai Video Generation Endpoints =====
+
+from kie_client import get_kie_client, KieGenerateRequest, KieExtendRequest
+
+@router.post("/video/generate")
+async def generate_video_endpoint(request: KieGenerateRequest):
+    """
+    Trigger real video generation via KIE.ai (Veo 3.1).
+    Returns a taskId to poll for status.
+    """
+    client = get_kie_client()
+    try:
+        result = client.generate_video(request)
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=503, detail="Video generation unavailable (Missing API Key)")
+    except Exception as e:
+        logger.error(f"Video generation failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/video/extend")
+async def extend_video_endpoint(request: KieExtendRequest):
+    """
+    Extend an existing Veo video task.
+    """
+    client = get_kie_client()
+    try:
+        result = client.extend_video(request)
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=503, detail="Video generation unavailable (Missing API Key)")
+    except Exception as e:
+        logger.error(f"Video extension failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/video/status/{task_id}")
+async def get_video_status_endpoint(task_id: str):
+    """
+    Check the status of a video generation task.
+    """
+    client = get_kie_client()
+    try:
+        result = client.get_task_details(task_id)
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=503, detail="Video generation unavailable (Missing API Key)")
+    except Exception as e:
+        logger.error(f"Status check failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # Export routers for inclusion in main.py

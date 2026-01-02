@@ -349,44 +349,49 @@ class BulletproofDeduplicator:
         
         print(f"📁 Found {len(all_files)} files to analyze")
 
-        # Group files by quick hash (Tier 1 screening)
-        print("⚡ Tier 1: Quick MD5 screening...")
-        quick_hash_groups = {}
+        # Group files by size (Tier 0 screening)
+        print("📊 Tier 0: Grouping by file size...")
+        size_groups = {}
         skipped_files = 0
         protected_files = 0
-
-        for i, file_path in enumerate(all_files):
-            # Show progress every 50 files
-            if (i + 1) % 50 == 0 or (i + 1) == len(all_files):
-                print(f"   Progress: {i + 1}/{len(all_files)} files ({((i+1)/len(all_files)*100):.1f}%)")
-
-            # ABSOLUTE PROTECTION: Skip database and learned data files
+        for file_path in all_files:
             if self.is_database_or_learned_data(file_path):
                 protected_files += 1
                 continue
-
-            quick_hash = self.calculate_quick_hash(file_path)
-            if quick_hash:
-                if quick_hash not in quick_hash_groups:
-                    quick_hash_groups[quick_hash] = []
-                quick_hash_groups[quick_hash].append(file_path)
-            else:
+            try:
+                size = file_path.stat().st_size
+                if size not in size_groups:
+                    size_groups[size] = []
+                size_groups[size].append(file_path)
+            except:
                 skipped_files += 1
+
+        # Only process size groups with multiple files
+        size_potential = {s: paths for s, paths in size_groups.items() if len(paths) > 1}
+        total_potential_files = sum(len(paths) for paths in size_potential.values())
+        print(f"   Found {total_potential_files} files with non-unique sizes")
+
+        # Group files by quick hash (Tier 1 screening)
+        print("⚡ Tier 1: Quick MD5 screening for size-matched files...")
+        quick_hash_groups = {}
+        processed_count = 0
+
+        for size, file_list in size_potential.items():
+            for file_path in file_list:
+                processed_count += 1
+                if processed_count % 50 == 0 or processed_count == total_potential_files:
+                    print(f"   Progress: {processed_count}/{total_potential_files} files ({((processed_count/total_potential_files)*100):.1f}%)")
+
+                quick_hash = self.calculate_quick_hash(file_path)
+                if quick_hash:
+                    if quick_hash not in quick_hash_groups:
+                        quick_hash_groups[quick_hash] = []
+                    quick_hash_groups[quick_hash].append(file_path)
+                else:
+                    skipped_files += 1
 
         if skipped_files > 0:
             print(f"   ⏭️  Skipped {skipped_files} files (locked, symlinks, or inaccessible)")
-
-        if protected_files > 0:
-            print(f"   🛡️  Protected {protected_files} database/learned-data files (NEVER MODIFIED)")
-
-        results["scanned_files"] = len(all_files)
-        
-        # Find potential duplicates (groups with multiple files)
-        potential_duplicates = {k: v for k, v in quick_hash_groups.items() if len(v) > 1}
-        
-        if not potential_duplicates:
-            print("✅ No duplicates found")
-            return results
         
         print(f"🔍 Found {len(potential_duplicates)} potential duplicate groups")
         print("🔒 Tier 2: SHA-256 bulletproof verification...")

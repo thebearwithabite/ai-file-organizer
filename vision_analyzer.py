@@ -170,6 +170,16 @@ Return a valid JSON object with this structure:
             self.logger.warning("IdentityService not found. Identity recognition will be disabled.")
             self.identity_service = None
 
+        # Adaptive Learning Integration
+        self.learning_enabled = True
+        self.learning_system = None
+        try:
+            from universal_adaptive_learning import AdaptiveLearningSystem
+            self.learning_system = AdaptiveLearningSystem()
+        except ImportError:
+            self.logger.warning("AdaptiveLearningSystem not found. Visual learning will be disabled.")
+            self.learning_enabled = False
+
         # Category mapping for visual content
         self.category_keywords = {
             'screenshot': ['screenshot', 'screen capture', 'desktop', 'window', 'interface', 'ui', 'app'],
@@ -226,11 +236,14 @@ Return a valid JSON object with this structure:
                 with open(config_path, 'r') as f:
                     config = json.load(f)
                     remote = config.get("remote_powerhouse", {})
-                    if remote.get("enabled") and remote.get("ip"):
-                        self.remote_enabled = True
-                        self.remote_ip = remote["ip"]
-                        self.remote_ollama_port = remote.get("services", {}).get("ollama", {}).get("port", 11434)
-                        self.logger.info(f"🚀 Remote Powerhouse detected at {self.remote_ip}")
+                    if remote.get("enabled"):
+                        svc = remote.get("services", {}).get("ollama", {})
+                        svc_ip = svc.get("ip") or remote.get("ip")
+                        if svc_ip:
+                            self.remote_enabled = True
+                            self.remote_ip = svc_ip
+                            self.remote_ollama_port = svc.get("port", 11434)
+                            self.logger.info(f"🚀 Remote Ollama detected at {self.remote_ip}:{self.remote_ollama_port}")
         except Exception as e:
             self.logger.warning(f"Failed to load remote powerhouse config: {e}")
 
