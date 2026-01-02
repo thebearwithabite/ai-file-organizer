@@ -368,6 +368,11 @@ python easy_rollback_system.py --today
 - **Data Structure Fixes**: Resolved frontend/backend data format mismatches
 - **Performance Optimization**: Scan results caching, no expensive auto-refreshes
 
+**January 2, 2026 - System Hardening & Monitoring:**
+- **Adaptive Monitor Status Tracking**: Enhanced visibility into emergency checks and pattern discovery cycles.
+- **Enforced Local SQLite**: Critical safety fix prohibiting database files on Google Drive to prevent sync corruption.
+- **Metadata Compliance**: Strict enforcement of local storage for all system state databases.
+
 ### **🎬 Phase 3a Achievements (VEO Prompt Builder):**
 - Video to VEO 3.1 JSON transformation operational
 - Shot type, camera movement, lighting, mood detection
