@@ -121,8 +121,8 @@ class VEOPromptGenerator:
             output_dir: Directory to save generated JSON files
         """
         self.base_dir = Path(base_dir) if base_dir else get_ai_organizer_root()
-        self.db_path = Path(db_path) if db_path else get_metadata_root() /  "metadata.db"
-        self.output_dir = Path(output_dir) if output_dir else self.base_dir / "05_VEO_PROMPTS"
+        self.db_path = Path(db_path) if db_path else get_metadata_root() / "databases" / "metadata.db"
+        self.output_dir = Path(output_dir) if output_dir else get_metadata_root() / "veo_prompts"
 
         # Create output directory
         self.output_dir.mkdir(parents=True, exist_ok=True)

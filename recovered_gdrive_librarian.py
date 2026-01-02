@@ -22,7 +22,8 @@ from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaIoBaseDownload, MediaFileUpload
 
 from classification_engine import FileClassificationEngine, ClassificationResult
-from archive_lifecycle_manager import ArchiveLifecycleManager
+from metadata_service import MetadataService
+from dataclasses import asdict
 from path_config import paths
 
 # Google Drive API scopes
@@ -46,8 +47,9 @@ class GoogleDriveLibrarian:
         self.authenticated = False
         
         # Initialize local AI classifier and archive manager
+        # Initialize local AI classifier and unified metadata service
         self.classifier = FileClassificationEngine(str(self.base_dir))
-        self.archive_manager = ArchiveLifecycleManager(str(self.base_dir))
+        self.metadata_service = MetadataService()
         
         # RYAN_THOMSON_MASTER_WORKSPACE - Enhanced structure based on comprehensive ecosystem analysis
         self.gdrive_folders = {
@@ -824,15 +826,15 @@ class GoogleDriveLibrarian:
     def _log_metadata_operation(self, local_file: Path, gdrive_folder: str, category: str, confidence: float, size_mb: float) -> bool:
         """Log upload operation to metadata system for tracking with success verification"""
         try:
-            # Import metadata generator
-            from metadata_generator import MetadataGenerator
-            
-            # Create metadata entry for the upload operation
-            metadata_gen = MetadataGenerator(str(self.base_dir))
-            
             # Analyze the file before upload (if it still exists)
             if local_file.exists():
-                metadata = metadata_gen.analyze_file_comprehensive(local_file)
+                # Use existing classifier to get file analysis
+                # We need to re-classify to get the full metadata structure, 
+                # or we could rely on passed in category/confidence but we want the full tags/people etc.
+                classification_result = self.classifier.classify_file(local_file)
+                
+                # Convert to dictionary for storage
+                metadata = asdict(classification_result)
                 
                 # Add Google Drive specific metadata
                 metadata.update({
@@ -845,14 +847,10 @@ class GoogleDriveLibrarian:
                     'space_freed_mb': size_mb
                 })
                 
-                # Critical: Verify metadata was actually saved
-                success = metadata_gen.save_file_metadata(metadata)
-                if success:
-                    print(f"   📊 Metadata logged and verified")
-                    return True
-                else:
-                    print(f"   ❌ Metadata save to database failed")
-                    return False
+                # Use unified MetadataService to save
+                self.metadata_service.upsert_file_metadata(local_file, metadata)
+                print(f"   📊 Metadata logged to Unified Service")
+                return True
             else:
                 print(f"   ⚠️  File no longer exists for metadata logging")
                 return False
