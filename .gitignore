@@ -1,58 +1,46 @@
-# Database files
-*.db
-*.db-wal
-*.db-shm
-
-# Python cache
-__pycache__/
-*.py[cod]
-*$py.class
-
-# Content cache
-content_cache/
-
-# Log files
-*.log
-
-# Configuration files with sensitive data
-*config*.json
-gdrive_credentials.json
-.env.local
-
-# macOS
-.DS_Store
-
-# Virtual environments
-venv/
-env/
-
-# IDE
-.vscode/
-.idea/
 
 # AI Organizer local config
-.ai_organizer_config/
-*.pkl
-
-# Personal/dev utility scripts (not for public repo)
-audacity_gdrive_uploader.py
-scrub_personal_info.py
-validate_pii_scrubbing.py
-test_audacity_upload_setup.py
-audacity_upload_report_*.json
-
-# Test output directories
-test_veo_output/
-
 # Claude Code local settings
-.claude/settings.local.json
-2025-11-23-start-message-to-claude.txt
-
+# Configuration files with sensitive data
+# Content cache
+# Database files
+# IDE
 # Legacy audio organizer source
-audio_organizer_source/
-.ai_organizer_config/google_drive_token.json
-
+# Log files
+# Personal/dev utility scripts (not for public repo)
+# Python cache
+# Test output directories
 # Virtual Environments
+# Virtual environments
+# macOS
+*$py.class
+*.db
+*.db-shm
+*.db-wal
+*.log
+*.pkl
+*.py[cod]
+*config*.json
+.DS_Store
+.ai_organizer_config/
+.ai_organizer_config/google_drive_token.json
+.claude/settings.local.json
+.env.local
+.idea/
 .venv/
-
+.vscode/
+2025-11-23-start-message-to-claude.txt
+__pycache__/
+audacity_gdrive_uploader.py
+audacity_upload_report_*.json
+audio_organizer_source/
+content_cache/
 docs/veopromptmachine-*.json
+env/
+gdrive_credentials.json
+scrub_personal_info.py
+temp_benchmark_data/
+test_audacity_upload_setup.py
+test_veo_output/
+validate_pii_scrubbing.py
+venv/
