@@ -99,7 +99,7 @@ class BulletproofDeduplicator:
                 CREATE INDEX IF NOT EXISTS idx_secure_hash ON file_hashes(secure_hash)
             ''')
     
-    def calculate_quick_hash(self, file_path: Path) -> Optional[str]:
+    def calculate_quick_hash(self, file_path: Path, file_size: Optional[int] = None) -> Optional[str]:
         """
         Tier 1: Lightning-fast MD5 screening (~0.1ms per file)
         Used for initial duplicate detection
@@ -110,7 +110,9 @@ class BulletproofDeduplicator:
                 return None
 
             # Check file size - warn about large files
-            file_size = file_path.stat().st_size
+            if file_size is None:
+                file_size = file_path.stat().st_size
+
             if file_size > 1024 * 1024 * 100:  # 100MB
                 print(f"   ⏸️  Large file ({file_size / (1024*1024):.1f}MB): {file_path.name}")
 
@@ -125,7 +127,8 @@ class BulletproofDeduplicator:
             print(f"⚠️ Quick hash error for {file_path.name}: {e}")
             return None
     
-    def calculate_secure_hash(self, file_path: Path, db_connection: Optional[sqlite3.Connection] = None) -> Optional[str]:
+    def calculate_secure_hash(self, file_path: Path, db_connection: Optional[sqlite3.Connection] = None,
+                             file_size: Optional[int] = None, last_modified: Optional[float] = None) -> Optional[str]:
         """
         Tier 2: Bulletproof SHA-256 verification (~2ms per file)
         Used for cryptographic certainty before deletion
@@ -143,6 +146,12 @@ class BulletproofDeduplicator:
             
             secure_hash = sha256_hash.hexdigest()
             
+            # Use provided stats or fetch them
+            if file_size is None:
+                file_size = file_path.stat().st_size
+            if last_modified is None:
+                last_modified = file_path.stat().st_mtime
+
             # Persist to database
             try:
                 if db_connection:
@@ -153,7 +162,7 @@ class BulletproofDeduplicator:
                         VALUES (?, ?, ?, ?)
                     """, (
                         str(file_path), secure_hash, 
-                        file_path.stat().st_size, file_path.stat().st_mtime
+                        file_size, last_modified
                     ))
                 else:
                     # Create new connection (slower)
@@ -164,7 +173,7 @@ class BulletproofDeduplicator:
                             VALUES (?, ?, ?, ?)
                         """, (
                             str(file_path), secure_hash,
-                            file_path.stat().st_size, file_path.stat().st_mtime
+                            file_size, last_modified
                         ))
             except Exception as db_err:
                 # Don't fail if DB write fails, just log it
@@ -240,7 +249,7 @@ class BulletproofDeduplicator:
 
         return False
 
-    def calculate_safety_score(self, file_path: Path, duplicate_group: List[Dict]) -> float:
+    def calculate_safety_score(self, file_path: Path, duplicate_group: List[Dict], last_modified: Optional[float] = None) -> float:
         """
         Calculate safety score (0.0-1.0) for file deletion
         Higher score = safer to delete
@@ -253,7 +262,10 @@ class BulletproofDeduplicator:
         
         # File age factor (older = safer to delete)
         try:
-            age_days = (time.time() - file_path.stat().st_mtime) / (24 * 3600)
+            if last_modified is None:
+                last_modified = file_path.stat().st_mtime
+
+            age_days = (time.time() - last_modified) / (24 * 3600)
             if age_days > 30:
                 score += 0.3
             elif age_days > 7:
@@ -352,6 +364,7 @@ class BulletproofDeduplicator:
         # Group files by size (Tier 0 screening)
         print("📊 Tier 0: Grouping by file size...")
         size_groups = {}
+        file_stats_cache = {}  # Cache stats to avoid repeated syscalls
         skipped_files = 0
         protected_files = 0
         for file_path in all_files:
@@ -359,7 +372,10 @@ class BulletproofDeduplicator:
                 protected_files += 1
                 continue
             try:
-                size = file_path.stat().st_size
+                stat = file_path.stat()
+                size = stat.st_size
+                file_stats_cache[file_path] = (size, stat.st_mtime)
+
                 if size not in size_groups:
                     size_groups[size] = []
                 size_groups[size].append(file_path)
@@ -382,7 +398,8 @@ class BulletproofDeduplicator:
                 if processed_count % 50 == 0 or processed_count == total_potential_files:
                     print(f"   Progress: {processed_count}/{total_potential_files} files ({((processed_count/total_potential_files)*100):.1f}%)")
 
-                quick_hash = self.calculate_quick_hash(file_path)
+                file_size = file_stats_cache.get(file_path, (None, None))[0]
+                quick_hash = self.calculate_quick_hash(file_path, file_size=file_size)
                 if quick_hash:
                     if quick_hash not in quick_hash_groups:
                         quick_hash_groups[quick_hash] = []
@@ -393,6 +410,9 @@ class BulletproofDeduplicator:
         if skipped_files > 0:
             print(f"   ⏭️  Skipped {skipped_files} files (locked, symlinks, or inaccessible)")
         
+        # Define potential_duplicates for compatibility with existing code flow
+        potential_duplicates = quick_hash_groups
+
         print(f"🔍 Found {len(potential_duplicates)} potential duplicate groups")
         print("🔒 Tier 2: SHA-256 bulletproof verification...")
 
@@ -411,14 +431,16 @@ class BulletproofDeduplicator:
                 secure_hash_groups = {}
 
                 for file_path in file_list:
-                    secure_hash = self.calculate_secure_hash(file_path, db_connection=conn)
+                    stats = file_stats_cache.get(file_path, (None, None))
+                    secure_hash = self.calculate_secure_hash(file_path, db_connection=conn,
+                                                           file_size=stats[0], last_modified=stats[1])
                     if secure_hash:
                         if secure_hash not in secure_hash_groups:
                             secure_hash_groups[secure_hash] = []
                         secure_hash_groups[secure_hash].append({
                             'path': file_path,
-                            'size': file_path.stat().st_size,
-                            'mtime': file_path.stat().st_mtime
+                            'size': stats[0] if stats[0] is not None else file_path.stat().st_size,
+                            'mtime': stats[1] if stats[1] is not None else file_path.stat().st_mtime
                         })
 
             # Only groups with multiple files are true duplicates
@@ -446,7 +468,8 @@ class BulletproofDeduplicator:
             file_scores = []
             for file_info in duplicate_group:
                 file_path = file_info['path']
-                safety_score = self.calculate_safety_score(file_path, duplicate_group)
+                stats = file_stats_cache.get(file_path, (None, None))
+                safety_score = self.calculate_safety_score(file_path, duplicate_group, last_modified=stats[1])
                 
                 # Get more file info for the group
                 file_info_full = {
