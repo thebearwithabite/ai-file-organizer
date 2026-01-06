@@ -415,11 +415,18 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
                 
                 if events_to_process:
                     # OPTIMIZATION: Reuse database connection for batch processing
+                    # We open connections to both rules DB and processed files DB to prevent N+1 overhead
                     try:
-                        with sqlite3.connect(self.rules_db_path) as conn:
+                        with sqlite3.connect(self.rules_db_path) as rules_conn, \
+                             sqlite3.connect(self.db_path) as processed_conn:
+
                             # Process collected events
                             for event in events_to_process:
-                                self._learn_from_file_event(event, db_connection=conn)
+                                self._learn_from_file_event(
+                                    event,
+                                    db_connection=rules_conn,
+                                    processed_db_connection=processed_conn
+                                )
                     except Exception as db_err:
                         self.logger.error(f"Database error in event loop: {db_err}")
                         # Fallback to individual processing if batch fails
@@ -432,7 +439,9 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
                 self.logger.error(f"Error processing file events: {e}")
                 time.sleep(30)
 
-    def _learn_from_file_event(self, event: Dict[str, Any], db_connection: Optional[sqlite3.Connection] = None):
+    def _learn_from_file_event(self, event: Dict[str, Any],
+                              db_connection: Optional[sqlite3.Connection] = None,
+                              processed_db_connection: Optional[sqlite3.Connection] = None):
         """Learn from a file system event"""
         
         event_type = event['type']
@@ -456,7 +465,11 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
         
         elif event_type == 'modified':
             # File modified - check if it needs re-indexing
-            self._handle_file_modification(event['path'], event['timestamp'])
+            self._handle_file_modification(
+                event['path'],
+                event['timestamp'],
+                processed_db_connection=processed_db_connection
+            )
 
     def _learn_from_file_move(self, src_path: str, dest_path: str, timestamp: datetime, db_connection: Optional[sqlite3.Connection] = None):
         """Learn from user manually moving a file"""
@@ -697,7 +710,7 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
 
         return results
 
-    def _handle_file_modification(self, file_path: str, timestamp: datetime):
+    def _handle_file_modification(self, file_path: str, timestamp: datetime, processed_db_connection: Optional[sqlite3.Connection] = None):
         """Handle file modification - check for re-indexing"""
         
         try:
@@ -707,7 +720,7 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
                 return
             
             # Check if file needs re-indexing
-            if self._needs_reindexing(file_obj):
+            if self._needs_reindexing(file_obj, db_connection=processed_db_connection):
                 self.logger.info(f"Re-indexing modified file: {file_obj.name}")
                 # Treat modification as a "new event" for cooldown purposes?
                 # The spec says: "Wait 7 days of inactivity (no modifications in last 7 days)"
@@ -1290,14 +1303,14 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
             pass
         return count
 
-    def _needs_reindexing(self, file_obj: Path) -> bool:
+    def _needs_reindexing(self, file_obj: Path, db_connection: Optional[sqlite3.Connection] = None) -> bool:
         """Check if file needs re-indexing"""
         # Simple check - could be more sophisticated
         try:
             current_hash = self._get_file_hash(file_obj)
             
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.execute(
+            if db_connection:
+                cursor = db_connection.execute(
                     "SELECT file_hash FROM processed_files WHERE file_path = ?",
                     (str(file_obj),)
                 )
@@ -1305,6 +1318,16 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
                 
                 if result and result[0] != current_hash:
                     return True
+            else:
+                with sqlite3.connect(self.db_path) as conn:
+                    cursor = conn.execute(
+                        "SELECT file_hash FROM processed_files WHERE file_path = ?",
+                        (str(file_obj),)
+                    )
+                    result = cursor.fetchone()
+
+                    if result and result[0] != current_hash:
+                        return True
             
         except:
             pass
