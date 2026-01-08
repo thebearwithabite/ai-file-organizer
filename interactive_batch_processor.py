@@ -231,34 +231,43 @@ class InteractiveBatchProcessor:
         
         # Create file previews
         file_previews = []
-        for file_path in files_found:
-            preview = self._generate_file_preview(file_path)
-            if preview:
-                file_previews.append(preview)
         
-        # Group files intelligently
-        batch_groups = self._create_intelligent_groups(file_previews)
-        
-        # Create session
-        session_data = {
-            "session_id": session_id,
-            "session_name": session_name or f"Batch_{datetime.now().strftime('%Y%m%d_%H%M')}",
-            "start_time": datetime.now(),
-            "source_directory": str(source_path),
-            "total_files": len(files_found),
-            "file_previews": file_previews,
-            "batch_groups": batch_groups,
-            "current_group_index": 0,
-            "processed_groups": [],
-            "pending_operations": [],
-            "user_decisions": [],
-            "status": "active"
-        }
-        
-        self.active_sessions[session_id] = session_data
-        
-        # Record session in database
-        self._record_batch_session(session_data)
+        # OPTIMIZATION: Reuse database connection for batch processing
+        # This prevents N+1 connection overhead (opens 1 connection instead of 2*N)
+        try:
+            with sqlite3.connect(self.batch_db_path) as conn:
+                for file_path in files_found:
+                    preview = self._generate_file_preview(file_path, db_connection=conn)
+                    if preview:
+                        file_previews.append(preview)
+
+                # Group files intelligently (CPU bound, no DB)
+                batch_groups = self._create_intelligent_groups(file_previews)
+
+                # Create session
+                session_data = {
+                    "session_id": session_id,
+                    "session_name": session_name or f"Batch_{datetime.now().strftime('%Y%m%d_%H%M')}",
+                    "start_time": datetime.now(),
+                    "source_directory": str(source_path),
+                    "total_files": len(files_found),
+                    "file_previews": file_previews,
+                    "batch_groups": batch_groups,
+                    "current_group_index": 0,
+                    "processed_groups": [],
+                    "pending_operations": [],
+                    "user_decisions": [],
+                    "status": "active"
+                }
+
+                self.active_sessions[session_id] = session_data
+
+                # Record session in database (reusing connection)
+                self._record_batch_session(session_data, db_connection=conn)
+
+        except Exception as e:
+            self.logger.error(f"Error in batch session initialization: {e}")
+            raise
         
         self.logger.info(f"Batch session {session_id} created with {len(batch_groups)} groups")
         
@@ -376,13 +385,13 @@ class InteractiveBatchProcessor:
         
         return files
 
-    def _generate_file_preview(self, file_path: Path) -> Optional[FilePreview]:
+    def _generate_file_preview(self, file_path: Path, db_connection: Optional[sqlite3.Connection] = None) -> Optional[FilePreview]:
         """Generate preview for a file"""
         
         try:
             # Check cache first
             file_hash = self._calculate_file_hash(file_path)
-            cached_preview = self._get_cached_preview(str(file_path), file_hash)
+            cached_preview = self._get_cached_preview(str(file_path), file_hash, db_connection)
             
             if cached_preview:
                 self.stats["preview_cache_hits"] += 1
@@ -449,7 +458,7 @@ class InteractiveBatchProcessor:
             )
             
             # Cache the preview
-            self._cache_preview(str(file_path), file_hash, preview)
+            self._cache_preview(str(file_path), file_hash, preview, db_connection)
             
             return preview
             
@@ -961,11 +970,12 @@ class InteractiveBatchProcessor:
         except:
             return hashlib.md5(str(file_path).encode()).hexdigest()
 
-    def _get_cached_preview(self, file_path: str, file_hash: str) -> Optional[FilePreview]:
+    def _get_cached_preview(self, file_path: str, file_hash: str, db_connection: Optional[sqlite3.Connection] = None) -> Optional[FilePreview]:
         """Get cached preview if available"""
         try:
-            with sqlite3.connect(self.batch_db_path) as conn:
-                cursor = conn.execute("""
+            if db_connection:
+                # Use provided connection
+                cursor = db_connection.execute("""
                     SELECT preview_data FROM file_previews 
                     WHERE file_path = ? AND file_hash = ?
                 """, (file_path, file_hash))
@@ -975,31 +985,55 @@ class InteractiveBatchProcessor:
                 if result:
                     preview_data = json.loads(result[0])
                     # Update access count
-                    conn.execute("""
+                    db_connection.execute("""
                         UPDATE file_previews 
                         SET last_accessed = ?, access_count = access_count + 1
                         WHERE file_path = ?
                     """, (datetime.now().isoformat(), file_path))
-                    conn.commit()
+                    # Note: We do NOT commit here if using shared connection
                     
                     # Convert back to FilePreview object
                     preview = FilePreview(**preview_data)
                     return preview
+            else:
+                # Create new connection
+                with sqlite3.connect(self.batch_db_path) as conn:
+                    cursor = conn.execute("""
+                        SELECT preview_data FROM file_previews
+                        WHERE file_path = ? AND file_hash = ?
+                    """, (file_path, file_hash))
+
+                    result = cursor.fetchone()
+
+                    if result:
+                        preview_data = json.loads(result[0])
+                        # Update access count
+                        conn.execute("""
+                            UPDATE file_previews
+                            SET last_accessed = ?, access_count = access_count + 1
+                            WHERE file_path = ?
+                        """, (datetime.now().isoformat(), file_path))
+                        conn.commit()
+
+                        # Convert back to FilePreview object
+                        preview = FilePreview(**preview_data)
+                        return preview
         except Exception as e:
             self.logger.error(f"Error getting cached preview: {e}")
         
         return None
 
-    def _cache_preview(self, file_path: str, file_hash: str, preview: FilePreview):
+    def _cache_preview(self, file_path: str, file_hash: str, preview: FilePreview, db_connection: Optional[sqlite3.Connection] = None):
         """Cache file preview"""
         try:
-            with sqlite3.connect(self.batch_db_path) as conn:
-                preview_data = asdict(preview)
-                # Convert datetime objects to ISO strings
-                preview_data['creation_date'] = preview.creation_date.isoformat()
-                preview_data['modification_date'] = preview.modification_date.isoformat()
-                
-                conn.execute("""
+            preview_data = asdict(preview)
+            # Convert datetime objects to ISO strings
+            preview_data['creation_date'] = preview.creation_date.isoformat()
+            preview_data['modification_date'] = preview.modification_date.isoformat()
+
+            if db_connection:
+                # Use provided connection
+                db_connection.execute("""
                     INSERT OR REPLACE INTO file_previews 
                     (file_path, file_hash, preview_data, generated_time, last_accessed)
                     VALUES (?, ?, ?, ?, ?)
@@ -1010,7 +1044,21 @@ class InteractiveBatchProcessor:
                     datetime.now().isoformat(),
                     datetime.now().isoformat()
                 ))
-                conn.commit()
+            else:
+                # Create new connection
+                with sqlite3.connect(self.batch_db_path) as conn:
+                    conn.execute("""
+                        INSERT OR REPLACE INTO file_previews
+                        (file_path, file_hash, preview_data, generated_time, last_accessed)
+                        VALUES (?, ?, ?, ?, ?)
+                    """, (
+                        file_path,
+                        file_hash,
+                        json.dumps(preview_data),
+                        datetime.now().isoformat(),
+                        datetime.now().isoformat()
+                    ))
+                    conn.commit()
         except Exception as e:
             self.logger.error(f"Error caching preview: {e}")
 
@@ -1333,11 +1381,11 @@ class InteractiveBatchProcessor:
             action == "keep_newest"):  # Assuming smart defaults
             self.stats["confidence_improvements"] += 1
 
-    def _record_batch_session(self, session_data: Dict[str, Any]):
+    def _record_batch_session(self, session_data: Dict[str, Any], db_connection: Optional[sqlite3.Connection] = None):
         """Record batch session in database"""
         try:
-            with sqlite3.connect(self.batch_db_path) as conn:
-                conn.execute("""
+            if db_connection:
+                db_connection.execute("""
                     INSERT INTO batch_sessions 
                     (session_id, start_time, source_directory, total_files, groups_created)
                     VALUES (?, ?, ?, ?, ?)
@@ -1348,7 +1396,20 @@ class InteractiveBatchProcessor:
                     session_data["total_files"],
                     len(session_data["batch_groups"])
                 ))
-                conn.commit()
+            else:
+                with sqlite3.connect(self.batch_db_path) as conn:
+                    conn.execute("""
+                        INSERT INTO batch_sessions
+                        (session_id, start_time, source_directory, total_files, groups_created)
+                        VALUES (?, ?, ?, ?, ?)
+                    """, (
+                        session_data["session_id"],
+                        session_data["start_time"].isoformat(),
+                        session_data["source_directory"],
+                        session_data["total_files"],
+                        len(session_data["batch_groups"])
+                    ))
+                    conn.commit()
         except Exception as e:
             self.logger.error(f"Error recording batch session: {e}")
 
