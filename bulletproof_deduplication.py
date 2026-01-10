@@ -410,6 +410,7 @@ class BulletproofDeduplicator:
                 if processed_count % 50 == 0 or processed_count == total_potential_files:
                     print(f"   Progress: {processed_count}/{total_potential_files} files ({((processed_count/total_potential_files)*100):.1f}%)")
 
+                # Reuse size from tier 0
                 quick_hash = self.calculate_quick_hash(file_path, file_size=size)
                 if quick_hash:
                     if quick_hash not in quick_hash_groups:
@@ -423,6 +424,9 @@ class BulletproofDeduplicator:
         
         # Fix: potential_duplicates was undefined in original code
         potential_duplicates = {h: paths for h, paths in quick_hash_groups.items() if len(paths) > 1}
+        # Only process hash groups with multiple files
+        potential_duplicates = {h: paths for h, paths in quick_hash_groups.items() if len(paths) > 1}
+
         print(f"🔍 Found {len(potential_duplicates)} potential duplicate groups")
         print("🔒 Tier 2: SHA-256 bulletproof verification...")
 
@@ -448,6 +452,16 @@ class BulletproofDeduplicator:
 
                     secure_hash = self.calculate_secure_hash(file_path, db_connection=conn,
                                                            file_size=f_size, file_mtime=f_mtime)
+                    # Get file stats once to reuse
+                    try:
+                        stat_info = file_path.stat()
+                        file_size = stat_info.st_size
+                        mtime = stat_info.st_mtime
+                    except Exception:
+                        file_size = None
+                        mtime = None
+
+                    secure_hash = self.calculate_secure_hash(file_path, db_connection=conn, file_size=file_size, mtime=mtime)
                     if secure_hash:
                         if secure_hash not in secure_hash_groups:
                             secure_hash_groups[secure_hash] = []
