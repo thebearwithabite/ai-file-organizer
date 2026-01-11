@@ -321,13 +321,9 @@ class UniversalAdaptiveLearning:
             conn.execute("DELETE FROM learning_events WHERE timestamp < ?", (cutoff,))
             
             # UPSERT learning events (Last 1000 items from memory)
+            events_data = []
             for event in self.learning_events[-1000:]:
-                conn.execute('''
-                    INSERT OR REPLACE INTO learning_events 
-                    (event_id, timestamp, event_type, file_path, original_prediction, user_action,
-                     confidence_before, confidence_after, context)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''', (
+                events_data.append((
                     event.event_id,
                     event.timestamp.isoformat(),
                     event.event_type,
@@ -339,11 +335,18 @@ class UniversalAdaptiveLearning:
                     json.dumps(event.context) if event.context else None
                 ))
             
+            if events_data:
+                conn.executemany('''
+                    INSERT OR REPLACE INTO learning_events
+                    (event_id, timestamp, event_type, file_path, original_prediction, user_action,
+                     confidence_before, confidence_after, context)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', events_data)
+
             # UPSERT patterns
+            patterns_data = []
             for pattern in self.patterns.values():
-                conn.execute('''
-                    INSERT OR REPLACE INTO patterns VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                ''', (
+                patterns_data.append((
                     pattern.pattern_id,
                     pattern.pattern_type,
                     json.dumps(pattern.trigger_conditions),
@@ -354,11 +357,15 @@ class UniversalAdaptiveLearning:
                     pattern.accuracy_rate
                 ))
             
+            if patterns_data:
+                conn.executemany('''
+                    INSERT OR REPLACE INTO patterns VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ''', patterns_data)
+
             # UPSERT preferences
+            prefs_data = []
             for pref in self.user_preferences.values():
-                conn.execute('''
-                    INSERT OR REPLACE INTO user_preferences VALUES (?, ?, ?, ?, ?, ?, ?)
-                ''', (
+                prefs_data.append((
                     pref.preference_id,
                     pref.preference_type,
                     json.dumps(pref.conditions),
@@ -367,6 +374,11 @@ class UniversalAdaptiveLearning:
                     pref.frequency,
                     pref.last_reinforced.isoformat()
                 ))
+
+            if prefs_data:
+                conn.executemany('''
+                    INSERT OR REPLACE INTO user_preferences VALUES (?, ?, ?, ?, ?, ?, ?)
+                ''', prefs_data)
 
     def record_learning_event(self, 
                             event_type: str,
