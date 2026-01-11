@@ -16,6 +16,10 @@ import type {
   ProjectsResponse,
   MaintenanceLog,
   EmergencyLog,
+  VEOScriptAnalysis,
+  VEOShotList,
+  VEOKeyframe,
+  VEOProjectResponse,
 } from '../types/api'
 
 const API_BASE = 'http://localhost:8000'
@@ -323,6 +327,63 @@ export const api = {
   getEmergencyLogs: async (limit: number = 50): Promise<EmergencyLog[]> => {
     const response = await fetch(`${API_BASE}/api/system/emergency-logs?limit=${limit}`)
     if (!response.ok) throw new Error('Failed to fetch emergency logs')
+    return await response.json()
+  },
+
+  // ===== VEO Studio API Methods =====
+
+  analyzeScript: async (scriptContent: string, projectName?: string): Promise<VEOScriptAnalysis> => {
+    const response = await fetch(`${API_BASE}/api/veo-studio/analyze-script`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        script_content: scriptContent,
+        project_name: projectName
+      }),
+    })
+    if (!response.ok) throw new Error('Failed to analyze script')
+    return await response.json()
+  },
+
+  generateShotList: async (scriptContent: string, projectName?: string, existingAssets?: any[]): Promise<VEOShotList> => {
+    const response = await fetch(`${API_BASE}/api/veo-studio/generate-shot-list`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        script_content: scriptContent,
+        project_name: projectName,
+        existing_assets: existingAssets
+      }),
+    })
+    if (!response.ok) throw new Error('Failed to generate shot list')
+    return await response.json()
+  },
+
+  generateKeyframe: async (shotId: string, prompt: string, useLocalFlux: boolean = false): Promise<VEOKeyframe> => {
+    const response = await fetch(`${API_BASE}/api/veo-studio/generate-keyframe`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        shot_id: shotId,
+        prompt: prompt,
+        use_local_flux: useLocalFlux
+      }),
+    })
+    if (!response.ok) throw new Error('Failed to generate keyframe')
+    return await response.json()
+  },
+
+  getVEOProjects: async (): Promise<VEOProjectResponse> => {
+    const response = await fetch(`${API_BASE}/api/veo-studio/projects`)
+    if (!response.ok) throw new Error('Failed to fetch VEO projects')
+    return await response.json()
+  },
+
+  createVEOProject: async (projectName: string, scriptContent?: string): Promise<VEOProjectResponse> => {
+    const response = await fetch(`${API_BASE}/api/veo-studio/projects?project_name=${encodeURIComponent(projectName)}${scriptContent ? `&script_content=${encodeURIComponent(scriptContent)}` : ''}`, {
+      method: 'POST',
+    })
+    if (!response.ok) throw new Error('Failed to create VEO project')
     return await response.json()
   },
 }
