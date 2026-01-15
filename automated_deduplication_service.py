@@ -629,19 +629,21 @@ class AutomatedDeduplicationService:
             self.logger.error(f"Error in emergency cleanup: {e}")
 
     # Helper methods
-    def _calculate_file_hash(self, file_path: Path) -> str:
+    def _calculate_file_hash(self, file_path: Path, db_conn: Optional[sqlite3.Connection] = None) -> str:
         """Calculate SHA-256 hash of file"""
-        return self.deduplicator.calculate_secure_hash(file_path)
+        return self.deduplicator.calculate_secure_hash(file_path, db_conn=db_conn)
 
     def _find_duplicates_in_directory(self, file_hash: str, directory: Path) -> List[Path]:
         """Find duplicates of a file in a specific directory"""
         duplicates = []
         
         try:
-            for file_path in directory.rglob('*'):
-                if file_path.is_file():
-                    if self._calculate_file_hash(file_path) == file_hash:
-                        duplicates.append(file_path)
+            # Use shared connection for batch processing
+            with sqlite3.connect(self.deduplicator.db_path) as conn:
+                for file_path in directory.rglob('*'):
+                    if file_path.is_file():
+                        if self._calculate_file_hash(file_path, db_conn=conn) == file_hash:
+                            duplicates.append(file_path)
         except:
             pass
         
