@@ -125,10 +125,16 @@ class BulletproofDeduplicator:
             print(f"⚠️ Quick hash error for {file_path.name}: {e}")
             return None
     
-    def calculate_secure_hash(self, file_path: Path) -> Optional[str]:
+    def calculate_secure_hash(self, file_path: Path, db_conn: Optional[sqlite3.Connection] = None) -> Optional[str]:
         """
         Tier 2: Bulletproof SHA-256 verification (~2ms per file)
         Used for cryptographic certainty before deletion
+
+        Args:
+            file_path: Path to the file to hash
+            db_conn: Optional shared database connection for batch processing.
+                     If provided, caller is responsible for commits.
+                     If None, a new connection is created and committed immediately.
         """
         try:
             # Skip symlinks and special files
@@ -145,8 +151,9 @@ class BulletproofDeduplicator:
             
             # Persist to database
             try:
-                with sqlite3.connect(self.db_path) as conn:
-                    conn.execute("""
+                if db_conn:
+                    # Use provided connection (batch mode) - NO COMMIT here
+                    db_conn.execute("""
                         INSERT OR REPLACE INTO file_hashes 
                         (file_path, secure_hash, file_size, last_modified)
                         VALUES (?, ?, ?, ?)
@@ -154,6 +161,17 @@ class BulletproofDeduplicator:
                         str(file_path), secure_hash, 
                         file_path.stat().st_size, file_path.stat().st_mtime
                     ))
+                else:
+                    # Legacy mode: New connection + auto-commit
+                    with sqlite3.connect(self.db_path) as conn:
+                        conn.execute("""
+                            INSERT OR REPLACE INTO file_hashes
+                            (file_path, secure_hash, file_size, last_modified)
+                            VALUES (?, ?, ?, ?)
+                        """, (
+                            str(file_path), secure_hash,
+                            file_path.stat().st_size, file_path.stat().st_mtime
+                        ))
             except Exception as db_err:
                 # Don't fail if DB write fails, just log it
                 print(f"⚠️ Failed to persist hash for {file_path.name}: {db_err}")
@@ -383,29 +401,45 @@ class BulletproofDeduplicator:
         confirmed_duplicates = {}
         total_groups = len(potential_duplicates)
 
-        for group_idx, (quick_hash, file_list) in enumerate(potential_duplicates.items()):
-            # Show progress for verification phase
-            if (group_idx + 1) % 10 == 0 or (group_idx + 1) == total_groups:
-                print(f"   Verifying group {group_idx + 1}/{total_groups} ({((group_idx+1)/total_groups*100):.1f}%)")
+        # OPTIMIZATION: Use shared connection for batch processing
+        # This prevents opening/closing DB connection for every file (N+1 problem)
+        try:
+            with sqlite3.connect(self.db_path) as batch_conn:
+                for group_idx, (quick_hash, file_list) in enumerate(potential_duplicates.items()):
+                    # Show progress for verification phase
+                    if (group_idx + 1) % 10 == 0 or (group_idx + 1) == total_groups:
+                        print(f"   Verifying group {group_idx + 1}/{total_groups} ({((group_idx+1)/total_groups*100):.1f}%)")
 
-            # Calculate secure hashes for this group
-            secure_hash_groups = {}
+                    # Calculate secure hashes for this group
+                    secure_hash_groups = {}
 
-            for file_path in file_list:
-                secure_hash = self.calculate_secure_hash(file_path)
-                if secure_hash:
-                    if secure_hash not in secure_hash_groups:
-                        secure_hash_groups[secure_hash] = []
-                    secure_hash_groups[secure_hash].append({
-                        'path': file_path,
-                        'size': file_path.stat().st_size,
-                        'mtime': file_path.stat().st_mtime
-                    })
+                    for file_path in file_list:
+                        secure_hash = self.calculate_secure_hash(file_path, db_conn=batch_conn)
+                        if secure_hash:
+                            if secure_hash not in secure_hash_groups:
+                                secure_hash_groups[secure_hash] = []
+                            secure_hash_groups[secure_hash].append({
+                                'path': file_path,
+                                'size': file_path.stat().st_size,
+                                'mtime': file_path.stat().st_mtime
+                            })
 
-            # Only groups with multiple files are true duplicates
-            for secure_hash, duplicate_group in secure_hash_groups.items():
-                if len(duplicate_group) > 1:
-                    confirmed_duplicates[secure_hash] = duplicate_group
+                    # Periodic commit to avoid massive transactions
+                    if (group_idx + 1) % 20 == 0:
+                        batch_conn.commit()
+
+                    # Only groups with multiple files are true duplicates
+                    for secure_hash, duplicate_group in secure_hash_groups.items():
+                        if len(duplicate_group) > 1:
+                            confirmed_duplicates[secure_hash] = duplicate_group
+
+                # Final commit
+                batch_conn.commit()
+
+        except Exception as e:
+            print(f"⚠️ Error during batch verification: {e}")
+            # Fallback to slower method if batch fails? Or just return partial results?
+            # For now, we log and proceed with what we have
         
         if not confirmed_duplicates:
             print("✅ No confirmed duplicates found (passed SHA-256 verification)")
@@ -516,28 +550,37 @@ class BulletproofDeduplicator:
         print("📁 STEP 1: Indexing Google Drive staging areas...")
         gdrive_hashes = {}  # secure_hash -> file_path
 
-        for gdrive_dir in gdrive_dirs:
-            if not gdrive_dir.exists():
-                print(f"   ⚠️  Skipping non-existent: {gdrive_dir}")
-                continue
+        # Use shared connection for indexing
+        try:
+            with sqlite3.connect(self.db_path) as batch_conn:
+                for gdrive_dir in gdrive_dirs:
+                    if not gdrive_dir.exists():
+                        print(f"   ⚠️  Skipping non-existent: {gdrive_dir}")
+                        continue
 
-            print(f"   📂 Scanning: {gdrive_dir.name}")
+                    print(f"   📂 Scanning: {gdrive_dir.name}")
 
-            for file_path in gdrive_dir.rglob('*'):
-                if not file_path.is_file():
-                    continue
+                    for file_path in gdrive_dir.rglob('*'):
+                        if not file_path.is_file():
+                            continue
 
-                # Skip database/learned data
-                if self.is_database_or_learned_data(file_path):
-                    continue
+                        # Skip database/learned data
+                        if self.is_database_or_learned_data(file_path):
+                            continue
 
-                secure_hash = self.calculate_secure_hash(file_path)
-                if secure_hash:
-                    gdrive_hashes[secure_hash] = file_path
-                    results["gdrive_files_scanned"] += 1
+                        secure_hash = self.calculate_secure_hash(file_path, db_conn=batch_conn)
+                        if secure_hash:
+                            gdrive_hashes[secure_hash] = file_path
+                            results["gdrive_files_scanned"] += 1
 
-                    if results["gdrive_files_scanned"] % 50 == 0:
-                        print(f"      Progress: {results['gdrive_files_scanned']} files indexed")
+                            if results["gdrive_files_scanned"] % 50 == 0:
+                                print(f"      Progress: {results['gdrive_files_scanned']} files indexed")
+                                batch_conn.commit()  # Periodic commit
+
+                batch_conn.commit()  # Final commit for indexing
+
+        except Exception as e:
+            print(f"⚠️ Error during GDrive indexing: {e}")
 
         print(f"   ✅ Indexed {results['gdrive_files_scanned']} Google Drive files")
         print()
@@ -545,60 +588,70 @@ class BulletproofDeduplicator:
         # STEP 2: Scan local directories and compare
         print("💻 STEP 2: Scanning local directories for duplicates...")
 
-        for local_dir in local_dirs:
-            if not local_dir.exists():
-                print(f"   ⚠️  Skipping non-existent: {local_dir}")
-                continue
+        # Use shared connection for scanning
+        try:
+            with sqlite3.connect(self.db_path) as batch_conn:
+                for local_dir in local_dirs:
+                    if not local_dir.exists():
+                        print(f"   ⚠️  Skipping non-existent: {local_dir}")
+                        continue
 
-            print(f"   📂 Scanning: {local_dir}")
+                    print(f"   📂 Scanning: {local_dir}")
 
-            for file_path in local_dir.rglob('*'):
-                if not file_path.is_file():
-                    continue
+                    for file_path in local_dir.rglob('*'):
+                        if not file_path.is_file():
+                            continue
 
-                # Skip database/learned data (ABSOLUTE PROTECTION)
-                if self.is_database_or_learned_data(file_path):
-                    continue
+                        # Skip database/learned data (ABSOLUTE PROTECTION)
+                        if self.is_database_or_learned_data(file_path):
+                            continue
 
-                # Skip files in protected paths
-                if any(protected in str(file_path) for protected in self.protected_paths):
-                    continue
+                        # Skip files in protected paths
+                        if any(protected in str(file_path) for protected in self.protected_paths):
+                            continue
 
-                results["local_files_scanned"] += 1
+                        results["local_files_scanned"] += 1
 
-                if results["local_files_scanned"] % 50 == 0:
-                    print(f"      Progress: {results['local_files_scanned']} local files scanned")
+                        if results["local_files_scanned"] % 50 == 0:
+                            print(f"      Progress: {results['local_files_scanned']} local files scanned")
+                            batch_conn.commit() # Periodic commit
 
-                # Calculate hash and check if exists in Google Drive
-                secure_hash = self.calculate_secure_hash(file_path)
+                        # Calculate hash and check if exists in Google Drive
+                        secure_hash = self.calculate_secure_hash(file_path, db_conn=batch_conn)
 
-                if secure_hash and secure_hash in gdrive_hashes:
-                    # Found a duplicate!
-                    gdrive_path = gdrive_hashes[secure_hash]
-                    results["duplicates_found"] += 1
+                        if secure_hash and secure_hash in gdrive_hashes:
+                            # Found a duplicate!
+                            gdrive_path = gdrive_hashes[secure_hash]
+                            results["duplicates_found"] += 1
 
-                    try:
-                        file_size = file_path.stat().st_size
-                        results["space_recoverable"] += file_size
+                            try:
+                                file_size = file_path.stat().st_size
+                                results["space_recoverable"] += file_size
 
-                        print(f"   🔗 DUPLICATE FOUND:")
-                        print(f"      Local:  {file_path}")
-                        print(f"      GDrive: {gdrive_path}")
-                        print(f"      Size:   {file_size / (1024*1024):.1f} MB")
+                                print(f"   🔗 DUPLICATE FOUND:")
+                                print(f"      Local:  {file_path}")
+                                print(f"      GDrive: {gdrive_path}")
+                                print(f"      Size:   {file_size / (1024*1024):.1f} MB")
 
-                        if execute:
-                            file_path.unlink()
-                            results["deleted_files"] += 1
-                            print(f"      ✅ Deleted local copy")
-                        else:
-                            print(f"      🔍 Would delete (dry-run)")
+                                if execute:
+                                    file_path.unlink()
+                                    results["deleted_files"] += 1
+                                    print(f"      ✅ Deleted local copy")
+                                else:
+                                    print(f"      🔍 Would delete (dry-run)")
 
-                        print()
+                                print()
 
-                    except Exception as e:
-                        error_msg = f"Failed to process {file_path}: {e}"
-                        results["errors"].append(error_msg)
-                        print(f"      ❌ {error_msg}")
+                            except Exception as e:
+                                error_msg = f"Failed to process {file_path}: {e}"
+                                results["errors"].append(error_msg)
+                                print(f"      ❌ {error_msg}")
+
+                # Final commit
+                batch_conn.commit()
+
+        except Exception as e:
+            print(f"⚠️ Error during local cleanup scan: {e}")
 
         # STEP 3: Summary
         print("=" * 80)
