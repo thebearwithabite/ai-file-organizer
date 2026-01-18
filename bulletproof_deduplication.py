@@ -13,7 +13,7 @@ import sqlite3
 import os
 import re
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Set
+from typing import Dict, List, Optional, Tuple, Set, Union
 import time
 import json
 from datetime import datetime
@@ -99,22 +99,34 @@ class BulletproofDeduplicator:
                 CREATE INDEX IF NOT EXISTS idx_secure_hash ON file_hashes(secure_hash)
             ''')
     
-    def calculate_quick_hash(self, file_path: Path) -> Optional[str]:
+    def calculate_quick_hash(self, file_path_or_entry: Union[Path, os.DirEntry]) -> Optional[str]:
         """
         Tier 1: Lightning-fast MD5 screening (~0.1ms per file)
         Used for initial duplicate detection
+
+        Args:
+            file_path_or_entry: Path object or os.DirEntry for optimization
         """
         try:
-            # Skip symlinks and special files
-            if file_path.is_symlink():
-                return None
+            # Handle both Path and DirEntry
+            if isinstance(file_path_or_entry, os.DirEntry):
+                entry = file_path_or_entry
+                path_obj = Path(entry.path)
+
+                if entry.is_symlink():
+                    return None
+                file_size = entry.stat().st_size
+            else:
+                path_obj = file_path_or_entry
+                if path_obj.is_symlink():
+                    return None
+                file_size = path_obj.stat().st_size
 
             # Check file size - warn about large files
-            file_size = file_path.stat().st_size
             if file_size > 1024 * 1024 * 100:  # 100MB
-                print(f"   ⏸️  Large file ({file_size / (1024*1024):.1f}MB): {file_path.name}")
+                print(f"   ⏸️  Large file ({file_size / (1024*1024):.1f}MB): {path_obj.name}")
 
-            with open(file_path, 'rb') as f:
+            with open(path_obj, 'rb') as f:
                 # Read first 64KB for quick hash - catches most duplicates
                 content = f.read(65536)
                 return hashlib.md5(content).hexdigest()
@@ -122,7 +134,8 @@ class BulletproofDeduplicator:
             # Skip files we can't read (locked, network, etc.)
             return None
         except Exception as e:
-            print(f"⚠️ Quick hash error for {file_path.name}: {e}")
+            name = file_path_or_entry.name if hasattr(file_path_or_entry, 'name') else str(file_path_or_entry)
+            print(f"⚠️ Quick hash error for {name}: {e}")
             return None
     
     def calculate_secure_hash(self, file_path: Path) -> Optional[str]:
@@ -283,6 +296,28 @@ class BulletproofDeduplicator:
         
         return min(1.0, max(0.0, score))
     
+    def _fast_scan(self, directory: Path):
+        """
+        Generator that yields os.DirEntry objects recursively.
+        Faster than os.walk + Path + stat (approx 5x speedup).
+        """
+        try:
+            with os.scandir(directory) as it:
+                for entry in it:
+                    if entry.name.startswith('.'):
+                        continue
+
+                    if entry.is_dir(follow_symlinks=False):
+                        # Skip bundle directories like .imovielibrary
+                        if entry.name.endswith('.imovielibrary') or entry.name.endswith('.photoslibrary'):
+                            continue
+                        yield from self._fast_scan(entry.path)
+                    elif entry.is_file(follow_symlinks=False):
+                        yield entry
+        except (PermissionError, OSError):
+            # Skip directories we can't access
+            pass
+
     def scan_directory(self, directory: Path, execute: bool = False, safety_threshold: float = 0.7) -> Dict:
         """
         Scan directory for duplicates using two-tier hashing
@@ -310,32 +345,19 @@ class BulletproofDeduplicator:
             "errors": []
         }
         
-        # Find all files with safe walker
-        all_files = []
+        # Find all files with safe walker (using optimized scandir)
+        all_entries = []
         print("   Scanning files (skipping .imovielibrary and other bundles)...")
         
         try:
-            for root, dirs, files in os.walk(directory):
-                # Skip problematic bundles and hidden directories
-                dirs[:] = [d for d in dirs if not d.endswith('.imovielibrary') 
-                          and not d.endswith('.photoslibrary')
-                          and not d.startswith('.')]
-                
-                for file in files:
-                    if file.startswith('.'):
-                        continue
-                        
-                    try:
-                        file_path = Path(root) / file
-                        all_files.append(file_path)
-                    except Exception as e:
-                        print(f"   ⚠️ Error accessing {file}: {e}")
+            for entry in self._fast_scan(directory):
+                all_entries.append(entry)
                         
         except Exception as e:
             print(f"   ❌ Critical error during scan: {e}")
             return {"error": str(e)}
         
-        print(f"📁 Found {len(all_files)} files to analyze")
+        print(f"📁 Found {len(all_entries)} files to analyze")
 
         # Group files by quick hash (Tier 1 screening)
         print("⚡ Tier 1: Quick MD5 screening...")
@@ -343,17 +365,22 @@ class BulletproofDeduplicator:
         skipped_files = 0
         protected_files = 0
 
-        for i, file_path in enumerate(all_files):
+        for i, entry in enumerate(all_entries):
             # Show progress every 50 files
-            if (i + 1) % 50 == 0 or (i + 1) == len(all_files):
-                print(f"   Progress: {i + 1}/{len(all_files)} files ({((i+1)/len(all_files)*100):.1f}%)")
+            if (i + 1) % 50 == 0 or (i + 1) == len(all_entries):
+                print(f"   Progress: {i + 1}/{len(all_entries)} files ({((i+1)/len(all_entries)*100):.1f}%)")
+
+            # Convert to Path for checks (relatively cheap compared to stat())
+            file_path = Path(entry.path)
 
             # ABSOLUTE PROTECTION: Skip database and learned data files
             if self.is_database_or_learned_data(file_path):
                 protected_files += 1
                 continue
 
-            quick_hash = self.calculate_quick_hash(file_path)
+            # Pass entry to optimize stat() call inside
+            quick_hash = self.calculate_quick_hash(entry)
+
             if quick_hash:
                 if quick_hash not in quick_hash_groups:
                     quick_hash_groups[quick_hash] = []
@@ -367,7 +394,7 @@ class BulletproofDeduplicator:
         if protected_files > 0:
             print(f"   🛡️  Protected {protected_files} database/learned-data files (NEVER MODIFIED)")
 
-        results["scanned_files"] = len(all_files)
+        results["scanned_files"] = len(all_entries)
         
         # Find potential duplicates (groups with multiple files)
         potential_duplicates = {k: v for k, v in quick_hash_groups.items() if len(v) > 1}
