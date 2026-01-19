@@ -13,7 +13,7 @@ import sqlite3
 import os
 import re
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Set
+from typing import Dict, List, Optional, Tuple, Set, Union
 import time
 import json
 from datetime import datetime
@@ -99,22 +99,35 @@ class BulletproofDeduplicator:
                 CREATE INDEX IF NOT EXISTS idx_secure_hash ON file_hashes(secure_hash)
             ''')
     
-    def calculate_quick_hash(self, file_path: Path) -> Optional[str]:
+    def calculate_quick_hash(self, file_path: Union[Path, os.DirEntry]) -> Optional[str]:
         """
         Tier 1: Lightning-fast MD5 screening (~0.1ms per file)
         Used for initial duplicate detection
         """
         try:
+            # Handle both Path and DirEntry objects
+            # Use cached stat if available (DirEntry)
+            is_symlink = file_path.is_symlink()
+
+            if isinstance(file_path, Path):
+                path_obj = file_path
+            else:
+                # It's a DirEntry
+                path_obj = Path(file_path.path)
+
             # Skip symlinks and special files
-            if file_path.is_symlink():
+            if is_symlink:
                 return None
 
             # Check file size - warn about large files
-            file_size = file_path.stat().st_size
-            if file_size > 1024 * 1024 * 100:  # 100MB
-                print(f"   ⏸️  Large file ({file_size / (1024*1024):.1f}MB): {file_path.name}")
+            # Use cached stat if available
+            file_stat = file_path.stat()
+            file_size = file_stat.st_size
 
-            with open(file_path, 'rb') as f:
+            if file_size > 1024 * 1024 * 100:  # 100MB
+                print(f"   ⏸️  Large file ({file_size / (1024*1024):.1f}MB): {path_obj.name}")
+
+            with open(path_obj, 'rb') as f:
                 # Read first 64KB for quick hash - catches most duplicates
                 content = f.read(65536)
                 return hashlib.md5(content).hexdigest()
@@ -122,21 +135,29 @@ class BulletproofDeduplicator:
             # Skip files we can't read (locked, network, etc.)
             return None
         except Exception as e:
-            print(f"⚠️ Quick hash error for {file_path.name}: {e}")
+            name = file_path.name if hasattr(file_path, 'name') else str(file_path)
+            print(f"⚠️ Quick hash error for {name}: {e}")
             return None
     
-    def calculate_secure_hash(self, file_path: Path) -> Optional[str]:
+    def calculate_secure_hash(self, file_path: Union[Path, os.DirEntry]) -> Optional[str]:
         """
         Tier 2: Bulletproof SHA-256 verification (~2ms per file)
         Used for cryptographic certainty before deletion
         """
         try:
+            is_symlink = file_path.is_symlink()
+
+            if isinstance(file_path, Path):
+                path_obj = file_path
+            else:
+                path_obj = Path(file_path.path)
+
             # Skip symlinks and special files
-            if file_path.is_symlink():
+            if is_symlink:
                 return None
 
             sha256_hash = hashlib.sha256()
-            with open(file_path, 'rb') as f:
+            with open(path_obj, 'rb') as f:
                 # Read file in chunks (64KB) for better performance than 4KB
                 for chunk in iter(lambda: f.read(65536), b""):
                     sha256_hash.update(chunk)
@@ -145,25 +166,30 @@ class BulletproofDeduplicator:
             
             # Persist to database
             try:
+                # Use cached stat if available
+                file_stat = file_path.stat()
+
                 with sqlite3.connect(self.db_path) as conn:
                     conn.execute("""
                         INSERT OR REPLACE INTO file_hashes 
                         (file_path, secure_hash, file_size, last_modified)
                         VALUES (?, ?, ?, ?)
                     """, (
-                        str(file_path), secure_hash, 
-                        file_path.stat().st_size, file_path.stat().st_mtime
+                        str(path_obj), secure_hash,
+                        file_stat.st_size, file_stat.st_mtime
                     ))
             except Exception as db_err:
                 # Don't fail if DB write fails, just log it
-                print(f"⚠️ Failed to persist hash for {file_path.name}: {db_err}")
+                name = file_path.name if hasattr(file_path, 'name') else str(file_path)
+                print(f"⚠️ Failed to persist hash for {name}: {db_err}")
                 
             return secure_hash
         except (PermissionError, OSError) as e:
             # Skip files we can't read (locked, network, etc.)
             return None
         except Exception as e:
-            print(f"⚠️ Secure hash error for {file_path.name}: {e}")
+            name = file_path.name if hasattr(file_path, 'name') else str(file_path)
+            print(f"⚠️ Secure hash error for {name}: {e}")
             return None
 
     def check_if_hash_exists_in_gdrive(self, secure_hash: str) -> Optional[str]:
@@ -197,7 +223,7 @@ class BulletproofDeduplicator:
             print(f"⚠️ Error checking hash existence: {e}")
             return None
 
-    def is_database_or_learned_data(self, file_path: Path) -> bool:
+    def is_database_or_learned_data(self, file_path: Union[Path, os.DirEntry]) -> bool:
         """
         Check if file is a database or contains learned data
         ABSOLUTE PROTECTION - never consider these for deletion or modification
@@ -206,24 +232,32 @@ class BulletproofDeduplicator:
             True if file is database/learned data (PROTECTED)
             False if file is safe to scan
         """
-        path_str = str(file_path).lower()
+        if isinstance(file_path, os.DirEntry):
+            path_str = file_path.path.lower()
+            # Fast check for extension without creating Path object
+            if path_str.endswith(('.db', '.sqlite', '.sqlite3', '.pkl', '.pickle')):
+                return True
+        else:
+            path_str = str(file_path).lower()
+            if file_path.suffix.lower() in ['.db', '.sqlite', '.sqlite3', '.pkl', '.pickle']:
+                return True
 
         # Check against protected database patterns
         for pattern in self.protected_database_patterns:
             if re.search(pattern, path_str, re.IGNORECASE):
                 return True
 
-        # Check file extensions (absolute protection)
-        if file_path.suffix.lower() in ['.db', '.sqlite', '.sqlite3', '.pkl', '.pickle']:
-            return True
-
         # Check directory names (any parent directory with these names)
         protected_dir_names = [
             'vector_db', 'chroma', 'metadata_system', 'learning',
             'adaptive', 'embeddings', 'index', '_system', 'classification_logs'
         ]
-        for part in file_path.parts:
-            if any(protected in part.lower() for protected in protected_dir_names):
+
+        # Optimized check: substring search in full path
+        # This covers "protected in part" logic from original code
+        # and avoids Path.parts decomposition overhead
+        for protected in protected_dir_names:
+            if protected in path_str:
                 return True
 
         return False
@@ -283,6 +317,29 @@ class BulletproofDeduplicator:
         
         return min(1.0, max(0.0, score))
     
+    def _fast_scan(self, directory: Path):
+        """
+        Generator that yields os.DirEntry objects recursively.
+        Replaces os.walk for better performance and cached stats.
+        """
+        try:
+            # os.scandir() is faster than os.walk() and provides cached stat info via DirEntry
+            with os.scandir(directory) as entries:
+                for entry in entries:
+                    if entry.name.startswith('.'):
+                        continue
+
+                    if entry.is_dir(follow_symlinks=False):
+                        # Skip problematic bundles
+                        if entry.name.endswith('.imovielibrary') or entry.name.endswith('.photoslibrary'):
+                            continue
+                        # Recurse
+                        yield from self._fast_scan(Path(entry.path))
+                    elif entry.is_file(follow_symlinks=False):
+                        yield entry
+        except (PermissionError, OSError) as e:
+            print(f"   ⚠️ Error accessing {directory}: {e}")
+
     def scan_directory(self, directory: Path, execute: bool = False, safety_threshold: float = 0.7) -> Dict:
         """
         Scan directory for duplicates using two-tier hashing
@@ -315,21 +372,10 @@ class BulletproofDeduplicator:
         print("   Scanning files (skipping .imovielibrary and other bundles)...")
         
         try:
-            for root, dirs, files in os.walk(directory):
-                # Skip problematic bundles and hidden directories
-                dirs[:] = [d for d in dirs if not d.endswith('.imovielibrary') 
-                          and not d.endswith('.photoslibrary')
-                          and not d.startswith('.')]
-                
-                for file in files:
-                    if file.startswith('.'):
-                        continue
-                        
-                    try:
-                        file_path = Path(root) / file
-                        all_files.append(file_path)
-                    except Exception as e:
-                        print(f"   ⚠️ Error accessing {file}: {e}")
+            # Bolt Optimization: Use _fast_scan generator to get DirEntry objects
+            # This avoids constructing Path objects immediately and provides cached stat() info
+            for entry in self._fast_scan(directory):
+                all_files.append(entry)
                         
         except Exception as e:
             print(f"   ❌ Critical error during scan: {e}")
@@ -343,21 +389,22 @@ class BulletproofDeduplicator:
         skipped_files = 0
         protected_files = 0
 
-        for i, file_path in enumerate(all_files):
+        for i, entry in enumerate(all_files):
             # Show progress every 50 files
             if (i + 1) % 50 == 0 or (i + 1) == len(all_files):
                 print(f"   Progress: {i + 1}/{len(all_files)} files ({((i+1)/len(all_files)*100):.1f}%)")
 
             # ABSOLUTE PROTECTION: Skip database and learned data files
-            if self.is_database_or_learned_data(file_path):
+            if self.is_database_or_learned_data(entry):
                 protected_files += 1
                 continue
 
-            quick_hash = self.calculate_quick_hash(file_path)
+            # Pass DirEntry directly to leverage cached stat info
+            quick_hash = self.calculate_quick_hash(entry)
             if quick_hash:
                 if quick_hash not in quick_hash_groups:
                     quick_hash_groups[quick_hash] = []
-                quick_hash_groups[quick_hash].append(file_path)
+                quick_hash_groups[quick_hash].append(entry)
             else:
                 skipped_files += 1
 
@@ -391,15 +438,20 @@ class BulletproofDeduplicator:
             # Calculate secure hashes for this group
             secure_hash_groups = {}
 
-            for file_path in file_list:
-                secure_hash = self.calculate_secure_hash(file_path)
+            for entry in file_list:
+                secure_hash = self.calculate_secure_hash(entry)
                 if secure_hash:
                     if secure_hash not in secure_hash_groups:
                         secure_hash_groups[secure_hash] = []
+
+                    # Convert to Path for reporting/processing, but use cached stats
+                    path_obj = Path(entry.path)
+                    stat_res = entry.stat()
+
                     secure_hash_groups[secure_hash].append({
-                        'path': file_path,
-                        'size': file_path.stat().st_size,
-                        'mtime': file_path.stat().st_mtime
+                        'path': path_obj,
+                        'size': stat_res.st_size,
+                        'mtime': stat_res.st_mtime
                     })
 
             # Only groups with multiple files are true duplicates
@@ -552,6 +604,8 @@ class BulletproofDeduplicator:
 
             print(f"   📂 Scanning: {local_dir}")
 
+            # Use _fast_scan if possible, but here we just need to adapt to DirEntry if we change things
+            # Keeping original logic but using Path for compatibility with existing loop
             for file_path in local_dir.rglob('*'):
                 if not file_path.is_file():
                     continue
