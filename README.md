@@ -166,6 +166,9 @@ Based on verified codebase analysis (October 31, 2025):
 - ✅ **Fusion Brain** — Multi-modal signal fusion for high-confidence classification (`unified_classifier.py`)
 - ✅ **Review Queue** — Intelligent queue for ambiguous or low-confidence cases
 - ✅ **UI Path Truncation** — Aggressive truncation for cleaner display of long Drive paths
+- ✅ **Phase 7 Hybrid Power** — Multi-machine architecture with RTX 5090 worker integration
+- ✅ **Phase 8 Audio Intelligence** — Deep transcript-based classification with Qwen 2.5
+- ✅ **Phase 9 UI Stabilization** — Non-blocking event loop and optimized API layer
 
 ### **API Endpoints (Verified Working):**
 | Endpoint | Purpose |
@@ -253,6 +256,13 @@ python interactive_organizer.py organize --live
 # Check recent AI operations
 python easy_rollback_system.py --today
 ```
+
+---
+
+## 🗂️ **Canonical Documentation**
+
+- 📖 **[SYSTEM_MANUAL.md](file:///Users/user/Github/ai-file-organizer/SYSTEM_MANUAL.md)** — Architectural source of truth, "Hybrid Hub" rules, and cross-machine coordination.
+- 🏗️ **[ROADMAP.md](file:///Users/user/Github/ai-file-organizer/ROADMAP.md)** — Development phases and future goals.
 
 ---
 
