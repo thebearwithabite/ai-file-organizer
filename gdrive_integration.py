@@ -12,10 +12,10 @@ Created by: RT Max
 import os
 import shutil
 from pathlib import Path
-from typing import Optional, List, Dict, Any
-from dataclasses import dataclass
-from datetime import datetime
 import json
+import concurrent.futures
+from dataclasses import dataclass
+from typing import Optional, List, Dict, Any, Tuple
 
 # Load .env.local if it exists (simple manual loader, no dependencies)
 def _load_env_file(env_path: Path):
@@ -150,29 +150,46 @@ class GoogleDriveIntegration:
             
         raise RuntimeError("Google Drive not detected and local fallback disabled.")
     
+    def _get_mount_stats(self, path: Path) -> Optional[Tuple[float, float]]:
+        """Helper to get mount stats (run in thread)"""
+        try:
+            # SAFETY: Do NOT use iterdir() here, it's too expensive on network mounts
+            # Just checking if the directory is accessible and getting stats is enough
+            if not path.exists():
+                return None
+                
+            statvfs = os.statvfs(str(path))
+            total_space = (statvfs.f_frsize * statvfs.f_blocks) / (1024**3)  # GB
+            free_space = (statvfs.f_frsize * statvfs.f_bavail) / (1024**3)   # GB
+            return total_space, free_space
+        except Exception:
+            return None
+
     def get_status(self) -> DriveStatus:
-        """Get current Google Drive status"""
+        """Get current Google Drive status (Non-blocking)"""
         
         is_mounted = self.drive_root is not None and self.drive_root.exists()
         
-        # Check if online by trying to access a file
+        # Check if online by trying to access root (with timeout)
         is_online = False
         total_space = None
         free_space = None
         
         if is_mounted:
-            try:
-                # Test access
-                list(self.drive_root.iterdir())
-                is_online = True
-                
-                # Get space info (approximate)
-                statvfs = os.statvfs(str(self.drive_root))
-                total_space = (statvfs.f_frsize * statvfs.f_blocks) / (1024**3)  # GB
-                free_space = (statvfs.f_frsize * statvfs.f_bavail) / (1024**3)   # GB
-                
-            except (OSError, PermissionError):
-                is_online = False
+            # SAFETY: Use thread pool to prevent system hang if mount is dead
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(self._get_mount_stats, self.drive_root)
+                try:
+                    stats = future.result(timeout=2.0) # Give up after 2 seconds
+                    if stats:
+                        is_online = True
+                        total_space, free_space = stats
+                except concurrent.futures.TimeoutError:
+                    print("⚠️  Google Drive status check timed out (mount likely busy/deadlocked)")
+                    is_online = False
+                except Exception as e:
+                    print(f"⚠️  Google Drive status check error: {e}")
+                    is_online = False
         
         return DriveStatus(
             is_mounted=is_mounted,

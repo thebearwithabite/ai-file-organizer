@@ -28,7 +28,7 @@ class LibrarianCLI:
     Provides easy access to all system features
     """
     
-    def __init__(self, base_dir: str = None):
+    def __init__(self, base_dir: Optional[str] = None, mode: str = "mutating"):
         # Default to CONTENT_LIBRARY_MASTER if it exists, otherwise use Google Drive integration
         if base_dir:
             self.base_dir = Path(base_dir)
@@ -38,8 +38,10 @@ class LibrarianCLI:
             self.base_dir = get_ai_organizer_root()
         
         self.librarian = LocalLibrarian(str(self.base_dir))
+        self.mode = mode # "mutating" or "read_only"
         print(f"📚 Local LLM Librarian initialized")
         print(f"🏠 Base directory: {self.base_dir}")
+        print(f"⚙️ Operating mode: {self.mode}")
     
     def search(self, query: str, limit: int = 10, verbose: bool = False) -> None:
         """Search files with natural language query"""
