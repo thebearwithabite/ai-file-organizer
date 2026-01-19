@@ -33,6 +33,8 @@ build/
 # Temporary Files
 *.bak
 *.tmp
+verify_*.py
+test_*.py
 99_TEMP_PROCESSING/
 99_STAGING_EMERGENCY/
 Archive/
