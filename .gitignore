@@ -1,1 +1,38 @@
+# General
+.DS_Store
+__pycache__/
+*.pyc
+venv/
+node_modules/
+
+# Environment and Secrets
 .env
+.env*
+gdrive_credentials.json
+token.json
+credentials.json
+*credentials*.json
+*token*.json
+
+# Databases
+*.db
+*.sqlite
+*.db-shm
+*.db-wal
+chroma_db/
+
+# Logs
+*.log
+server.lock
+orchestrator.log
+
+# Frontend Builds
+dist/
+build/
+
+# Temporary Files
+*.bak
+*.tmp
+99_TEMP_PROCESSING/
+99_STAGING_EMERGENCY/
+Archive/
