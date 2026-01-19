@@ -19,14 +19,14 @@ Created by: RT Max for AI File Organizer v3.0
 """
 
 import os
-import time
 import json
+import logging
+import threading
 from pathlib import Path
 from typing import Dict, List, Optional, Any, Union, Tuple
 from dataclasses import dataclass, asdict
 from datetime import datetime, timedelta
 from enum import Enum
-import logging
 from gdrive_integration import get_ai_organizer_root
 
 # Google API imports
@@ -170,8 +170,11 @@ class GoogleDriveLibrarian:
         # State
         self._authenticated = False
         self._cached_auth_info = None  # Cache for auth info
+        self._auth_cache_time = None
         self._last_drive_scan: Optional[datetime] = None
         self._drive_file_cache: Dict[str, Dict] = {}
+        self._conn_lock = threading.Lock()
+        self._status_lock = threading.Lock()
         
         logger.info("✅ Google Drive Librarian created (components initialized)")
         logger.info(f"   📁 Config: {config_dir}")
@@ -260,15 +263,16 @@ class GoogleDriveLibrarian:
             
             # Step 1: Authenticate
             logger.info("   🔐 Authenticating...")
-            auth_result = self.auth_service.test_authentication()
-            if not auth_result['success']:
-                logger.error(f"❌ Authentication failed: {auth_result}")
-                return False
-            
-            self._authenticated = True
-            self._cached_auth_info = auth_result
-            self._auth_cache_time = datetime.now()
-            logger.info(f"   ✅ Authenticated as: {auth_result['user_name']}")
+            with self._conn_lock:
+                auth_result = self.auth_service.test_authentication()
+                if not auth_result['success']:
+                    logger.error(f"❌ Authentication failed: {auth_result}")
+                    return False
+                
+                self._authenticated = True
+                self._cached_auth_info = auth_result
+                self._auth_cache_time = datetime.now()
+                logger.info(f"   ✅ Authenticated as: {auth_result['user_name']}")
             
             # Step 2: Initialize metadata store
             logger.info("   📊 Initializing metadata store...")
@@ -721,27 +725,29 @@ class GoogleDriveLibrarian:
         }
         
         # Authentication status
-        # Authentication status
         if self._authenticated:
             # Use cached auth info if available and fresh (TTL 5 minutes)
             should_refresh = True
-            if self._cached_auth_info and hasattr(self, '_auth_cache_time') and self._auth_cache_time:
-                age = datetime.now() - self._auth_cache_time
-                if age < timedelta(minutes=5):
-                    should_refresh = False
-                    auth_test = self._cached_auth_info
+            with self._status_lock:
+                if self._cached_auth_info and self._auth_cache_time:
+                    age = datetime.now() - self._auth_cache_time
+                    if age < timedelta(minutes=5):
+                        should_refresh = False
+                        auth_test = self._cached_auth_info
 
-            if should_refresh:
-                # Refresh cache
-                try:
-                     auth_test = self.auth_service.test_authentication()
-                     if auth_test.get('success'):
-                         self._cached_auth_info = auth_test
-                         self._auth_cache_time = datetime.now()
-                except Exception as e:
-                     logger.warning(f"Status check auth failed: {e}")
-                     # Keep old cache if refresh failed, or empty if none
-                     auth_test = self._cached_auth_info if self._cached_auth_info else {}
+                if should_refresh:
+                    # Refresh cache in a way that doesn't block other threads if possible, 
+                    # but for status, we just do a quick check
+                    try:
+                        # Use self._conn_lock to ensure we don't collide with other auth attempts
+                        with self._conn_lock:
+                            auth_test = self.auth_service.test_authentication()
+                            if auth_test.get('success'):
+                                self._cached_auth_info = auth_test
+                                self._auth_cache_time = datetime.now()
+                    except Exception as e:
+                        logger.warning(f"Status check auth failed: {e}")
+                        auth_test = self._cached_auth_info if self._cached_auth_info else {}
             
             # Add Google Drive specific status to components
             gdrive_status = {
@@ -749,7 +755,7 @@ class GoogleDriveLibrarian:
                 "user_name": auth_test.get("user_name", "Unknown"),
                 "quota_used_gb": auth_test.get("used_storage_gb", 0),
                 "quota_total_gb": auth_test.get("total_storage_gb", 0),
-                "drive_root": str(self._hybrid_librarian_base_dir) # Ensure Path is converted to string
+                "drive_root": str(self._hybrid_librarian_base_dir)
             }
             status['components']['google_drive'] = gdrive_status
 

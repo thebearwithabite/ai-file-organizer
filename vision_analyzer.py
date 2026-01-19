@@ -20,6 +20,7 @@ from typing import Dict, List, Optional, Tuple, Any
 from collections import defaultdict
 import time
 import logging
+import threading
 
 from gdrive_integration import get_ai_organizer_root, get_metadata_root
 
@@ -142,13 +143,9 @@ Return a valid JSON object with this structure:
         self.model = None
         self.api_initialized = False
         self.use_vertex = False
+        self._init_lock = threading.Lock()
 
-        if self.service_account_path and VERTEX_AVAILABLE:
-            self._initialize_vertex_api()
-        elif self.api_key and GEMINI_AVAILABLE:
-            self._initialize_api()
-        else:
-            self.logger.warning("Neither Service Account nor Gemini API Key found. Vision analysis will be unavailable.")
+        # Lazy initialization - actual API setup moved to _ensure_initialized()
 
         # Cache directory
         self.cache_dir = get_metadata_root() /  "vision_cache"
@@ -309,8 +306,20 @@ Return a valid JSON object with this structure:
             self.logger.info("Gemini API initialized successfully")
 
         except Exception as e:
-            self.logger.error(f"Failed to initialize Gemini API: {e}")
             self.api_initialized = False
+
+    def _ensure_initialized(self):
+        """Ensure API and learning system are initialized (Lazy)"""
+        with self._init_lock:
+            if self.api_initialized:
+                return
+
+            if self.service_account_path and VERTEX_AVAILABLE:
+                self._initialize_vertex_api()
+            elif self.api_key and GEMINI_AVAILABLE:
+                self._initialize_api()
+            else:
+                self.logger.warning("Neither Service Account nor Gemini API Key found. Vision analysis will be unavailable.")
 
     def _load_vision_patterns(self) -> Dict[str, Any]:
         """Load historical vision analysis patterns"""
@@ -528,6 +537,9 @@ Return a valid JSON object with this structure:
             else:
                 self.logger.warning("Remote analysis failed or unavailable, falling back to local Gemini/Vertex.")
 
+        # Ensure initialized (Lazy)
+        self._ensure_initialized()
+
         # Check if API is available
         if not self.api_initialized:
             return self._fallback_image_analysis(image_path_obj)
@@ -705,6 +717,9 @@ Return a valid JSON object with this structure:
         """
         image_path_obj = Path(image_path)
 
+        # Ensure initialized (Lazy)
+        self._ensure_initialized()
+
         if not image_path_obj.exists() or not self.api_initialized:
             return ""
 
@@ -787,6 +802,9 @@ Return a valid JSON object with this structure:
         cached_result = self._load_from_cache(cache_key)
         if cached_result:
             return cached_result
+
+        # Ensure initialized (Lazy)
+        self._ensure_initialized()
 
         # Check if API is available
         if not self.api_initialized:
