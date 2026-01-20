@@ -2,6 +2,7 @@ import unittest
 import hashlib
 import tempfile
 import os
+import sqlite3
 from pathlib import Path
 from bulletproof_deduplication import BulletproofDeduplicator
 
@@ -51,6 +52,27 @@ class TestBulletproofDeduplicator(unittest.TestCase):
 
         calculated_hash = self.deduplicator.calculate_secure_hash(file_path)
         self.assertEqual(calculated_hash, expected_hash)
+
+    def test_calculate_secure_hash_with_connection(self):
+        """Verify hash calculation when a database connection is provided."""
+        content = b"Content for connection test."
+        expected_hash = hashlib.sha256(content).hexdigest()
+
+        file_path = self.test_dir / "conn_test_file.txt"
+        with open(file_path, "wb") as f:
+            f.write(content)
+
+        # Create a connection
+        with sqlite3.connect(self.deduplicator.db_path) as conn:
+             calculated_hash = self.deduplicator.calculate_secure_hash(file_path, conn=conn)
+             self.assertEqual(calculated_hash, expected_hash)
+
+             # Verify it was persisted
+             cursor = conn.cursor()
+             cursor.execute("SELECT secure_hash FROM file_hashes WHERE file_path = ?", (str(file_path),))
+             row = cursor.fetchone()
+             self.assertIsNotNone(row)
+             self.assertEqual(row[0], expected_hash)
 
 if __name__ == '__main__':
     unittest.main()
