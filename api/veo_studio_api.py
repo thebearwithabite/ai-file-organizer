@@ -250,7 +250,7 @@ def extract_assets_from_script(script_content: str) -> List[Asset]:
     
     # Extract characters from dialogue headers
     # Pattern: CHARACTER NAME (on its own line, all caps)
-    character_pattern = r'^([A-Z][A-Z\s]+)$'
+    character_pattern = r'^([A-Z]{2,}(?:\s+[A-Z]{2,})*)$'
     for line in script_content.split('\n'):
         line = line.strip()
         match = re.match(character_pattern, line)
