@@ -1,24 +1,24 @@
 {
   "people_indicators": {
-    "ExampleClient": [
-      "ExampleClient",
+    "a_cloent": [
+      "name",
       "Client",
       "TV Show",
-      "netflix"
+      "netrork"
     ],
     "business_contacts": [
-      "ExampleMgmt",
+      "refine",
       "payment report",
       "contract",
       "agreement"
     ]
   },
   "project_indicators": {
-    "example_show": [
-      "example",
-      "things",
-      "netflix",
-      "example_town"
+    "show": [
+      "sho",
+      "name",
+      "netork",
+      "city"
     ],
     "papers_that_dream": [
       "papers",
