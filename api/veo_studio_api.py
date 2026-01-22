@@ -12,7 +12,7 @@ Created by: Claude Code
 Date: December 30, 2025
 """
 
-from fastapi import APIRouter, HTTPException, UploadFile, File
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
 import sqlite3
