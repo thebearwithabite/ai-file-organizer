@@ -72,140 +72,123 @@ class EmergencySpaceProtection:
     """
     
     def __init__(self, base_dir: str = None):
-        # Set up logging first
+        # Set up logging first - explicitly and immediately
         self.logger = logging.getLogger(__name__)
         
-        self.base_dir = Path(base_dir) if base_dir else get_ai_organizer_root()
-        
-        # Initialize components
-        self.learning_system = UniversalAdaptiveLearning(str(self.base_dir))
-        self.confidence_system = ADHDFriendlyConfidenceSystem(str(self.base_dir))
-        self.rollback_system = EasyRollbackSystem()
-        self.deduplicator = BulletproofDeduplicator(str(self.base_dir))
-        
-        # Space protection database
-        self.protection_db_path = get_metadata_root() /  "space_protection.db"
-        
-        # Configuration
-        self.config = {
-            "monitoring_enabled": True,
-            "emergency_offloading_enabled": True,
-            "warning_threshold": 85,      # Warn at 85% disk usage
-            "critical_threshold": 90,     # Critical at 90% disk usage
-            "emergency_threshold": 95,    # Emergency at 95% disk usage
-            "target_free_space": 80,      # Target 80% usage after cleanup
-            "monitoring_interval": 300,   # Check every 5 minutes
-            "emergency_interval": 60,     # Check every minute in emergency
-            "offload_batch_size": 100,    # Max files per offload batch
-            "min_file_age_days": 7,       # Don't touch files newer than 7 days
-            "cache_size_gb": 50           # Keep 50GB of recent files locally
-        }
-        
-        # Google Drive emergency staging paths
-        self.gdrive_emergency_paths = {
-            "downloads": "99_EMERGENCY_STAGING/Downloads_Archive",
-            "desktop": "99_EMERGENCY_STAGING/Desktop_Archive", 
-            "documents": "99_EMERGENCY_STAGING/Documents_Archive",
-            "large_files": "99_EMERGENCY_STAGING/Large_Files_Archive",
-            "duplicates": "99_EMERGENCY_STAGING/Duplicate_Files_Archive"
-        }
-
-        # Detect real Google Drive path for offloading
-        # We cannot use base_dir because it defaults to ~/Documents (local)
-        self.gdrive_root = None
-        possible_gdrive_paths = [
-            Path.home() / "Google Drive" / "My Drive",
-            Path.home() / "Google Drive",
-            Path("/Volumes/GoogleDrive/My Drive"),
-            Path("/Volumes/GoogleDrive")
-        ]
-        
-        for path in possible_gdrive_paths:
-            if path.exists() and path.is_dir():
-                self.gdrive_root = path
-                self.logger.info(f"Emergency offloading target found: {self.gdrive_root}")
-                break
-        
-        if not self.gdrive_root:
-            self.logger.warning("Google Drive not found! Emergency offloading will fail.")
-        
-        # Monitored locations with priorities
-        self.monitored_locations = {
-            Path.home() / "Downloads": {
-                "priority": "high",
-                "auto_offload": True,
-                "target_usage": 50  # Keep downloads under 50% of available space
-            },
-            Path.home() / "Desktop": {
-                "priority": "medium", 
-                "auto_offload": True,
-                "target_usage": 30
-            },
-            Path.home() / "Documents": {
-                "priority": "low",
-                "auto_offload": False,  # More careful with documents
-                "target_usage": 70
-            },
-            self.base_dir: {
-                "priority": "medium",
-                "auto_offload": True,
-                "target_usage": 60
+        try:
+            self.base_dir = Path(base_dir) if base_dir else get_ai_organizer_root()
+            
+            # Initialize components
+            self.learning_system = UniversalAdaptiveLearning(str(self.base_dir))
+            self.confidence_system = ADHDFriendlyConfidenceSystem(str(self.base_dir))
+            self.rollback_system = EasyRollbackSystem()
+            self.deduplicator = BulletproofDeduplicator(str(self.base_dir))
+            
+            # Space protection database
+            self.protection_db_path = get_metadata_root() /  "space_protection.db"
+            
+            # Configuration
+            self.config = {
+                "monitoring_enabled": True,
+                "emergency_offloading_enabled": True,
+                "warning_threshold": 85,      # Warn at 85% disk usage
+                "critical_threshold": 90,     # Critical at 90% disk usage
+                "emergency_threshold": 95,    # Emergency at 95% disk usage
+                "target_free_space": 80,      # Target 80% usage after cleanup
+                "monitoring_interval": 300,   # Check every 5 minutes
+                "emergency_interval": 60,     # Check every minute in emergency
+                "offload_batch_size": 100,    # Max files per offload batch
+                "min_file_age_days": 7,       # Don't touch files newer than 7 days
+                "cache_size_gb": 50           # Keep 50GB of recent files locally
             }
-        }
-        
-        # File type priorities for offloading
-        self.offload_priorities = {
-            # High priority for offloading (safe to move)
-            ".zip": 0.9,
-            ".rar": 0.9,
-            ".dmg": 0.9,
-            ".iso": 0.9,
-            ".mp4": 0.8,
-            ".mov": 0.8,
-            ".avi": 0.8,
-            ".mkv": 0.8,
-            ".mp3": 0.7,
-            ".wav": 0.7,
-            ".flac": 0.7,
-            ".jpg": 0.6,
-            ".png": 0.6,
-            ".tiff": 0.6,
-            ".psd": 0.5,
             
-            # Medium priority (careful)
-            ".pdf": 0.4,
-            ".docx": 0.3,
-            ".xlsx": 0.3,
-            ".pptx": 0.3,
+            # Google Drive emergency staging paths
+            self.gdrive_emergency_paths = {
+                "downloads": "99_STAGING_EMERGENCY/Downloads_Archive",
+                "desktop": "99_STAGING_EMERGENCY/Desktop_Archive", 
+                "documents": "99_STAGING_EMERGENCY/Documents_Archive",
+                "large_files": "99_STAGING_EMERGENCY/Large_Files_Archive",
+                "duplicates": "99_STAGING_EMERGENCY/Duplicate_Files_Archive"
+            }
+
+            # Detect real Google Drive path for offloading
+            self.gdrive_root = None
+            possible_gdrive_paths = [
+                Path.home() / "Google Drive" / "My Drive",
+                Path.home() / "Google Drive",
+                Path("/Volumes/GoogleDrive/My Drive"),
+                Path("/Volumes/GoogleDrive")
+            ]
             
-            # Low priority (keep local)
-            ".txt": 0.1,
-            ".md": 0.1,
-            ".py": 0.1,
-            ".js": 0.1,
-            ".css": 0.1,
-            ".html": 0.1
-        }
-        
-        # Statistics
-        self.stats = {
-            "space_emergencies_prevented": 0,
-            "files_offloaded": 0,
-            "space_recovered_gb": 0.0,
-            "emergency_interventions": 0,
-            "warnings_issued": 0,
-            "automatic_offloads": 0
-        }
-        
-        # Active monitoring
-        self.monitoring_active = False
-        self.monitoring_threads = {}
-        self.current_emergencies = []
-        
-        # Initialize database
-        self._init_protection_database()
-        
-        self.logger.info("Emergency Space Protection initialized")
+            for path in possible_gdrive_paths:
+                if path.exists() and path.is_dir():
+                    self.gdrive_root = path
+                    if getattr(self, 'logger', None):
+                        self.logger.info(f"Emergency offloading target found: {self.gdrive_root}")
+                    break
+            
+            if not self.gdrive_root:
+                if getattr(self, 'logger', None):
+                    self.logger.warning("Google Drive not found! Emergency offloading will fail.")
+            
+            # Monitored locations with priorities
+            self.monitored_locations = {
+                Path.home() / "Downloads": {
+                    "priority": "high",
+                    "auto_offload": True,
+                    "target_usage": 50
+                },
+                Path.home() / "Desktop": {
+                    "priority": "medium", 
+                    "auto_offload": True,
+                    "target_usage": 30
+                },
+                Path.home() / "Documents": {
+                    "priority": "low",
+                    "auto_offload": False,
+                    "target_usage": 70
+                },
+                self.base_dir: {
+                    "priority": "medium",
+                    "auto_offload": True,
+                    "target_usage": 60
+                }
+            }
+            
+            # File type priorities for offloading
+            self.offload_priorities = {
+                ".zip": 0.9, ".rar": 0.9, ".dmg": 0.9, ".iso": 0.9,
+                ".mp4": 0.8, ".mov": 0.8, ".avi": 0.8, ".mkv": 0.8,
+                ".mp3": 0.7, ".wav": 0.7, ".flac": 0.7,
+                ".jpg": 0.6, ".png": 0.6, ".tiff": 0.6, ".psd": 0.5,
+                ".pdf": 0.4, ".docx": 0.3, ".xlsx": 0.3, ".pptx": 0.3,
+                ".txt": 0.1, ".md": 0.1, ".py": 0.1, ".js": 0.1, ".css": 0.1, ".html": 0.1
+            }
+            
+            # Statistics
+            self.stats = {
+                "space_emergencies_prevented": 0, "files_offloaded": 0,
+                "space_recovered_gb": 0.0, "emergency_interventions": 0,
+                "warnings_issued": 0, "automatic_offloads": 0
+            }
+            
+            # Active monitoring
+            self.monitoring_active = False
+            self.monitoring_threads = {}
+            self.current_emergencies = []
+            
+            # Initialize database
+            self._init_protection_database()
+            
+            if hasattr(self, 'logger'):
+                self.logger.info("Emergency Space Protection initialized")
+
+        except Exception as e:
+            # Fallback logging if initialization fails
+            if hasattr(self, 'logger'):
+                self.logger.error(f"Failed to initialize EmergencySpaceProtection: {e}")
+            else:
+                print(f"CRITICAL ERROR: Failed to initialize EmergencySpaceProtection: {e}")
 
     def _init_protection_database(self):
         """Initialize space protection database"""
@@ -481,10 +464,29 @@ class EmergencySpaceProtection:
         self.logger.error(f"EMERGENCY: Executing immediate offloading for {emergency.disk_path}")
         
         try:
+            # STEP 0: Immediate Local Cleanup to create buffer for Google Drive Sync Cache
+            # We must free up some space LOCALLY before we can move files to the cloud mount,
+            # otherwise the cache will fill up and sync will fail.
+            freed_temp = self._cleanup_temp_files(emergency)
+            freed_dupes = self._cleanup_duplicate_files(emergency)
+            
+            self.logger.info(f"Pre-offload cleanup freed {freed_temp + freed_dupes:.2f} GB")
+            
+            # Re-check usage after cleanup
+            # We don't want to re-calculate everything, but we should subtract freed space 
+            # from what we need to free.
+            
             # Calculate space needed to reach target
             target_usage = self.config["target_free_space"]
             space_needed_gb = emergency.total_space_gb * ((emergency.usage_percent - target_usage) / 100)
             
+            # Adjust required space based on what we just freed
+            space_needed_gb -= (freed_temp + freed_dupes)
+            
+            if space_needed_gb <= 0:
+                self.logger.info("Local cleanup was sufficient to resolve emergency!")
+                return
+
             self.logger.info(f"Need to free {space_needed_gb:.1f} GB to reach target usage")
             
             # Get offload candidates
@@ -823,13 +825,13 @@ class EmergencySpaceProtection:
             # Default based on file type
             file_ext = file_path.suffix.lower()
             if file_ext in ['.mp4', '.mov', '.avi', '.mkv']:
-                return "99_EMERGENCY_STAGING/Video_Archive"
+                return "99_STAGING_EMERGENCY/Video_Archive"
             elif file_ext in ['.mp3', '.wav', '.flac']:
-                return "99_EMERGENCY_STAGING/Audio_Archive"
+                return "99_STAGING_EMERGENCY/Audio_Archive"
             elif file_ext in ['.jpg', '.png', '.tiff', '.psd']:
-                return "99_EMERGENCY_STAGING/Image_Archive"
+                return "99_STAGING_EMERGENCY/Image_Archive"
             else:
-                return "99_EMERGENCY_STAGING/General_Archive"
+                return "99_STAGING_EMERGENCY/General_Archive"
 
     # Helper methods
     def _get_disk_path(self, location: Path) -> str:
@@ -851,8 +853,7 @@ class EmergencySpaceProtection:
             actions = [
                 "immediate_file_offloading",
                 "delete_temp_files",
-                "remove_duplicates",
-                "compress_large_files"
+                "remove_duplicates"
             ]
         elif severity == "critical":
             actions = [
