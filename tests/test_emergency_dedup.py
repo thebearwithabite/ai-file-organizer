@@ -36,40 +36,29 @@ class TestEmergencySpaceProtectionIntegration(unittest.TestCase):
         emergency.disk_path = str(self.test_dir)
         emergency.severity = "critical"
 
-        # We need to mock BulletproofDeduplicator inside the method or rely on actual behavior.
-        # Since I want to verify integration, I will rely on actual behavior but I need to make sure
-        # scan_directory uses a low safety threshold for tests because file ages are 0.
+        # Mock the deduplicator instance directly on the esp object
+        # The esp object is created in setUp, so patching the class afterwards doesn't affect it
+        mock_deduplicator = MagicMock()
+        mock_deduplicator.scan_directory.return_value = {
+            "space_recoverable": 1024 * 1024 * 1024, # 1 GB
+            "deleted_files": 10,
+            "errors": []
+        }
 
-        # In _cleanup_duplicate_files:
-        # safety_threshold = 0.7 (or 0.5 for emergency)
+        # Swap the real deduplicator with the mock
+        self.esp.deduplicator = mock_deduplicator
 
-        # My test files are new, so safety score will be low (probably < 0.2).
-        # To make them deletable, I need to mock BulletproofDeduplicator to return a high safety score
-        # OR mock the scan_directory method.
+        freed_gb = self.esp._cleanup_duplicate_files(emergency)
 
-        # Let's mock scan_directory to verify it is called correctly.
-        with patch('emergency_space_protection.BulletproofDeduplicator') as MockDeduplicator:
-            instance = MockDeduplicator.return_value
-            instance.scan_directory.return_value = {
-                "space_recoverable": 1024 * 1024 * 1024, # 1 GB
-                "deleted_files": 10,
-                "errors": []
-            }
+        # Verify scan_directory called
+        mock_deduplicator.scan_directory.assert_called_with(
+            Path(self.test_dir),
+            execute=True,
+            safety_threshold=0.7 # Default for critical
+        )
 
-            freed_gb = self.esp._cleanup_duplicate_files(emergency)
-
-            # Verify initialization
-            MockDeduplicator.assert_called_with(str(self.esp.base_dir))
-
-            # Verify scan_directory called
-            instance.scan_directory.assert_called_with(
-                Path(self.test_dir),
-                execute=True,
-                safety_threshold=0.7 # Default for critical
-            )
-
-            # Verify return value
-            self.assertEqual(freed_gb, 1.0)
+        # Verify return value
+        self.assertEqual(freed_gb, 1.0)
 
     def test_cleanup_duplicate_files_emergency_severity(self):
         emergency = MagicMock(spec=SpaceEmergency)
@@ -77,22 +66,24 @@ class TestEmergencySpaceProtectionIntegration(unittest.TestCase):
         emergency.disk_path = str(self.test_dir)
         emergency.severity = "emergency"
 
-        with patch('emergency_space_protection.BulletproofDeduplicator') as MockDeduplicator:
-            instance = MockDeduplicator.return_value
-            instance.scan_directory.return_value = {
-                "space_recoverable": 0,
-                "deleted_files": 0,
-                "errors": []
-            }
+        # Mock the deduplicator instance directly
+        mock_deduplicator = MagicMock()
+        mock_deduplicator.scan_directory.return_value = {
+            "space_recoverable": 0,
+            "deleted_files": 0,
+            "errors": []
+        }
 
-            self.esp._cleanup_duplicate_files(emergency)
+        self.esp.deduplicator = mock_deduplicator
 
-            # Verify scan_directory called with lower threshold
-            instance.scan_directory.assert_called_with(
-                Path(self.test_dir),
-                execute=True,
-                safety_threshold=0.5
-            )
+        self.esp._cleanup_duplicate_files(emergency)
+
+        # Verify scan_directory called with lower threshold
+        mock_deduplicator.scan_directory.assert_called_with(
+            Path(self.test_dir),
+            execute=True,
+            safety_threshold=0.5
+        )
 
 if __name__ == '__main__':
     unittest.main()
