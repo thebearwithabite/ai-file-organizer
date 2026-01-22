@@ -38,3 +38,10 @@ test_*.py
 99_TEMP_PROCESSING/
 99_STAGING_EMERGENCY/
 Archive/
+
+# IDE
+.vscode/
+.idea/
+
+# Google Drive credentials (contains OAuth secrets)
+gdrive_token.pickle

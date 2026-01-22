@@ -1,0 +1,2 @@
+Rollback_ID,Timestamp,Original_Path,Original_Filename,New_Filename,GDrive_Folder,GDrive_File_ID,Category,Confidence,Rollback_Status,Notes
+1,2025-09-01T06:10:38.051402,/Users/user/Downloads/grok doc.pdf,grok doc.pdf,TPTD - Episode Draft - 2025-09-01.pdf,Episodes,1H8cFwN2JmyZ-83efYrEBKuQWJNYZj9gF,document,70.0,executed,Auto-renamed: 'grok doc.pdf' → 'TPTD - Episode Draft - 2025-09-01.pdf' | Folder: Episodes | ROLLBACK EXECUTED: 2025-09-01T06:10:47.475193
