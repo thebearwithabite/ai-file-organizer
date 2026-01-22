@@ -36,7 +36,7 @@ from background_monitor import EnhancedBackgroundMonitor
 from universal_adaptive_learning import UniversalAdaptiveLearning
 from confidence_system import ADHDFriendlyConfidenceSystem, ConfidenceLevel
 from bulletproof_deduplication import BulletproofDeduplicator
-from gdrive_integration import get_ai_organizer_root, get_metadata_root
+from gdrive_integration import get_ai_organizer_root, get_metadata_root, GoogleDriveIntegration
 from easy_rollback_system import EasyRollbackSystem
 from staging_monitor import StagingMonitor
 
@@ -162,6 +162,13 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
             "rules_created": 0,
             "user_corrections_learned": 0
         })
+
+        # Initialize Google Drive Integration with error handling
+        try:
+            self.gdrive = GoogleDriveIntegration()
+        except Exception as e:
+            self.logger.warning(f"Google Drive Integration not available: {e}")
+            self.gdrive = None
         
         # Tracking timestamps
         self._last_pattern_discovery_time = None
