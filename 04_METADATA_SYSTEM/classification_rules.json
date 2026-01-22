@@ -1,24 +1,24 @@
 {
   "people_indicators": {
-    "finn_Client": [
-      "finn",
+    "a_cloent": [
+      "name",
       "Client",
       "TV Show",
-      "netflix"
+      "netrork"
     ],
     "business_contacts": [
-      "refinery",
+      "refine",
       "payment report",
       "contract",
       "agreement"
     ]
   },
   "project_indicators": {
-    "stranger_things": [
-      "stranger",
-      "things",
-      "netflix",
-      "hawkins"
+    "show": [
+      "sho",
+      "name",
+      "netork",
+      "city"
     ],
     "papers_that_dream": [
       "papers",
