@@ -11,7 +11,7 @@ from api.veo_studio_api import (
     extract_assets_from_script,
     count_scenes_and_shots,
     Asset,
-    ShotData
+)
 )
 
 # Sample script for testing
