@@ -877,29 +877,31 @@ class EmergencySpaceProtection:
         import tempfile
         self.logger.info("Cleaning up temporary files...")
         
-        # Extended patterns from PR #28
+        # Extended patterns (Superset of HEAD and Cleanup)
         temp_patterns = [
             "*.tmp", "*.temp", "*.bak", "*.swp", "*.~*",
             "Thumbs.db", ".DS_Store", "*.log", "*.old",
             "*.cache", "*.chk", "npm-debug.log*", "yarn-error.log*"
         ]
-        total_freed = 0
         
-        # Identify directories to scan (affected + system temp if on same disk)
         directories_to_scan = set()
         for d in emergency.affected_directories:
              directories_to_scan.add(Path(d))
 
+        # Add system temp directory if on the same disk
         try:
             temp_dir = Path(tempfile.gettempdir())
             if temp_dir.exists():
-                # We reuse the _get_disk_path helper from the class if available
-                # but it's easier to just check if it's on the home disk if we are monitoring home
                 temp_disk = self._get_disk_path(temp_dir)
                 if temp_disk == emergency.disk_path:
                     directories_to_scan.add(temp_dir)
         except Exception:
             pass 
+        
+        self.logger.info(f"Scanning for temp files in: {[str(d) for d in directories_to_scan]}")
+
+        total_freed_bytes = 0
+        files_deleted = 0
         
         for directory in directories_to_scan:
             if not directory.exists():
@@ -913,13 +915,14 @@ class EmergencySpaceProtection:
                             # Safe check - only delete if not recently modified (e.g. > 1 hour)
                             if time.time() - temp_file.stat().st_mtime > 3600:
                                 temp_file.unlink()
-                                total_freed += file_size
+                                total_freed_bytes += file_size
+                                files_deleted += 1
                                 self.logger.debug(f"Purged temp file: {temp_file}")
                         except Exception as e:
                             self.logger.warning(f"Failed to delete {temp_file}: {e}")
                             
-        freed_gb = total_freed / (1024**3)
-        self.logger.info(f"Cleanup finished. Freed {freed_gb:.2f} GB")
+        freed_gb = total_freed_bytes / (1024**3)
+        self.logger.info(f"Cleanup finished: {files_deleted} temp files deleted, {freed_gb:.4f} GB freed")
         return freed_gb
 
     def _cleanup_duplicate_files(self, emergency: SpaceEmergency) -> float:
