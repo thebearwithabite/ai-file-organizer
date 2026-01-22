@@ -38,6 +38,7 @@ from confidence_system import ADHDFriendlyConfidenceSystem, ConfidenceLevel
 from bulletproof_deduplication import BulletproofDeduplicator
 from gdrive_integration import get_ai_organizer_root, get_metadata_root
 from easy_rollback_system import EasyRollbackSystem
+from staging_monitor import StagingMonitor
 
 class AdaptiveFileHandler(FileSystemEventHandler):
     """File system event handler with learning capabilities"""
@@ -122,6 +123,7 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
         self.confidence_system = ADHDFriendlyConfidenceSystem(str(self.base_dir))
         self.deduplicator = BulletproofDeduplicator(str(self.base_dir))
         self.rollback_system = EasyRollbackSystem()
+        self.staging_monitor = StagingMonitor(str(self.base_dir))
         
         # File system watchers
         self.observers = {}
@@ -629,6 +631,17 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
             if not decision.requires_user_input and decision.predicted_action:
                 action_taken = self._execute_automatic_action(path, decision, context)
 
+            
+            # --- V3.1 ENHANCEMENT: 7-DAY STAGING COOLDOWN ---
+            # Instead of executing automatically, check if it's ready
+            is_organized = self._handle_new_file_with_cooldown(file_obj)
+            
+            if is_organized:
+                action_taken = True
+            elif not decision.requires_user_input and decision.predicted_action:
+                # If it's not ready but we have a prediction, just log it
+                # super()._process_single_file(file_obj) # Already processed below
+                pass
             elif decision.requires_user_input:
                 self._queue_for_user_interaction(path, decision, context)
                 # Still process for indexing
@@ -1211,13 +1224,102 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
 
     def _discover_behavioral_patterns(self, events) -> List[Dict[str, Any]]:
         """Discover behavioral patterns from learning events"""
-        # TODO: Implement sophisticated pattern discovery
-        return []
+        from collections import Counter
+        
+        # 1. Discover Extension -> Target Directory patterns
+        extension_patterns = Counter()
+        extension_targets = {}
+        
+        manual_moves = [e for e in events if e.event_type == 'manual_move']
+        
+        for event in manual_moves:
+            ctx = event.context
+            ext = ctx.get('file_extension', 'unknown')
+            target = ctx.get('target_directory', 'unknown')
+            
+            key = (ext, target)
+            extension_patterns[key] += 1
+            
+        new_patterns = []
+        for (ext, target), count in extension_patterns.items():
+            # If a specific extension has been moved to a specific target 3+ times
+            if count >= 3:
+                new_patterns.append({
+                    "pattern_type": "extension_routing",
+                    "trigger_conditions": {"file_extension": ext},
+                    "predicted_action": {"target_location": target},
+                    "frequency": count,
+                    "confidence": 0.7 + (min(count, 10) * 0.02) # Boost confidence with frequency
+                })
+        
+        # 2. Discover Keyword -> Target Directory patterns
+        keyword_patterns = Counter()
+        
+        for event in manual_moves:
+            ctx = event.context
+            keywords = ctx.get('content_keywords', [])
+            target = ctx.get('target_directory', 'unknown')
+            
+            for word in keywords:
+                key = (word, target)
+                keyword_patterns[key] += 1
+                
+        for (word, target), count in keyword_patterns.items():
+            if count >= 3:
+                new_patterns.append({
+                    "pattern_type": "keyword_routing",
+                    "trigger_conditions": {"keyword": word},
+                    "predicted_action": {"target_location": target},
+                    "frequency": count,
+                    "confidence": 0.75 + (min(count, 10) * 0.02)
+                })
+                
+        return new_patterns
 
     def _generate_adaptive_rules(self) -> List[Dict[str, Any]]:
         """Generate new adaptive rules from learned patterns"""
-        # TODO: Implement rule generation
-        return []
+        # Promotion logic: Discover -> Pattern -> Rule
+        recent_events = [
+            event for event in self.learning_system.learning_events
+            if (datetime.now() - event.timestamp).days <= 30
+        ]
+        
+        patterns = self._discover_behavioral_patterns(recent_events)
+        promoted_rules = []
+        
+        for pattern in patterns:
+            # Rule Promotion Requirements:
+            # 1. Frequency >= 5 OR Confidence >= 0.85
+            if pattern['frequency'] >= 5 or pattern['confidence'] >= 0.85:
+                rule_id = f"rule_{hashlib.md5(str(pattern).encode()).hexdigest()[:8]}"
+                
+                # Check if rule already exists in DB
+                try:
+                    with sqlite3.connect(self.rules_db_path) as conn:
+                        cursor = conn.execute("SELECT rule_id FROM adaptive_rules WHERE rule_id = ?", (rule_id,))
+                        if cursor.fetchone():
+                            continue
+                            
+                        # Insert new rule
+                        conn.execute("""
+                            INSERT INTO adaptive_rules 
+                            (rule_id, rule_type, trigger_conditions, action_definition, confidence_score, created_date)
+                            VALUES (?, ?, ?, ?, ?, ?)
+                        """, (
+                            rule_id,
+                            pattern['pattern_type'],
+                            json.dumps(pattern['trigger_conditions']),
+                            json.dumps(pattern['predicted_action']),
+                            pattern['confidence'],
+                            datetime.now().isoformat()
+                        ))
+                        conn.commit()
+                        promoted_rules.append(pattern)
+                        self.logger.info(f"🏆 Promoted pattern to active rule: {pattern['pattern_type']} -> {pattern['predicted_action']['target_location']}")
+                except Exception as e:
+                    self.logger.error(f"Error promoting rule {rule_id}: {e}")
+                    
+        return promoted_rules
 
     def _count_recent_duplicates(self) -> int:
         """Count recent duplicate files"""
@@ -1302,6 +1404,66 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
         self.learning_system.save_all_data()
 
         self.logger.info("Adaptive monitoring stopped")
+
+    def _handle_new_file_with_cooldown(self, path: Path) -> bool:
+        """
+        Handle new file with 7-day cooldown safety rule
+        
+        Monitors files in Desktop/Downloads and only auto-organizes after
+        they have been stationary for 7 days.
+        """
+        try:
+            # 1. Capture observation immediately
+            # This ensures we have a 'first_seen' timestamp even if it's a new file
+            is_new = self.staging_monitor.record_observation(path)
+            
+            # 2. Extract confidence-based logic
+            # (In a real system, we'd reuse the decision from _handle_new_file, 
+            # but we need to check if it's MATURE enough now)
+            
+            age_days = self.staging_monitor.get_file_age_days(str(path))
+            
+            if age_days is None:
+                return False
+                
+            if age_days < self.staging_monitor.config.get("staging_days", 7):
+                if is_new:
+                    self.logger.info(f"🆕 Discovered {path.name}. Entering 7-day staging.")
+                return False
+
+            # 3. If mature (>= 7 days), check for high confidence move
+            # We re-run the classification just in case context changed
+            context = {
+                "file_size": path.stat().st_size,
+                "creation_time": datetime.fromtimestamp(path.stat().st_ctime).isoformat(),
+                "age_days": age_days
+            }
+            
+            prediction = self.learning_system.predict_user_action(str(path), context)
+            decision = self.confidence_system.make_confidence_decision(
+                file_path=str(path),
+                predicted_action=prediction.get("predicted_action", {}),
+                system_confidence=prediction.get("confidence", 0.0),
+                context=context
+            )
+            
+            # Use high confidence threshold for auto-move (V3 requirement: 0.85)
+            # The confidence_system might have its own thresholds, but we enforce 0.85 here
+            if not decision.requires_user_input and decision.system_confidence >= 0.85:
+                self.logger.info(f"⏳ Cooldown complete for {path.name} ({age_days}d). High confidence ({decision.system_confidence:.2f}). Organizing...")
+                moved = self._execute_automatic_action(path, decision, context)
+                if moved:
+                    self.staging_monitor.mark_file_organized(str(path), decision.predicted_action.get("target_location"))
+                return moved
+            elif age_days >= 14:
+                # If extremely old but low confidence, maybe queue for user?
+                self.logger.debug(f"File {path.name} is {age_days}d old but confidence is only {decision.system_confidence:.2f}")
+                
+            return False
+            
+        except Exception as e:
+            self.logger.error(f"Error in cooldown handler for {path}: {e}")
+            return False
 
 # Testing and CLI interface
 def main():

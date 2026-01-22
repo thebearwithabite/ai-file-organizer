@@ -134,6 +134,7 @@ class SystemService:
                 
                 monitor_info = {
                     "watching_paths": len(monitor_stats.get("watch_directories", {})),
+                    "status": "active" if monitor_stats.get("running") else "paused",
                     "rules_loaded": active_rules,
                     "stats": {
                         "processed_files": monitor_stats.get("processed_files", 0),
@@ -148,6 +149,7 @@ class SystemService:
         else:
             monitor_info = {
                 "watching_paths": 0,
+                "status": "offline",
                 "rules_loaded": 0,
                 "stats": {"processed_files": 0, "errors_24h": 0, "last_scan": None}
             }

@@ -12,7 +12,7 @@ import sys
 import time
 import json
 import datetime as dt
-from gdrive_integration import get_metadata_root
+from gdrive_integration import get_metadata_root, get_ai_organizer_root
 # Add project root to path
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
