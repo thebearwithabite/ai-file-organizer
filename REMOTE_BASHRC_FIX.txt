@@ -1,0 +1,16 @@
+=== Bashrc Fix for Remote ===
+The error:
+  -bash: /home/bear/.bashrc: line 388: syntax error near unexpected token '('
+  -bash: /home/bear/.bashrc: line 388: 'ai-status() {'
+
+This usually happens in bash if:
+1. There's a stray character before the '('.
+2. There's a space between the name and the '()', e.g., 'ai-status () {'.
+3. The function name contains illegal characters.
+
+RECOMMENDED FIX:
+Ensure the line in ~/.bashrc looks exactly like this (no spaces):
+ai-status() {
+    # function body
+}
+

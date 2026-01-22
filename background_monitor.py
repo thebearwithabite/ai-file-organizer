@@ -33,6 +33,7 @@ class EnhancedBackgroundMonitor:
             "errors_24h": 0,
             "last_scan": None
         }
+        }
         
         # Track start time for uptime calculation
         self.start_time = None
