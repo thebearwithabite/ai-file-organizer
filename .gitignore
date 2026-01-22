@@ -1,48 +1,3 @@
-# General
-.DS_Store
-__pycache__/
-*.pyc
-venv/
-node_modules/
-
-# Environment and Secrets
-.env
-.env*
-gdrive_credentials.json
-token.json
-credentials.json
-*credentials*.json
-*token*.json
-
-# Databases
-*.db
-*.sqlite
-*.db-shm
-*.db-wal
-chroma_db/
-
-# Logs
-*.log
-server.lock
-orchestrator.log
-
-# Frontend Builds
-dist/
-build/
-
-# Temporary Files
-*.bak
-*.tmp
-verify_*.py
-test_*.py
-99_TEMP_PROCESSING/
-99_STAGING_EMERGENCY/
-Archive/
-
-# IDE
-.vscode/
-.idea/
-
 # Google Drive credentials (contains OAuth secrets)
 gdrive_token.pickle
 
@@ -72,3 +27,52 @@ audio_organizer_source/
 .venv/
 
 docs/veopromptmachine-*.json
+
+# Google Drive credentials (contains OAuth secrets)
+gdrive_token.pickle
+
+# AI Organizer local config
+# Claude Code local settings
+# Configuration files with sensitive data
+# Content cache
+# Database files
+# IDE
+# Legacy audio organizer source
+# Log files
+# Personal/dev utility scripts (not for public repo)
+# Python cache
+# Test output directories
+# Virtual Environments
+# Virtual environments
+# macOS
+*$py.class
+*.db
+*.db-shm
+*.db-wal
+*.log
+*.pkl
+*.py[cod]
+*config*.json
+.DS_Store
+.ai_organizer_config/
+.ai_organizer_config/google_drive_token.json
+.claude/settings.local.json
+.env.local
+.idea/
+.venv/
+.vscode/
+2025-11-23-start-message-to-claude.txt
+__pycache__/
+audacity_gdrive_uploader.py
+audacity_upload_report_*.json
+audio_organizer_source/
+content_cache/
+docs/veopromptmachine-*.json
+env/
+gdrive_credentials.json
+scrub_personal_info.py
+temp_benchmark_data/
+test_audacity_upload_setup.py
+test_veo_output/
+validate_pii_scrubbing.py
+venv/
