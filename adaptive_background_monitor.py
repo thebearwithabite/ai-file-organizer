@@ -548,8 +548,10 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
             self.logger.error(f"Error handling new folder {folder_path}: {e}")
 
     def _handle_new_file(self, file_path: str, timestamp: datetime):
-        """Handle newly created file with adaptive intelligence"""
-        
+        """
+        Handle newly created file with adaptive intelligence.
+        Delegates to _handle_new_file_with_cooldown for 7-day safety rule.
+        """
         try:
             file_obj = Path(file_path)
             
@@ -559,20 +561,66 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
             # Check if file should be processed
             if not self._should_process_file(file_obj):
                 return
+
+            # Delegate to 7-day cooldown logic
+            self._handle_new_file_with_cooldown(file_obj)
             
-            # Get prediction from learning system
+        except Exception as e:
+            self.logger.error(f"Error handling new file {file_path}: {e}")
+
+    def _handle_new_file_with_cooldown(self, path: Path) -> bool:
+        """
+        Handle new file with 7-day cooldown safety rule.
+
+        SAFETY RULES (v3.2+):
+        1. Detect & log new files instantly
+        2. Record event (path, category prediction, confidence, timestamp)
+        3. Wait 7 days of inactivity before auto-organizing
+        4. Only auto-move if confidence ≥ 0.85
+        5. All moves go through log_file_op() for rollback safety
+
+        Args:
+            path: Path to new/detected file
+
+        Returns:
+            bool: True if file was organized, False if deferred or failed
+        """
+        try:
+            if not path.exists():
+                return False
+
+            # Get file age (in days)
+            age_days = (datetime.now() - datetime.fromtimestamp(path.stat().st_mtime)).days
+
+            # Build context for prediction (needed for observation logging)
             context = {
-                "file_size": file_obj.stat().st_size,
-                "creation_time": timestamp.isoformat(),
-                "source_directory": str(file_obj.parent),
-                "content_keywords": self._extract_quick_keywords(file_obj)
+                "file_size": path.stat().st_size,
+                "creation_time": datetime.now().isoformat(),
+                "source_directory": str(path.parent),
+                "content_keywords": self._extract_quick_keywords(path)
             }
             
-            prediction = self.learning_system.predict_user_action(file_path, context)
+            # Get prediction regardless of age (to log observation)
+            prediction = self.learning_system.predict_user_action(str(path), context)
             
-            # Make confidence-based decision
+            # CASE 1: File is too new (< 7 days)
+            if age_days < 7:
+                self.logger.info(f"⏳ Deferring move for {path.name} ({age_days}d old)")
+
+                # Record as observation only (not verified)
+                # We use record_classification which sets event_type='ai_observation'
+                self.learning_system.record_classification(
+                    file_path=str(path),
+                    predicted_category=prediction.get("predicted_action", {}).get("target_category", "unknown"),
+                    confidence=prediction.get("confidence", 0.0),
+                    features=context,
+                    media_type="file" # generic media type
+                )
+                return False
+
+            # CASE 2: File is mature (>= 7 days) - Proceed with auto-organization
             decision = self.confidence_system.make_confidence_decision(
-                file_path=file_path,
+                file_path=str(path),
                 predicted_action=prediction.get("predicted_action", {}),
                 system_confidence=prediction.get("confidence", 0.0),
                 context=context
@@ -580,6 +628,9 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
             
             # Execute decision
             action_taken = False
+            if not decision.requires_user_input and decision.predicted_action:
+                action_taken = self._execute_automatic_action(path, decision, context)
+
             
             # --- V3.1 ENHANCEMENT: 7-DAY STAGING COOLDOWN ---
             # Instead of executing automatically, check if it's ready
@@ -592,16 +643,19 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
                 # super()._process_single_file(file_obj) # Already processed below
                 pass
             elif decision.requires_user_input:
-                self._queue_for_user_interaction(file_obj, decision, context)
-                # Even if queued, we should index it so it's searchable
-                super()._process_single_file(file_obj)
+                self._queue_for_user_interaction(path, decision, context)
+                # Still process for indexing
+                super()._process_single_file(path)
             
             # If no action taken (and not queued), index it in place
             if not action_taken and not decision.requires_user_input:
-                super()._process_single_file(file_obj)
-            
+                super()._process_single_file(path)
+
+            return action_taken
+
         except Exception as e:
-            self.logger.error(f"Error handling new file {file_path}: {e}")
+            self.logger.error(f"Error in cooldown handler for {path}: {e}")
+            return False
 
     def _process_single_file(self, file_path: Path, auto_organize: bool = False) -> bool:
         """
@@ -612,6 +666,38 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
         # _handle_new_file decides based on confidence.
         self._handle_new_file(str(file_path), datetime.now())
         return True
+
+    def _scan_directory(self, dir_info: Dict[str, Any], priority: str) -> Dict[str, int]:
+        """
+        Override: Scan directory and process files periodically.
+        This is critical for the 7-day cooldown: files that were deferred
+        must be re-checked later.
+        """
+        path = dir_info["path"]
+        results = {"files_found": 0, "files_processed": 0, "files_skipped": 0, "errors": 0}
+
+        if not path.exists():
+            return results
+
+        try:
+            self.logger.debug(f"Scanning directory for deferred files: {path}")
+            for file_path in path.iterdir():
+                if file_path.is_file():
+                    results["files_found"] += 1
+                    # Process file (will check age again)
+                    try:
+                        # We use _handle_new_file directly to go through the cooldown logic
+                        self._handle_new_file(str(file_path), datetime.now())
+                        results["files_processed"] += 1
+                    except Exception as e:
+                        self.logger.error(f"Error processing {file_path}: {e}")
+                        results["errors"] += 1
+
+        except Exception as e:
+            self.logger.error(f"Error scanning {path}: {e}")
+            results["errors"] += 1
+
+        return results
 
     def _handle_file_modification(self, file_path: str, timestamp: datetime):
         """Handle file modification - check for re-indexing"""
@@ -625,6 +711,9 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
             # Check if file needs re-indexing
             if self._needs_reindexing(file_obj):
                 self.logger.info(f"Re-indexing modified file: {file_obj.name}")
+                # Treat modification as a "new event" for cooldown purposes?
+                # The spec says: "Wait 7 days of inactivity (no modifications in last 7 days)"
+                # So yes, we should run it through the handler.
                 self._process_single_file(file_obj)
             
         except Exception as e:
