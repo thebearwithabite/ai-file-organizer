@@ -38,13 +38,17 @@ gdrive_token.pickle
 # Database files
 # IDE
 # Legacy audio organizer source
+*.zip
 # Log files
 # Personal/dev utility scripts (not for public repo)
+*_*.txt
 # Python cache
+___pycache___/
 # Test output directories
 # Virtual Environments
 # Virtual environments
 # macOS
+*.applescript
 *$py.class
 *.db
 *.db-shm
