@@ -62,9 +62,31 @@ export default function SystemStateStrip() {
         return { label: 'Never run', color: 'bg-gray-500' }
     }
 
+    const getPowerhouseStatus = () => {
+        if (error || !status || !status.powerhouse) return { label: '-', color: 'bg-gray-500' }
+
+        const p = status.powerhouse
+        if (!p.enabled) return { label: 'Disabled', color: 'bg-gray-500' }
+
+        if (p.status === 'online') {
+            return {
+                label: 'Online (5090)',
+                color: 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]'
+            }
+        }
+        if (p.status === 'partial') {
+            return {
+                label: 'Partial',
+                color: 'bg-orange-500'
+            }
+        }
+        return { label: 'Offline', color: 'bg-red-500' }
+    }
+
     const backend = getBackendStatus()
     const monitor = getMonitorStatus()
     const orchestration = getOrchestrationStatus()
+    const powerhouse = getPowerhouseStatus()
 
     return (
         <div className="w-full bg-slate-900/95 border-b border-slate-800 backdrop-blur-md px-6 py-2 flex items-center gap-8 text-sm text-slate-300 z-50 sticky top-0 h-10">
@@ -87,6 +109,13 @@ export default function SystemStateStrip() {
                 <span className={`w-2 h-2 rounded-full ${orchestration.color}`}></span>
                 <span className="opacity-70">Last Orchestration:</span>
                 <span className="font-medium text-white">{orchestration.label}</span>
+            </div>
+
+            {/* Powerhouse */}
+            <div className="flex items-center gap-2 ml-auto">
+                <span className={`w-2 h-2 rounded-full ${powerhouse.color}`}></span>
+                <span className="opacity-70">RTX Powerhouse:</span>
+                <span className="font-medium text-white">{powerhouse.label}</span>
             </div>
         </div>
     )

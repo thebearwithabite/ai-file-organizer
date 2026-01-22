@@ -32,6 +32,21 @@ export interface SystemStatus {
     staging_monitor: string
     drive_sync: string
   }
+  vision?: {
+    initialized: boolean,
+    use_vertex: boolean,
+    model: string,
+    daily_quota: number,
+    requests_today: number,
+    error?: string
+  }
+  powerhouse?: {
+    enabled: boolean
+    status: 'online' | 'offline' | 'partial' | 'not_configured' | 'disabled' | 'error'
+    ip?: string
+    services?: Record<string, { status: string; ip: string }>
+    model?: string
+  }
   confidence_mode: string
 }
 

@@ -217,6 +217,13 @@ async def startup_event():
         asyncio.create_task(delayed_initial_scan())
         asyncio.create_task(periodic_orchestration())
 
+        # Start Emergency Space Protection
+        try:
+            space_protection.start_space_protection()
+            logger.info("🛡️  Emergency Space Protection started")
+        except Exception as e:
+            logger.error(f"❌ Failed to start Emergency Space Protection: {e}")
+
     except Exception as e:
         logger.error(f"❌ Failed to start background monitor: {e}")
 
@@ -231,6 +238,13 @@ async def shutdown_event():
     if background_monitor:
         logger.info("   Stopping background monitor...")
         background_monitor.stop()
+
+    try:
+        if space_protection:
+            logger.info("   Stopping Emergency Space Protection...")
+            space_protection.stop_space_protection()
+    except Exception as e:
+        logger.error(f"Error stopping Emergency Space Protection: {e}")
         
     logger.info("✅ Shutdown complete")
 

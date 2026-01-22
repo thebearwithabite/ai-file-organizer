@@ -101,12 +101,18 @@ class LibrarianCLI:
         print(f"\n🔄 Last updated: {status['last_updated']}")
     
     def organize(self, dry_run: bool = True) -> None:
-        """Run file organization on staging folders"""
+        """Run file organization on staging folders with deduplication"""
         print(f"\n🗂️ File Organization {'(Dry Run)' if dry_run else '(Live)'}")
         print("=" * 50)
         
+        import shutil
+        from automated_deduplication_service import AutomatedDeduplicationService
+        from easy_rollback_system import EasyRollbackSystem
+        
         staging_monitor = StagingMonitor(str(self.base_dir))
         classifier = FileClassificationEngine(str(self.base_dir))
+        dedup_service = AutomatedDeduplicationService(str(self.base_dir))
+        rollback = EasyRollbackSystem()
         
         # Get files ready for organization
         ready_files = staging_monitor.get_files_ready_for_organization()
@@ -119,6 +125,17 @@ class LibrarianCLI:
         print(f"📁 Found {len(ready_files)} files ready for organization:\n")
         
         organized_count = 0
+        skipped_count = 0
+        duplicate_count = 0
+        
+        # Start rollback operation
+        op_id = None
+        if not dry_run:
+            op_id = rollback.start_operation(
+                "batch_organization", 
+                f"Organizing {len(ready_files)} files from staging",
+                confidence=1.0
+            )
         
         for file_info in ready_files:
             file_path = Path(file_info['path'])
@@ -137,25 +154,84 @@ class LibrarianCLI:
                 print(f"    📊 Confidence: {classification.confidence:.1%}")
                 print(f"    🎯 Recommendation: {recommendation}")
                 
-                if recommendation == "auto_organize" and not dry_run:
-                    # Would move the file here
-                    print(f"    ✅ Would move to: {classification.suggested_path}")
-                    organized_count += 1
+                if recommendation == "auto_organize":
+                    target_path = Path(classification.suggested_path)
+                    target_dir = target_path.parent
+                    
+                    # 1. Check for duplicates before moving
+                    print(f"    🔍 Checking for duplicates...")
+                    dup_check = dedup_service.check_for_duplicates_before_move(str(file_path), str(target_dir))
+                    
+                    if dup_check["status"] == "duplicates_found":
+                        print(f"    ⚠️  Duplicate found! ({len(dup_check['duplicate_paths'])} copies exist)")
+                        duplicate_count += 1
+                        
+                        if not dry_run:
+                            # If it's a high-confidence duplicate, we can just remove the staging copy
+                            if classification.confidence > 0.9:
+                                print(f"    🗑️  High confidence duplicate - removing staging copy")
+                                file_path.unlink()
+                                staging_monitor.mark_file_organized(str(file_path), "DELETED_DUPLICATE")
+                                continue
+                            else:
+                                print(f"    ⏭️  Skipping for manual review (duplicate exists)")
+                                skipped_count += 1
+                                continue
+                    
+                    # 2. Perform the move
+                    if not dry_run:
+                        print(f"    ➡️  Moving to: {classification.suggested_path}")
+                        
+                        # Ensure target directory exists
+                        target_dir.mkdir(parents=True, exist_ok=True)
+                        
+                        # Handle collision if destination filename already exists but isn't identical content
+                        final_target = target_path
+                        if final_target.exists():
+                            suffix = f"_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                            final_target = target_dir / f"{target_path.stem}{suffix}{target_path.suffix}"
+                            print(f"    ⚠️  Target exists, renaming to: {final_target.name}")
+                        
+                        # Record for rollback
+                        rollback.record_file_operation(op_id, str(file_path), str(final_target))
+                        
+                        # Move file
+                        shutil.move(str(file_path), str(final_target))
+                        
+                        # Mark as organized in staging DB
+                        staging_monitor.mark_file_organized(str(file_path), str(final_target))
+                        
+                        organized_count += 1
+                    else:
+                        print(f"    👀 Would move to: {classification.suggested_path}")
+                        organized_count += 1
+                        
                 elif recommendation == "suggest_organization":
                     print(f"    💡 Suggested: {classification.suggested_path}")
+                    skipped_count += 1
                 else:
-                    print(f"    ⚠️ Manual review needed")
+                    print(f"    ⚠️  Manual review needed")
+                    skipped_count += 1
                 
             except Exception as e:
-                print(f"    ❌ Classification error: {e}")
+                print(f"    ❌ Organization error: {e}")
             
             print()
         
+        if not dry_run and op_id:
+            rollback.complete_operation(op_id, success=True)
+        
         if dry_run:
-            print(f"🔍 Dry run complete - {organized_count} files would be organized")
-            print("💡 Use --live to actually move files")
+            print(f"🔍 Dry run complete:")
+            print(f"    • {organized_count} files would be organized")
+            print(f"    • {duplicate_count} duplicates identified")
+            print(f"    • {skipped_count} files require review")
+            print("\n💡 Use --live to actually move files")
         else:
-            print(f"✅ Organized {organized_count} files")
+            print(f"✅ Organization complete:")
+            print(f"    • {organized_count} files moved")
+            print(f"    • {duplicate_count} duplicates handled")
+            print(f"    • {skipped_count} files skipped")
     
     def index(self, force: bool = False) -> None:
         """Index files for content search"""

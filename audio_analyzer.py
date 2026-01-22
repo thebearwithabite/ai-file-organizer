@@ -101,6 +101,39 @@ class AudioAnalyzer:
         # Dynamic folder mapping that grows over time
         self.folder_map = self.build_dynamic_folder_map()
         self.audio_extensions = {'.mp3', '.wav', '.aiff', '.m4a', '.flac', '.ogg', '.wma'}
+
+        # Remote Powerhouse Config
+        self.remote_enabled = False
+        self.remote_ip = ""
+        self.remote_ollama_port = 11434
+        self.remote_model = "qwen2.5:7b" # Default to Qwen for text
+        self._load_remote_config()
+
+    def _load_remote_config(self):
+        """Load remote powerhouse configuration"""
+        try:
+            from gdrive_integration import get_metadata_root
+            config_path = get_metadata_root() / "config" / "hybrid_config.json"
+            if config_path.exists():
+                with open(config_path, 'r') as f:
+                    config = json.load(f)
+                    remote = config.get("remote_powerhouse", {})
+                    if remote.get("enabled"):
+                        # Check Ollama service specifically
+                        services = remote.get("services", {})
+                        ollama_cfg = services.get("ollama", {})
+                        
+                        # Use service-specific IP if available, else main remote IP
+                        ip = ollama_cfg.get("ip") or remote.get("ip")
+                        if ip:
+                            self.remote_enabled = True
+                            self.remote_ip = ip
+                            self.remote_ollama_port = ollama_cfg.get("port", 11434)
+                            # Prefer Qwen 2.5 for general intelligence or fallback to specified model
+                            self.remote_model = ollama_cfg.get("model", "qwen2.5:7b")
+                            print(f"📡 AudioAnalyzer: Remote classification enabled via {self.remote_ip} ({self.remote_model})")
+        except Exception as e:
+            print(f"⚠️  Error loading hybrid config for AudioAnalyzer: {e}")
     
     def load_learning_data(self) -> Dict[str, Any]:
         """Load historical classification data"""
@@ -664,11 +697,42 @@ Return response as JSON:
         # Rebuild folder map with new discoveries
         self.folder_map = self.build_dynamic_folder_map()
     
+    def _classify_audio_remote(self, prompt: str) -> Optional[Dict[str, Any]]:
+        """Send classification request to remote Ollama worker"""
+        import requests
+        try:
+            url = f"http://{self.remote_ip}:{self.remote_ollama_port}/api/chat"
+            payload = {
+                "model": self.remote_model,
+                "messages": [{"role": "user", "content": prompt}],
+                "stream": False,
+                "options": {
+                    "temperature": 0.4,
+                    "num_ctx": 4096
+                }
+            }
+            
+            print(f"📡 Sending classification request to {self.remote_model} at {self.remote_ip}...")
+            response = requests.post(url, json=payload, timeout=30)
+            
+            if response.status_code == 200:
+                result = response.json()
+                content = result.get("message", {}).get("content", "")
+                return content
+            else:
+                print(f"⚠️ Remote classification failed: {response.status_code} - {response.text}")
+                return None
+                
+        except Exception as e:
+            print(f"⚠️ Remote classification error: {e}")
+            return None
+
     def classify_audio_file(self, file_path: Path, user_description: str = "", project_context: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Classify audio file with adaptive learning and Whisper transcription"""
         
-        if not self.client:
-            print("Warning: OpenAI client not available. Cannot perform AI classification.")
+        # Check requirements (Local OpenAI OR Remote Powerhouse)
+        if not self.client and not self.remote_enabled:
+            print("Warning: No AI backend available (OpenAI missing & Remote disabled).")
             return None
         
         metadata = self.get_audio_metadata(file_path)
@@ -680,15 +744,28 @@ Return response as JSON:
         prompt = self.build_adaptive_prompt(file_path, metadata, transcript)
         
         try:
-            response = self._retry_openai_call(
-                self.client.chat.completions.create,
-                model="gpt-4o-mini",
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.4,  # Slightly higher for more creativity
-                timeout=15.0  # Prevent indefinite hangs
-            )
+            raw_response = ""
             
-            raw_response = response.choices[0].message.content.strip()
+            # A. Remote Powerhouse Strategy (Preferred)
+            if self.remote_enabled:
+                raw_response = self._classify_audio_remote(prompt)
+            
+            # B. OpenAI Fallback Strategy
+            if not raw_response and self.client:
+                if self.remote_enabled:
+                    print("⚠️ Remote failed, falling back to OpenAI...")
+                
+                response = self._retry_openai_call(
+                    self.client.chat.completions.create,
+                    model="gpt-4o-mini",
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=0.4,  # Slightly higher for more creativity
+                    timeout=15.0  # Prevent indefinite hangs
+                )
+                raw_response = response.choices[0].message.content.strip()
+            
+            if not raw_response:
+                raise RuntimeError("No response from AI backend")
             
             # Handle markdown-wrapped JSON or plain code blocks
             if '```' in raw_response:
