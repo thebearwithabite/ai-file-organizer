@@ -16,7 +16,6 @@ from fastapi import APIRouter, HTTPException, UploadFile, File
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
 import sqlite3
-import json
 import logging
 import re
 from datetime import datetime
