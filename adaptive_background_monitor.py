@@ -169,6 +169,10 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
         except Exception as e:
             self.logger.warning(f"Google Drive Integration not available: {e}")
             self.gdrive = None
+
+        # Track last execution times
+        self.last_emergency_check_time = None
+        self.last_pattern_discovery_time = None
         
         # Tracking timestamps
         self._last_pattern_discovery_time = None
@@ -836,7 +840,31 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
         
         while self.running:
             try:
+<<<<<<< HEAD
                 self._run_pattern_discovery_cycle()
+=======
+                self.logger.info("Starting pattern discovery cycle...")
+                
+                # Get recent learning events
+                recent_events = [
+                    event for event in self.learning_system.learning_events
+                    if (datetime.now() - event.timestamp).days <= 7
+                ]
+                
+                if len(recent_events) < 5:
+                    self.logger.info("Not enough recent events for pattern discovery")
+                    time.sleep(self.learning_intervals['pattern_discovery'])
+                    continue
+                
+                # Discover patterns
+                new_patterns = self._discover_behavioral_patterns(recent_events)
+                
+                if new_patterns:
+                    self.stats["patterns_discovered"] += len(new_patterns)
+                    self.logger.info(f"Discovered {len(new_patterns)} new patterns")
+                
+                self.last_pattern_discovery_time = datetime.now()
+>>>>>>> track-emergency-check-time-17167847416110268445
                 time.sleep(self.learning_intervals['pattern_discovery'])
                 
             except Exception as e:
@@ -871,7 +899,19 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
         
         while self.running:
             try:
+<<<<<<< HEAD
                 self._run_emergency_check_cycle()
+=======
+                self.logger.debug("Checking for emergency conditions...")
+                
+                emergencies = self._detect_emergencies()
+                
+                for emergency in emergencies:
+                    self._handle_emergency(emergency)
+                    self.stats["emergencies_prevented"] += 1
+                
+                self.last_emergency_check_time = datetime.now()
+>>>>>>> track-emergency-check-time-17167847416110268445
                 time.sleep(self.learning_intervals['emergency_check'])
                 
             except Exception as e:
@@ -1461,8 +1501,13 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
             "monitoring_status": {
                 "observers_active": len(self.observers),
                 "threads_running": len([t for t in self.threads.values() if t.is_alive()]),
+<<<<<<< HEAD
                 "last_pattern_discovery": last_pattern,
                 "last_emergency_check": last_emergency
+=======
+                "last_pattern_discovery": self.last_pattern_discovery_time.isoformat() if self.last_pattern_discovery_time else "N/A",
+                "last_emergency_check": self.last_emergency_check_time.isoformat() if self.last_emergency_check_time else "N/A"
+>>>>>>> track-emergency-check-time-17167847416110268445
             }
         }
 
