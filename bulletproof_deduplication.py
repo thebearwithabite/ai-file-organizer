@@ -128,11 +128,7 @@ class BulletproofDeduplicator:
             return None
     
     def calculate_secure_hash(self, file_path: Path, db_connection: Optional[sqlite3.Connection] = None,
-<<<<<<< HEAD
-                            file_size: Optional[int] = None, file_mtime: Optional[float] = None) -> Optional[str]:
-=======
-                             file_size: Optional[int] = None, last_modified: Optional[float] = None) -> Optional[str]:
->>>>>>> bolt-optimize-deduplication-syscalls-9636921439866281817
+                              file_size: Optional[int] = None, last_modified: Optional[float] = None) -> Optional[str]:
         """
         Tier 2: Bulletproof SHA-256 verification (~2ms per file)
         Used for cryptographic certainty before deletion
@@ -150,18 +146,11 @@ class BulletproofDeduplicator:
             
             secure_hash = sha256_hash.hexdigest()
             
-<<<<<<< HEAD
-            if file_size is None or file_mtime is None:
-                stat = file_path.stat()
-                file_size = stat.st_size
-                file_mtime = stat.st_mtime
-=======
             # Use provided stats or fetch them
             if file_size is None:
                 file_size = file_path.stat().st_size
             if last_modified is None:
                 last_modified = file_path.stat().st_mtime
->>>>>>> bolt-optimize-deduplication-syscalls-9636921439866281817
 
             # Persist to database
             try:
@@ -173,11 +162,7 @@ class BulletproofDeduplicator:
                         VALUES (?, ?, ?, ?)
                     """, (
                         str(file_path), secure_hash, 
-<<<<<<< HEAD
-                        file_size, file_mtime
-=======
                         file_size, last_modified
->>>>>>> bolt-optimize-deduplication-syscalls-9636921439866281817
                     ))
                 else:
                     # Create new connection (slower)
