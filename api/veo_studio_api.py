@@ -385,12 +385,17 @@ async def generate_shot_list(request: ShotListRequest):
     
     This endpoint:
     1. Parses script into scenes
-    2. Breaks scenes into shots
+    2. Breaks scenes into multiple shots (~4 per scene)
     3. Extracts shot metadata
     4. Returns structured shot list
     
-    Note: This is a basic implementation. Can be enhanced with AI/LLM
-    for smarter shot detection and camera angle suggestions.
+    Shot breakdown strategy:
+    - Dialogue exchanges create natural shot boundaries
+    - Action beats become separate shots
+    - Long descriptions are split into multiple shots
+    - Maintains ~4 shots per scene average as estimated
+    
+    Can be enhanced with AI/LLM for smarter shot detection and camera angles.
     """
     try:
         shots = []
@@ -398,63 +403,86 @@ async def generate_shot_list(request: ShotListRequest):
         
         # Parse script into scenes
         scene_pattern = r'^(INT\.|EXT\.)\s+(.+?)(?:\s*-\s*(.+?))?$'
+        character_pattern = r'^[A-Z][A-Z\s]+$'  # All caps character names
         lines = request.script_content.split('\n')
         
-        current_scene = None
         current_scene_number = 0
         current_location = None
-        scene_description = []
+        current_shot_lines = []
+        in_dialogue_block = False
+        
+        def create_shot_from_lines(shot_lines, scene_num, location):
+            """Helper to create a shot from accumulated lines"""
+            nonlocal shot_counter
+            if not shot_lines:
+                return
+            
+            description = ' '.join(shot_lines).strip()
+            if description:
+                shot_id = f"shot_{shot_counter:04d}"
+                shots.append(ShotData(
+                    shot_id=shot_id,
+                    scene_number=scene_num,
+                    shot_number=shot_counter,
+                    description=description[:500],  # Limit length
+                    location=location,
+                    duration_estimate=5.0  # Default 5 seconds
+                ))
+                shot_counter += 1
         
         for line in lines:
             line = line.strip()
             
             # Check if this is a scene header
-            match = re.match(scene_pattern, line)
-            if match:
-                # Save previous scene as a shot if exists
-                if scene_description:
-                    description = ' '.join(scene_description).strip()
-                    if description:
-                        shot_id = f"shot_{shot_counter:04d}"
-                        shots.append(ShotData(
-                            shot_id=shot_id,
-                            scene_number=current_scene_number,
-                            shot_number=shot_counter,
-                            description=description[:500],  # Limit length
-                            location=current_location,
-                            duration_estimate=5.0  # Default 5 seconds
-                        ))
-                        shot_counter += 1
-                    scene_description = []
+            scene_match = re.match(scene_pattern, line)
+            if scene_match:
+                # Finish previous shot if exists
+                create_shot_from_lines(current_shot_lines, current_scene_number, current_location)
+                current_shot_lines = []
+                in_dialogue_block = False
                 
                 # Start new scene
                 current_scene_number += 1
-                int_ext = match.group(1)
-                location = match.group(2).strip() if match.group(2) else "UNKNOWN"
-                time = match.group(3).strip() if match.group(3) else ""
+                int_ext = scene_match.group(1)
+                location = scene_match.group(2).strip() if scene_match.group(2) else "UNKNOWN"
                 current_location = f"{int_ext} {location}"
+                continue
+            
+            # Skip empty lines
+            if not line:
+                continue
+            
+            # Check for character name (dialogue header)
+            is_character = re.match(character_pattern, line) and len(line) > 2
+            if is_character and line not in ['INT', 'EXT', 'FADE IN', 'FADE OUT', 'CUT TO', 'CONTINUED']:
+                # Character name marks potential shot boundary
+                # If we were in a dialogue block, create a new shot
+                if in_dialogue_block and current_shot_lines:
+                    create_shot_from_lines(current_shot_lines, current_scene_number, current_location)
+                    current_shot_lines = []
+                in_dialogue_block = True
+                current_shot_lines.append(line)
+            
+            # Dialogue or action lines
+            elif not line.isupper() or line.startswith('('):  # Action lines or parentheticals
+                current_shot_lines.append(line)
                 
-            elif line and not line.isupper():  # Action lines (not all caps)
-                scene_description.append(line)
+                # Create shot break on long action blocks (every 3-4 lines of action)
+                if not in_dialogue_block and len(current_shot_lines) >= 3:
+                    create_shot_from_lines(current_shot_lines, current_scene_number, current_location)
+                    current_shot_lines = []
+            else:
+                # Other uppercase lines (transitions, etc.)
+                if current_shot_lines:
+                    current_shot_lines.append(line)
         
-        # Don't forget the last scene
-        if scene_description:
-            description = ' '.join(scene_description).strip()
-            if description:
-                shot_id = f"shot_{shot_counter:04d}"
-                shots.append(ShotData(
-                    shot_id=shot_id,
-                    scene_number=current_scene_number,
-                    shot_number=shot_counter,
-                    description=description[:500],
-                    location=current_location,
-                    duration_estimate=5.0
-                ))
+        # Don't forget the last shot
+        create_shot_from_lines(current_shot_lines, current_scene_number, current_location)
         
         # Calculate total duration
         total_duration = sum(shot.duration_estimate or 0 for shot in shots)
         
-        logger.info(f"Generated {len(shots)} shots from script")
+        logger.info(f"Generated {len(shots)} shots from script ({current_scene_number} scenes)")
         
         return ShotListResponse(
             success=True,
@@ -471,6 +499,7 @@ async def generate_shot_list(request: ShotListRequest):
             total_shots=0,
             error=str(e)
         )
+
 
 
 @router.post("/generate-keyframe", response_model=KeyframeResponse)
