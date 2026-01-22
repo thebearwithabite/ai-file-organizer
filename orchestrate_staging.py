@@ -23,7 +23,7 @@ from universal_adaptive_learning import UniversalAdaptiveLearning
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger("Orchestrator")
@@ -90,11 +90,21 @@ def orchestrate(dry_run: bool = False, confidence_threshold: float = 0.80, scan_
     # Initial stats sync
     update_stats(0, 0, 0)
     
+    # Initialize Staging Monitor for age tracking
+    from staging_monitor import StagingMonitor
+    staging_monitor = StagingMonitor()
+    staging_monitor.update_tracking_database(staging_monitor.scan_staging_folders())
+    ready_file_paths = {f['path'] for f in staging_monitor.get_files_ready_for_organization()}
+
     for staging_area in scan_targets:
         if not staging_area.exists():
             continue
             
         logger.info(f"Scanning: {staging_area}")
+        
+        # Determine if this is a "mature" staging area (Downloads/Desktop) 
+        # vs a manual/emergency scan
+        is_default_area = any(area.samefile(staging_area) for area in [Path.home() / "Downloads", Path.home() / "Desktop"])
         
         # Get all files
         if recursive:
@@ -106,6 +116,13 @@ def orchestrate(dry_run: bool = False, confidence_threshold: float = 0.80, scan_
             # Skip if file was already moved by another parallel process
             if not file_path.exists():
                 continue
+
+            # --- 7-DAY STAGING LOGIC ---
+            # If it's a default area and NOT in scan_folder mode, check age
+            if is_default_area and not scan_folder:
+                if str(file_path.absolute()) not in ready_file_paths:
+                    logger.debug(f"Skipping 'young' file in staging (< 7 days): {file_path.name}")
+                    continue
 
             # Skip sidecars (simple check: if it's a .json and there's a matching file or if it's in a .metadata folder)
             if file_path.suffix.lower() == '.json' and (file_path.parent / file_path.stem).exists():
