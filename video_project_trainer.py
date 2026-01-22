@@ -1,299 +1,600 @@
 #!/usr/bin/env python3
 """
-Video Project Trainer - Learns specific creative projects with 2-minute intelligent sampling
-Part of AI File Organizer v3.0 - Professional Content Management Platform
-
-Created by: RT Max
+Video Project Trainer for AI File Organizer
+Learns which projects your video generations belong to based on patterns and user corrections
 """
 
 import sys
-import argparse
-import os
-from pathlib import Path
 import json
-import hashlib
-from typing import Dict, List, Optional, Tuple
-import subprocess
+import sqlite3
+from pathlib import Path
+from datetime import datetime
+from typing import Dict, List, Optional, Any, Tuple
+from dataclasses import dataclass
+from collections import Counter, defaultdict
+
+# Add project directory to path
+project_dir = Path(__file__).parent
+sys.path.insert(0, str(project_dir))
+
+@dataclass
+class ProjectPattern:
+    """Represents a learned pattern for project classification"""
+    project_name: str
+    pattern_type: str  # 'filename', 'visual_content', 'metadata', 'location'
+    pattern_value: str
+    confidence: float
+    evidence_count: int
+    last_seen: datetime
+    created_from: str  # 'user_correction', 'batch_analysis', 'auto_discovery'
+
+@dataclass
+class VideoProjectAssociation:
+    """Association between a video and its project"""
+    file_path: str
+    project_name: str
+    confidence: float
+    reasoning: List[str]
+    evidence_sources: List[str]
+    user_confirmed: bool
+    created_at: datetime
 
 class VideoProjectTrainer:
     """
-    Intelligent video analysis with 2-minute sampling limit for efficiency
-    Learns specific creative projects and improves recognition over time
+    Learns to automatically classify video generations into the correct projects
+    based on visual content, filenames, metadata, and user corrections
     """
     
     def __init__(self, base_dir: str = None):
-        self.base_dir = Path(base_dir) if base_dir else Path.cwd()
-        self.project_db = self.base_dir / "video_projects.json"
-        self.max_analysis_seconds = 120  # 2-minute limit
+        self.base_dir = Path(base_dir) if base_dir else Path.home() / "Documents" / "AI_ORGANIZER_BASE"
         
-        # Load existing project knowledge
-        self.projects = self._load_projects()
-    
-    def _load_projects(self) -> Dict:
-        """Load existing project training data"""
-        if self.project_db.exists():
-            try:
-                with open(self.project_db, 'r') as f:
-                    return json.load(f)
-            except:
-                pass
-        return {"projects": {}, "video_analysis": {}}
-    
-    def _save_projects(self):
-        """Save project training data"""
-        try:
-            with open(self.project_db, 'w') as f:
-                json.dump(self.projects, f, indent=2)
-        except Exception as e:
-            print(f"⚠️ Warning: Could not save project data: {e}")
-    
-    def _get_video_duration(self, video_path: Path) -> Optional[float]:
-        """Get video duration in seconds using ffprobe (if available)"""
-        try:
-            cmd = [
-                'ffprobe', '-v', 'quiet', '-show_entries', 
-                'format=duration', '-of', 'csv=p=0', str(video_path)
-            ]
-            result = subprocess.run(cmd, capture_output=True, text=True)
-            return float(result.stdout.strip())
-        except:
-            # Fallback: estimate from file size (very rough)
-            file_size_mb = video_path.stat().st_size / (1024 * 1024)
-            estimated_duration = file_size_mb / 2.0  # Rough estimate: 2MB per second
-            return estimated_duration
-    
-    def _should_limit_analysis(self, video_path: Path) -> Tuple[bool, str]:
-        """Determine if video should be limited to 2 minutes and why"""
-        duration = self._get_video_duration(video_path)
+        # Project learning directory
+        self.project_dir = self.base_dir / "04_METADATA_SYSTEM" / "project_learning"
+        self.project_dir.mkdir(parents=True, exist_ok=True)
         
-        if duration is None:
-            return False, "Could not determine video duration"
+        # Database for project learning
+        self.db_path = self.project_dir / "video_project_learning.db"
+        self._init_database()
         
-        if duration > self.max_analysis_seconds:
-            return True, f"Video is {duration:.1f}s, analyzing first {self.max_analysis_seconds}s for efficiency"
-        else:
-            return False, f"Full video analysis ({duration:.1f}s)"
-    
-    def analyze_video(self, video_path: Path, project: str = None, context: str = "general") -> Dict:
-        """
-        Analyze video with 2-minute intelligent sampling
-        
-        Args:
-            video_path: Path to video file
-            project: Project name for learning (e.g., "creative-content", "podcast-production")
-            context: Analysis context ("professional", "creative", "general")
-        
-        Returns:
-            Analysis results with metadata
-        """
-        if not video_path.exists():
-            return {"error": f"Video file not found: {video_path}"}
-        
-        print(f"🎬 Analyzing video: {video_path.name}")
-        
-        # Check if we should limit analysis
-        should_limit, reason = self._should_limit_analysis(video_path)
-        print(f"   📏 {reason}")
-        
-        # Create analysis result
-        video_hash = hashlib.md5(str(video_path).encode()).hexdigest()[:12]
-        
-        analysis = {
-            "file_path": str(video_path),
-            "file_name": video_path.name,
-            "video_hash": video_hash,
-            "project": project,
-            "context": context,
-            "analysis_limited": should_limit,
-            "analysis_duration_limit": self.max_analysis_seconds if should_limit else None,
-            "reason": reason,
-            "detected_content_type": self._detect_content_type(video_path),
-            "suggested_organization": self._suggest_organization(video_path, project, context)
+        # Your known projects (User's actual creative work)
+        self.known_projects = {
+            # Entertainment Industry Work
+            'stranger_things': {
+                'aliases': ['stranger things', 'st', 'hawkins', 'netflix', 'finn wolfhard'],
+                'visual_indicators': ['sci-fi', 'supernatural', 'retro', '80s aesthetic', 'dark atmosphere', 'finn'],
+                'description': 'Stranger Things / Netflix / Client Name Wolfhard management content'
+            },
+            'demo_reels': {
+                'aliases': ['demo reel', 'reel', 'acting demo', 'showreel', 'audition', 'finn'],
+                'visual_indicators': ['acting performance', 'multiple scenes', 'professional lighting', 'character work'],
+                'description': 'Acting demo reels and audition materials'
+            },
+            
+            # Your Creative Content Projects
+            'multimedia_series': {
+                'aliases': ['multimedia series', 'this isnt real', 'multimedia', 'series', 'episode', 'content series'],
+                'visual_indicators': ['series production', 'episode format', 'consistent branding', 'multimedia content', 'creative narrative'],
+                'description': 'This Isnt Real multimedia series content'
+            },
+            'thebearwithabite': {
+                'aliases': ['thebearwithabite', 'bear with a bite', 'bear cap', 'social media', 'tiktok', 'instagram'],
+                'visual_indicators': ['45 year old man', 'bear cap', 'bear hat', 'middle-aged man', 'social media format', 'vertical video', 'selfie style'],
+                'description': 'thebearwithabite social media content (45yo guys in bear caps)'
+            },
+            'papers_that_dream': {
+                'aliases': ['papers that dream', 'ptd', 'podcast', 'ai consciousness', 'consciousness', 'ai discussion'],
+                'visual_indicators': ['podcast setup', 'microphone', 'recording setup', 'ai themes', 'technology discussion', 'interview format'],
+                'description': 'Papers That Dream podcast and AI consciousness content'
+            },
+            
+            # Technical/Development Projects
+            'github_projects': {
+                'aliases': ['github', 'coding', 'programming', 'development', 'code demo', 'tutorial', 'tech demo'],
+                'visual_indicators': ['code editor', 'terminal', 'programming', 'screen recording', 'code demonstration', 'github interface'],
+                'description': 'GitHub projects and code demonstrations'
+            },
+            'ai_file_organizer': {
+                'aliases': ['ai file organizer', 'file organizer', 'claude code', 'organization system', 'ai organizer'],
+                'visual_indicators': ['file management', 'organization demo', 'ai system', 'file browser', 'automation demo'],
+                'description': 'AI File Organizer system demonstrations and tutorials'
+            },
+            
+            # Behind-the-Scenes & Production
+            'behind_scenes': {
+                'aliases': ['behind scenes', 'bts', 'making of', 'set', 'production', 'creation process'],
+                'visual_indicators': ['film set', 'camera equipment', 'crew', 'production environment', 'creative process'],
+                'description': 'Behind-the-scenes and production content'
+            },
+            'creative_experiments': {
+                'aliases': ['experiment', 'test', 'creative test', 'prototype', 'concept', 'idea'],
+                'visual_indicators': ['experimental', 'testing', 'prototype', 'rough cut', 'work in progress', 'concept development'],
+                'description': 'Creative experiments and concept development'
+            },
+            
+            # Business/Professional
+            'business_content': {
+                'aliases': ['business', 'professional', 'meeting', 'presentation', 'corporate', 'work'],
+                'visual_indicators': ['business meeting', 'presentation', 'professional setting', 'office environment', 'corporate'],
+                'description': 'Business and professional content'
+            }
         }
         
-        # Store analysis for learning
-        if project:
-            self._learn_from_analysis(analysis, project)
-        
-        # Print results
-        print(f"   🎯 Content Type: {analysis['detected_content_type']}")
-        print(f"   📁 Suggested Organization: {analysis['suggested_organization']}")
-        if project:
-            print(f"   🧠 Learning for project: {project}")
-        
-        return analysis
+        # Learning thresholds
+        self.confidence_thresholds = {
+            'auto_classify': 0.8,
+            'suggest': 0.6,
+            'uncertain': 0.4
+        }
     
-    def _detect_content_type(self, video_path: Path) -> str:
-        """Detect video content type based on filename and metadata"""
-        name = video_path.name.lower()
-        
-        if any(keyword in name for keyword in ['podcast', 'interview', 'discussion']):
-            return "Podcast/Interview Content"
-        elif any(keyword in name for keyword in ['meeting', 'call', 'zoom']):
-            return "Meeting Recording"
-        elif any(keyword in name for keyword in ['creative', 'project', 'content']):
-            return "Creative Content"
-        elif any(keyword in name for keyword in ['demo', 'tutorial', 'how-to']):
-            return "Educational Content"
-        else:
-            return "General Video Content"
+    def _init_database(self):
+        """Initialize project learning database"""
+        with sqlite3.connect(self.db_path) as conn:
+            # Project patterns table
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS project_patterns (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    project_name TEXT,
+                    pattern_type TEXT,
+                    pattern_value TEXT,
+                    confidence REAL,
+                    evidence_count INTEGER,
+                    last_seen TEXT,
+                    created_from TEXT,
+                    UNIQUE(project_name, pattern_type, pattern_value)
+                )
+            """)
+            
+            # Video project associations table
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS video_project_associations (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    file_path TEXT UNIQUE,
+                    project_name TEXT,
+                    confidence REAL,
+                    reasoning TEXT,  -- JSON array
+                    evidence_sources TEXT,  -- JSON array
+                    user_confirmed BOOLEAN,
+                    created_at TEXT,
+                    updated_at TEXT
+                )
+            """)
+            
+            # User corrections table
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS user_corrections (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    file_path TEXT,
+                    original_project TEXT,
+                    corrected_project TEXT,
+                    correction_reason TEXT,
+                    correction_timestamp TEXT
+                )
+            """)
+            
+            conn.commit()
     
-    def _suggest_organization(self, video_path: Path, project: str, context: str) -> str:
-        """Suggest where video should be organized"""
-        content_type = self._detect_content_type(video_path)
+    def learn_from_vision_analysis(self, file_path: Path, vision_result, current_classification: str = None):
+        """Learn project patterns from vision analysis results"""
         
-        if context == "professional":
-            if "meeting" in content_type.lower():
-                return "Professional/Meetings/Video_Calls"
-            else:
-                return "Professional/Content/Videos"
-        elif context == "creative":
-            if "podcast" in content_type.lower():
-                return "Creative/Podcast_Production/Raw_Videos"
-            else:
-                return "Creative/Content/Videos"
-        else:
-            return "Media/Videos/Uncategorized"
-    
-    def _learn_from_analysis(self, analysis: Dict, project: str):
-        """Learn patterns from video analysis for future improvement"""
-        if "projects" not in self.projects:
-            self.projects["projects"] = {}
-        
-        if project not in self.projects["projects"]:
-            self.projects["projects"][project] = {
-                "video_patterns": [],
-                "content_types": {},
-                "organization_preferences": {}
-            }
-        
-        # Track content type patterns
-        content_type = analysis["detected_content_type"]
-        project_data = self.projects["projects"][project]
-        
-        if content_type not in project_data["content_types"]:
-            project_data["content_types"][content_type] = 0
-        project_data["content_types"][content_type] += 1
-        
-        # Track organization preferences
-        org_suggestion = analysis["suggested_organization"]
-        if org_suggestion not in project_data["organization_preferences"]:
-            project_data["organization_preferences"][org_suggestion] = 0
-        project_data["organization_preferences"][org_suggestion] += 1
-        
-        # Save learning
-        self._save_projects()
-    
-    def train_project(self, project: str, description: str = None):
-        """
-        Create or update project training profile
-        
-        Args:
-            project: Project name (e.g., "creative-content", "podcast-production")
-            description: Optional project description
-        """
-        print(f"🧠 Training project: {project}")
-        
-        if "projects" not in self.projects:
-            self.projects["projects"] = {}
-        
-        if project not in self.projects["projects"]:
-            self.projects["projects"][project] = {
-                "description": description or f"Video project: {project}",
-                "created": str(Path().cwd()),
-                "video_patterns": [],
-                "content_types": {},
-                "organization_preferences": {}
-            }
-            print(f"   ✅ Created new project profile")
-        else:
-            print(f"   📊 Updated existing project profile")
-            if description:
-                self.projects["projects"][project]["description"] = description
-        
-        self._save_projects()
-    
-    def analyze_directory(self, directory: Path, project: str = None, context: str = "general", limit: int = None):
-        """
-        Analyze all videos in a directory with 2-minute sampling
-        
-        Args:
-            directory: Directory to scan for videos
-            project: Project name for learning
-            context: Analysis context
-            limit: Maximum number of videos to analyze
-        """
-        if not directory.exists():
-            print(f"❌ Directory not found: {directory}")
+        if not vision_result.success:
             return
         
-        # Find video files
-        video_extensions = {'.mp4', '.mov', '.avi', '.mkv', '.wmv', '.flv', '.webm'}
-        video_files = [f for f in directory.iterdir() 
-                      if f.is_file() and f.suffix.lower() in video_extensions]
+        # Extract potential project indicators
+        indicators = self._extract_project_indicators(file_path, vision_result)
         
-        if not video_files:
-            print(f"🔍 No video files found in {directory}")
-            return
+        # Find best matching project
+        project_scores = self._score_project_matches(indicators)
         
-        print(f"📁 Found {len(video_files)} video files in {directory}")
+        if project_scores:
+            best_project, confidence = max(project_scores.items(), key=lambda x: x[1])
+            
+            # Only learn if confidence is reasonable
+            if confidence >= self.confidence_thresholds['uncertain']:
+                self._record_project_association(file_path, best_project, confidence, indicators)
+                
+                # Update patterns based on this example
+                self._update_patterns_from_example(file_path, best_project, vision_result)
+    
+    def _extract_project_indicators(self, file_path: Path, vision_result) -> Dict[str, List[str]]:
+        """Extract project indicators from file and vision analysis"""
         
-        if limit and len(video_files) > limit:
-            video_files = video_files[:limit]
-            print(f"   📏 Limiting analysis to first {limit} files")
+        indicators = {
+            'filename': [],
+            'visual_content': [],
+            'subjects': vision_result.subjects,
+            'context': [vision_result.context] if vision_result.context else [],
+            'suggested_tags': vision_result.suggested_tags,
+            'location': [str(file_path.parent)]
+        }
         
-        # Analyze each video
-        for i, video_file in enumerate(video_files, 1):
-            print(f"\n[{i}/{len(video_files)}]")
-            self.analyze_video(video_file, project, context)
+        # Filename indicators
+        filename_lower = file_path.name.lower()
+        for project, project_info in self.known_projects.items():
+            for alias in project_info['aliases']:
+                if alias.lower() in filename_lower:
+                    indicators['filename'].append(alias)
         
-        print(f"\n✅ Completed analysis of {len(video_files)} videos")
-        if project:
-            print(f"🧠 Project '{project}' learning updated")
+        # Visual content indicators
+        description_lower = vision_result.description.lower()
+        for project, project_info in self.known_projects.items():
+            for visual_indicator in project_info['visual_indicators']:
+                if visual_indicator.lower() in description_lower:
+                    indicators['visual_content'].append(visual_indicator)
+        
+        return indicators
+    
+    def _score_project_matches(self, indicators: Dict[str, List[str]]) -> Dict[str, float]:
+        """Score how well indicators match each known project"""
+        
+        project_scores = defaultdict(float)
+        
+        for project_name, project_info in self.known_projects.items():
+            score = 0.0
+            
+            # Filename matches (high weight)
+            for filename_indicator in indicators['filename']:
+                for alias in project_info['aliases']:
+                    if alias.lower() in filename_indicator.lower():
+                        score += 0.4
+            
+            # Visual content matches (high weight)
+            for visual_indicator in indicators['visual_content']:
+                for expected_visual in project_info['visual_indicators']:
+                    if expected_visual.lower() in visual_indicator.lower():
+                        score += 0.3
+            
+            # Subject matches (medium weight)
+            for subject in indicators['subjects']:
+                for alias in project_info['aliases']:
+                    if alias.lower() in subject.lower():
+                        score += 0.2
+            
+            # Context matches (medium weight)
+            for context in indicators['context']:
+                for alias in project_info['aliases']:
+                    if alias.lower() in context.lower():
+                        score += 0.2
+                for visual_indicator in project_info['visual_indicators']:
+                    if visual_indicator.lower() in context.lower():
+                        score += 0.15
+            
+            # Tag matches (lower weight)
+            for tag in indicators['suggested_tags']:
+                for alias in project_info['aliases']:
+                    if alias.lower() in tag.lower():
+                        score += 0.1
+            
+            if score > 0:
+                project_scores[project_name] = min(score, 1.0)
+        
+        return dict(project_scores)
+    
+    def _record_project_association(self, file_path: Path, project_name: str, confidence: float, indicators: Dict):
+        """Record a video-project association"""
+        
+        reasoning = []
+        evidence_sources = []
+        
+        # Build reasoning
+        if indicators['filename']:
+            reasoning.append(f"Filename contains: {', '.join(indicators['filename'])}")
+            evidence_sources.append('filename')
+        
+        if indicators['visual_content']:
+            reasoning.append(f"Visual content matches: {', '.join(indicators['visual_content'])}")
+            evidence_sources.append('visual_analysis')
+        
+        if indicators['subjects']:
+            reasoning.append(f"Detected subjects: {', '.join(indicators['subjects'][:3])}")
+            evidence_sources.append('subject_detection')
+        
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute("""
+                INSERT OR REPLACE INTO video_project_associations
+                (file_path, project_name, confidence, reasoning, evidence_sources, user_confirmed, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                str(file_path), project_name, confidence,
+                json.dumps(reasoning), json.dumps(evidence_sources),
+                False, datetime.now().isoformat(), datetime.now().isoformat()
+            ))
+            conn.commit()
+    
+    def _update_patterns_from_example(self, file_path: Path, project_name: str, vision_result):
+        """Update learned patterns based on a good example"""
+        
+        # Learn filename patterns
+        filename_words = file_path.stem.lower().replace('_', ' ').replace('-', ' ').split()
+        for word in filename_words:
+            if len(word) > 3:  # Skip short words
+                self._update_pattern(project_name, 'filename_word', word, 0.1, 'vision_analysis')
+        
+        # Learn visual content patterns
+        if vision_result.content_type:
+            self._update_pattern(project_name, 'content_type', vision_result.content_type, 0.2, 'vision_analysis')
+        
+        # Learn subject patterns
+        for subject in vision_result.subjects[:3]:  # Top 3 subjects
+            self._update_pattern(project_name, 'subject', subject.lower(), 0.15, 'vision_analysis')
+        
+        # Learn tag patterns
+        for tag in vision_result.suggested_tags[:5]:  # Top 5 tags
+            self._update_pattern(project_name, 'tag', tag.lower(), 0.1, 'vision_analysis')
+    
+    def _update_pattern(self, project_name: str, pattern_type: str, pattern_value: str, confidence: float, source: str):
+        """Update a learned pattern"""
+        
+        with sqlite3.connect(self.db_path) as conn:
+            # Check if pattern exists
+            cursor = conn.execute("""
+                SELECT evidence_count, confidence FROM project_patterns
+                WHERE project_name = ? AND pattern_type = ? AND pattern_value = ?
+            """, (project_name, pattern_type, pattern_value))
+            
+            existing = cursor.fetchone()
+            
+            if existing:
+                # Update existing pattern
+                old_count, old_confidence = existing
+                new_count = old_count + 1
+                new_confidence = (old_confidence + confidence) / 2  # Average
+                
+                conn.execute("""
+                    UPDATE project_patterns
+                    SET evidence_count = ?, confidence = ?, last_seen = ?
+                    WHERE project_name = ? AND pattern_type = ? AND pattern_value = ?
+                """, (new_count, new_confidence, datetime.now().isoformat(),
+                     project_name, pattern_type, pattern_value))
+            else:
+                # Create new pattern
+                conn.execute("""
+                    INSERT INTO project_patterns
+                    (project_name, pattern_type, pattern_value, confidence, evidence_count, last_seen, created_from)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, (project_name, pattern_type, pattern_value, confidence, 1,
+                     datetime.now().isoformat(), source))
+            
+            conn.commit()
+    
+    def classify_video_project(self, file_path: Path, vision_result=None) -> Optional[VideoProjectAssociation]:
+        """Classify which project a video belongs to"""
+        
+        # First check if we already have an association
+        existing = self._get_existing_association(file_path)
+        if existing and existing.user_confirmed:
+            return existing
+        
+        # Use vision analysis if available
+        if vision_result:
+            indicators = self._extract_project_indicators(file_path, vision_result)
+        else:
+            # Use filename and location only
+            indicators = {
+                'filename': [],
+                'visual_content': [],
+                'subjects': [],
+                'context': [],
+                'suggested_tags': [],
+                'location': [str(file_path.parent)]
+            }
+            
+            # Extract from filename
+            filename_lower = file_path.name.lower()
+            for project, project_info in self.known_projects.items():
+                for alias in project_info['aliases']:
+                    if alias.lower() in filename_lower:
+                        indicators['filename'].append(alias)
+        
+        # Score projects
+        project_scores = self._score_project_matches(indicators)
+        
+        # Also check learned patterns
+        learned_scores = self._score_against_learned_patterns(file_path, indicators)
+        
+        # Combine scores
+        combined_scores = defaultdict(float)
+        for project, score in project_scores.items():
+            combined_scores[project] += score * 0.7  # Known patterns weight
+        for project, score in learned_scores.items():
+            combined_scores[project] += score * 0.3  # Learned patterns weight
+        
+        if not combined_scores:
+            return None
+        
+        # Get best match
+        best_project, confidence = max(combined_scores.items(), key=lambda x: x[1])
+        
+        if confidence < self.confidence_thresholds['uncertain']:
+            return None
+        
+        # Build reasoning
+        reasoning = []
+        evidence_sources = []
+        
+        if indicators['filename']:
+            reasoning.append(f"Filename indicators: {', '.join(indicators['filename'])}")
+            evidence_sources.append('filename')
+        
+        if indicators['visual_content']:
+            reasoning.append(f"Visual content: {', '.join(indicators['visual_content'])}")
+            evidence_sources.append('vision')
+        
+        if learned_scores.get(best_project, 0) > 0:
+            reasoning.append("Matches learned patterns from previous examples")
+            evidence_sources.append('learned_patterns')
+        
+        return VideoProjectAssociation(
+            file_path=str(file_path),
+            project_name=best_project,
+            confidence=confidence,
+            reasoning=reasoning,
+            evidence_sources=evidence_sources,
+            user_confirmed=False,
+            created_at=datetime.now()
+        )
+    
+    def _get_existing_association(self, file_path: Path) -> Optional[VideoProjectAssociation]:
+        """Get existing project association for file"""
+        
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.execute("""
+                SELECT project_name, confidence, reasoning, evidence_sources, user_confirmed, created_at
+                FROM video_project_associations
+                WHERE file_path = ?
+            """, (str(file_path),))
+            
+            row = cursor.fetchone()
+            if row:
+                return VideoProjectAssociation(
+                    file_path=str(file_path),
+                    project_name=row[0],
+                    confidence=row[1],
+                    reasoning=json.loads(row[2]),
+                    evidence_sources=json.loads(row[3]),
+                    user_confirmed=bool(row[4]),
+                    created_at=datetime.fromisoformat(row[5])
+                )
+        
+        return None
+    
+    def _score_against_learned_patterns(self, file_path: Path, indicators: Dict) -> Dict[str, float]:
+        """Score against previously learned patterns"""
+        
+        project_scores = defaultdict(float)
+        
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.execute("""
+                SELECT project_name, pattern_type, pattern_value, confidence, evidence_count
+                FROM project_patterns
+                WHERE evidence_count >= 2  -- Only use patterns with multiple evidence
+                ORDER BY evidence_count DESC
+            """)
+            
+            for project_name, pattern_type, pattern_value, confidence, evidence_count in cursor.fetchall():
+                # Check if this file matches the pattern
+                matches = False
+                
+                if pattern_type == 'filename_word':
+                    matches = pattern_value in file_path.name.lower()
+                elif pattern_type == 'content_type' and 'visual_content' in indicators:
+                    matches = pattern_value in ' '.join(indicators['visual_content']).lower()
+                elif pattern_type == 'subject' and indicators['subjects']:
+                    matches = any(pattern_value in subject.lower() for subject in indicators['subjects'])
+                elif pattern_type == 'tag' and indicators['suggested_tags']:
+                    matches = any(pattern_value in tag.lower() for tag in indicators['suggested_tags'])
+                
+                if matches:
+                    # Weight by evidence count and confidence
+                    weight = confidence * min(evidence_count / 5, 1.0)
+                    project_scores[project_name] += weight * 0.2
+        
+        return dict(project_scores)
+    
+    def learn_from_user_correction(self, file_path: Path, original_project: str, corrected_project: str, reason: str = ""):
+        """Learn from user correction"""
+        
+        # Record the correction
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute("""
+                INSERT INTO user_corrections
+                (file_path, original_project, corrected_project, correction_reason, correction_timestamp)
+                VALUES (?, ?, ?, ?, ?)
+            """, (str(file_path), original_project, corrected_project, reason, datetime.now().isoformat()))
+            
+            # Update the association
+            conn.execute("""
+                INSERT OR REPLACE INTO video_project_associations
+                (file_path, project_name, confidence, reasoning, evidence_sources, user_confirmed, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, 
+                        COALESCE((SELECT created_at FROM video_project_associations WHERE file_path = ?), ?), ?)
+            """, (
+                str(file_path), corrected_project, 1.0,
+                json.dumps([f"User correction: {reason}" if reason else "User confirmed"]),
+                json.dumps(['user_correction']), True,
+                str(file_path), datetime.now().isoformat(), datetime.now().isoformat()
+            ))
+            
+            conn.commit()
+        
+        # Learn new patterns from this correction if we have vision data
+        print(f"✅ Learned from correction: {file_path.name} → {corrected_project}")
+    
+    def get_project_suggestions_for_video(self, file_path: Path, vision_result=None) -> List[Tuple[str, float, List[str]]]:
+        """Get project suggestions for a video with confidence and reasoning"""
+        
+        association = self.classify_video_project(file_path, vision_result)
+        
+        if not association:
+            return []
+        
+        # Get top suggestions (you could extend this to return multiple options)
+        suggestions = [(association.project_name, association.confidence, association.reasoning)]
+        
+        # Add other reasonable matches
+        if vision_result:
+            indicators = self._extract_project_indicators(file_path, vision_result)
+            all_scores = self._score_project_matches(indicators)
+            
+            for project, score in sorted(all_scores.items(), key=lambda x: x[1], reverse=True)[1:3]:
+                if score >= self.confidence_thresholds['uncertain']:
+                    suggestions.append((project, score, [f"Alternative match based on {project} indicators"]))
+        
+        return suggestions
 
-def main():
-    parser = argparse.ArgumentParser(description='Video Project Trainer with 2-minute intelligent sampling')
-    subparsers = parser.add_subparsers(dest='command', help='Commands')
+
+def test_video_project_trainer():
+    """Test the video project trainer"""
     
-    # Analyze command
-    analyze_parser = subparsers.add_parser('analyze', help='Analyze videos in directory')
-    analyze_parser.add_argument('directory', help='Directory containing videos')
-    analyze_parser.add_argument('--project', help='Project name for learning')
-    analyze_parser.add_argument('--context', choices=['professional', 'creative', 'general'], 
-                               default='general', help='Analysis context')
-    analyze_parser.add_argument('--limit', type=int, help='Maximum videos to analyze')
-    
-    # Train command
-    train_parser = subparsers.add_parser('train', help='Create/update project profile')
-    train_parser.add_argument('--project', required=True, help='Project name')
-    train_parser.add_argument('--description', help='Project description')
-    
-    # Status command
-    status_parser = subparsers.add_parser('status', help='Show project training status')
-    
-    args = parser.parse_args()
-    
-    if not args.command:
-        parser.print_help()
-        return
+    print("🎬 Testing Video Project Trainer")
+    print("=" * 40)
     
     trainer = VideoProjectTrainer()
     
-    if args.command == 'analyze':
-        directory = Path(args.directory)
-        trainer.analyze_directory(directory, args.project, args.context, args.limit)
+    # Find test video files
+    test_dirs = [
+        Path.home() / "Downloads",
+        Path.home() / "Desktop"
+    ]
     
-    elif args.command == 'train':
-        trainer.train_project(args.project, args.description)
+    video_extensions = {'.mp4', '.mov', '.avi', '.mkv'}
+    test_videos = []
     
-    elif args.command == 'status':
-        print("🧠 Video Project Trainer Status")
-        print(f"📊 Projects trained: {len(trainer.projects.get('projects', {}))}")
-        for project_name, project_data in trainer.projects.get('projects', {}).items():
-            print(f"\n📁 Project: {project_name}")
-            print(f"   📝 Description: {project_data.get('description', 'No description')}")
-            print(f"   🎬 Content types: {len(project_data.get('content_types', {}))}")
-            print(f"   📂 Organization patterns: {len(project_data.get('organization_preferences', {}))}")
+    for test_dir in test_dirs:
+        if test_dir.exists():
+            for ext in video_extensions:
+                videos = list(test_dir.glob(f"*{ext}"))
+                test_videos.extend(videos[:2])  # Max 2 videos per extension
+                if len(test_videos) >= 3:
+                    break
+        if len(test_videos) >= 3:
+            break
+    
+    if not test_videos:
+        print("📝 No video files found for testing")
+        return
+    
+    print(f"🎬 Testing with {len(test_videos)} videos:")
+    
+    for i, video_path in enumerate(test_videos, 1):
+        print(f"\n[{i}] {video_path.name}")
+        
+        # Test classification
+        association = trainer.classify_video_project(video_path)
+        
+        if association:
+            print(f"    📂 Project: {association.project_name}")
+            print(f"    🎯 Confidence: {association.confidence:.1%}")
+            print(f"    💭 Reasoning: {association.reasoning[0] if association.reasoning else 'No specific reasoning'}")
+        else:
+            print(f"    ❓ No project match found")
+        
+        # Test suggestions
+        suggestions = trainer.get_project_suggestions_for_video(video_path)
+        if suggestions:
+            print(f"    💡 Suggestions:")
+            for proj, conf, reasons in suggestions:
+                print(f"       • {proj} ({conf:.1%})")
 
-if __name__ == "__main__":
-    main()
+
+if __name__ == '__main__':
+    test_video_project_trainer()

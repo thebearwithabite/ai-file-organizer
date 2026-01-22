@@ -12,6 +12,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 # User's AI File Organizer
 
+---
+
+### Requirements
+- Python 3.11+
+- macOS with AppleScript support
+- Node.js (for optional UI wrappers)
+
+### Installation
+```bash
+git clone https://github.com/ryan/ai-file-organizer
+cd ai-file-organizer
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+
+---
+
 ## 🎯 **Why This System Exists**
 
 User has ADHD and managing file organization is genuinely difficult. This system creates an **intelligent librarian** that:
@@ -63,10 +79,15 @@ User has ADHD and managing file organization is genuinely difficult. This system
 ## 🏗️ **System Architecture**
 
 ```
+<<<<<<< HEAD
 📁 AI File Organizer v3.1 - Intelligent Learning Organizer (Phase 1, 2 & 3a COMPLETE)/
+=======
+📁 AI File Organizer v3.0/
+>>>>>>> safe-recycling-features
 ├── 🧠 Vector Database (ChromaDB)         # Semantic search engine
 ├── 📧 Email Integration (.emlx files)    # macOS Mail integration
 ├── 📄 Document Processing               # PDFs, DOCX, scripts
+<<<<<<< HEAD
 ├── 🔮 Computer Vision (Gemini Vision)   # Image/video analysis (Phase 2)
 ├── ☁️ Google Drive Hybrid Integration    # 2TB cloud storage with local caching
 ├── 🌊 File Streaming Service            # On-demand cloud file access
@@ -334,6 +355,33 @@ Use templates from `TODO_TEMPLATES_AGENT_INTEGRATION.py` for automatic agent int
 - **Test files** - Individual test scripts, no test framework
 - **Audio Analysis** - Uses librosa, mutagen, OpenAI for spectral analysis
 - **Adaptive Learning** - Pickle files store classification patterns and user corrections
+=======
+├── 🎬 Computer Vision (Gemini 2.5 Flash) # Images and video analysis
+├── 🎵 Audio AI Analysis               # Professional audio processing
+├── 📚 Video Project Trainer           # Learns user's projects
+├── 🔍 Smart Search Interface           # Natural language queries
+├── 🍎 AppleScript GUI                  # Native macOS integration
+├── 🤔 Interactive Classification       # 5 interaction modes with learning
+├── 🏷️ Comprehensive Tagging System     # Multi-source auto-tagging
+├── ☁️ Google Drive Integration         # 2TB cloud storage
+└── 🗂️ Intelligent Organization         # Auto-categorization with learning
+```
+
+### Core Components:
+- **enhanced_librarian.py**: Advanced semantic search with hybrid modes
+- **interactive_organizer.py**: Main organization workflow with questioning
+- **vision_content_extractor.py**: Computer vision analysis (Gemini 2.5 Flash)
+- **video_project_trainer.py**: Learns user's specific projects (thebearwithabite, Papers That Dream)
+- **interactive_classifier.py**: 5 interaction modes (SMART, MINIMAL, LEARNING, ALWAYS, NEVER)
+- **quick_learning_mode.py**: Easy mode switching for training
+- **tagging_cli.py**: Comprehensive auto-tagging system
+- **gdrive_cli.py**: Google Drive integration with emergency space recovery
+- **audio_cli.py**: Professional audio analysis and transcription
+- **batch_cli.py**: ADHD-friendly batch processing
+- **email_extractor.py**: macOS Mail integration
+- **vector_librarian.py**: Vector database operations
+- **Enhanced_Search_GUI.applescript**: Native Mac search interface
+>>>>>>> safe-recycling-features
 
 ## 🚀 **How to Use**
 
@@ -358,18 +406,35 @@ Use templates from `TODO_TEMPLATES_AGENT_INTEGRATION.py` for automatic agent int
 
 ### Command Line Search (Hybrid Cloud + Local):
 ```bash
+<<<<<<< HEAD
 # Unified search across Google Drive + local files
+=======
+# Enhanced semantic search
+>>>>>>> safe-recycling-features
 python enhanced_librarian.py search "AI consciousness papers" --mode semantic
 python enhanced_librarian.py search "payment terms" --mode fast  
 python enhanced_librarian.py search "meeting schedules" --mode auto
 
+<<<<<<< HEAD
 # Google Drive specific commands
 python gdrive_integration.py  # Check Google Drive status and create directory structure
+=======
+# Search by tags
+python tagging_cli.py search "project:,netflix" --match-all
+python tagging_cli.py search "contract,client"
+
+# Audio content search
+python audio_cli.py search "consciousness"
+python audio_cli.py search "interview" --type interview
+
+# Google Drive search
+python gdrive_cli.py search --query "contract"
+>>>>>>> safe-recycling-features
 ```
 
 ### Interactive File Organization:
 ```bash
-# Organize files with smart questions (ADHD-friendly)
+# Main organization workflow
 python interactive_organizer.py organize --live     # Actually move files
 python interactive_organizer.py organize --dry-run  # Preview only
 
@@ -378,10 +443,50 @@ python interactive_organizer.py quick /Users/user/Downloads --live
 
 # Test single file
 python interactive_organizer.py file "/path/to/document.pdf" --live
+
+# Batch processing (ADHD-friendly)
+python batch_cli.py directory ~/Downloads --dry-run --batch-size 20
+python batch_cli.py directory ~/Documents --live
+```
+
+### Computer Vision Analysis:
+```bash
+# Analyze images and videos
+python vision_cli.py analyze screenshot.png
+python vision_cli.py analyze video.mp4 --context entertainment
+python vision_cli.py directory ~/Downloads --limit 5
+
+# Video project recognition
+python video_project_trainer.py analyze ~/Videos
+python video_project_trainer.py train --project "thebearwithabite"
+```
+
+### Interaction Modes & Learning:
+```bash
+# Quick learning mode activation
+python quick_learning_mode.py --learning  # Aggressive learning
+python quick_learning_mode.py --smart     # Normal operation
+python quick_learning_mode.py --status    # Check current mode
+
+# Manual mode control
+python demo_interaction_modes.py  # Interactive mode selection
+```
+
+### Google Drive Integration:
+```bash
+# Emergency space recovery
+python gdrive_cli.py emergency --live     # Free up space immediately
+python gdrive_cli.py organize --live      # Organize and upload files
+python gdrive_cli.py status               # Check storage status
+
+# Authentication and setup
+python gdrive_cli.py auth --credentials gdrive_credentials.json
+python gdrive_cli.py folders              # List folder structure
 ```
 
 ### Index New Content (Hybrid Architecture):
 ```bash
+<<<<<<< HEAD
 # Index from Google Drive primary storage
 python enhanced_librarian.py index --folder "/Users/user/GoogleDrive/AI_Organizer/01_ACTIVE_PROJECTS"
 python vector_librarian.py  # Index emails + documents with smart chunking across cloud and local
@@ -404,6 +509,16 @@ python easy_rollback_system.py --search "contract"  # Find operations on files c
 
 # Show today's operations only (helpful for debugging):
 python easy_rollback_system.py --today
+=======
+# Enhanced indexing
+python enhanced_librarian.py index --folder "/Users/user/Documents/NewProject"
+python enhanced_librarian.py index --semantic  # Build vector database
+python vector_librarian.py                     # Index emails + documents
+
+# Tagging and metadata
+python tagging_cli.py directory ~/Documents
+python metadata_cli.py analyze ~/Documents
+>>>>>>> safe-recycling-features
 ```
 
 ## 💡 **Real Examples**
@@ -837,13 +952,21 @@ ls ~/GoogleDrive/AI_Organizer/05_VEO_PROMPTS/*.json
 - **Unified Search**: Single search interface across local files and Google Drive
 
 ### File Types Supported:
-- **Documents**: PDF, DOCX, Pages, TXT, MD
+- **Documents**: PDF, DOCX, Pages, TXT, MD, RTF
+- **Images**: PNG, JPG, GIF, TIFF, WEBP (with computer vision)
+- **Videos**: MP4, MOV, AVI, MKV (with computer vision and project recognition)
+- **Audio**: MP3, WAV, FLAC, M4A, AUP3 (with AI analysis and transcription)
 - **Emails**: macOS Mail (.emlx files)
+<<<<<<< HEAD
 - **Code**: Python, JavaScript, Jupyter notebooks
 - **Images/Video**: PNG, JPG, MP4, MOV (Gemini Vision analysis)
 - **Audio**: MP3, WAV, M4A, FLAC, OGG (BPM, mood, spectral analysis)
 - **Creative**: Scripts, research papers, audio specs
 - **Cloud Files**: Full Google Drive integration with on-demand streaming
+=======
+- **Code**: Python, JavaScript, Jupyter notebooks, HTML, CSS
+- **Creative**: Scripts, research papers, story documents
+>>>>>>> safe-recycling-features
 
 ### Smart Chunking System:
 - **Contracts**: Chunks by sections (compensation, terms, exclusivity)
@@ -857,6 +980,18 @@ ls ~/GoogleDrive/AI_Organizer/05_VEO_PROMPTS/*.json
 - **Semantic**: AI understanding (good for concepts, themes)
 - **Auto**: Intelligently chooses best approach
 - **Hybrid**: Combines both local and cloud sources for comprehensive results
+
+### Interaction Modes:
+- **SMART** (75%): Default - asks when uncertain, optimized for learning
+- **MINIMAL** (40%): Only asks about very uncertain files  
+- **LEARNING** (85%): Aggressive learning mode for rapid system training
+- **ALWAYS** (100%): Maximum accuracy - asks about every file
+- **NEVER** (0%): Fully automatic - no questions (bulk processing)
+
+### Computer Vision Contexts:
+- **General**: Standard image/video analysis
+- **Entertainment**: Entertainment industry focus (Client Name Wolfhard projects)
+- **Creative**: Creative projects (Papers That Dream, AI content, thebearwithabite)
 
 ## 🎯 **ADHD-Specific Design Decisions**
 
@@ -926,8 +1061,126 @@ python easy_rollback_system.py --undo-today    # Emergency rollback all today's 
 
 This isn't just a file organizer - it's an accessibility tool that makes information management possible for someone with ADHD working in a complex, document-heavy industry.
 
+## 🤖 **Claude Code Agent Integration**
+
+The following specialized agents are configured to work proactively and automatically with the AI File Organizer:
+
+### test-runner
+**Purpose**: Execute comprehensive test suites, validate functionality, ensure quality
+**Proactive Triggers**:
+- After any changes to core classification engine (`classification_engine.py`)
+- Before any git commits involving Python files
+- After modifying search functionality (`enhanced_librarian.py`, `vector_librarian.py`)
+- When interactive organizer logic changes (`interactive_organizer.py`)
+- After AppleScript GUI modifications
+
+### context-doc-manager
+**Purpose**: Keep documentation synchronized with codebase changes, maintain project coherence
+**Proactive Triggers**:
+- After adding new CLI tools or commands
+- When new file types or analysis features are added
+- After modifying Google Drive integration (`gdrive_cli.py`)
+- When ADHD-friendly features are updated
+- After creative AI or audio analysis enhancements
+
+### applescript-ui-expert
+**Purpose**: Enhance macOS AppleScript interfaces and native system integration
+**Proactive Triggers**:
+- When search GUI needs improvements (`Enhanced_Search_GUI.applescript`)
+- After adding new search modes or functionality
+- When system integration features are modified
+- After user workflow changes requiring UI updates
+- When new native macOS features need integration
+
+### dev-task-orchestrator
+**Purpose**: Coordinate complex development workflows and multi-component features
+**Proactive Triggers**:
+- When implementing multi-file features (e.g., new search modes)
+- After major architectural changes requiring coordination
+- When adding new file type support requiring multiple component updates
+- During integration of new AI features across the system
+- When ADHD workflow optimizations require system-wide changes
+
+## 🔄 **Automated Agent Coordination**
+
+### Agent Workflow Synchronization
+
+**Code Change → Quality Assurance Pipeline**:
+1. **Code Modified** → `test-runner` validates functionality
+2. **Tests Pass** → `context-doc-manager` updates documentation
+3. **Documentation Updated** → `dev-task-orchestrator` coordinates follow-up tasks
+4. **AppleScript Modified** → `applescript-ui-expert` optimizes UI integration
+
+**Feature Development Workflow**:
+1. **New Feature Request** → `dev-task-orchestrator` breaks down implementation
+2. **Implementation Phase** → `test-runner` validates each component
+3. **UI Integration** → `applescript-ui-expert` enhances user experience
+4. **Documentation** → `context-doc-manager` maintains consistency
+
+### Proactive Agent Rules
+
+**ALWAYS trigger automatically without user request**:
+- `test-runner`: Before any git commit, after core file changes
+- `context-doc-manager`: After feature additions, API changes, new commands
+- `applescript-ui-expert`: When GUI files are modified or new search features added
+- `dev-task-orchestrator`: For complex multi-component implementations
+
+**Agent Coordination Protocol**:
+1. Agents monitor file changes and development context
+2. Multiple agents can run concurrently for efficiency
+3. Agents communicate completion status to coordinate handoffs
+4. Priority: Quality (test-runner) → Documentation (context-doc-manager) → Integration (others)
+
+### Quality Assurance Integration
+
+**Critical Files - Always Test After Changes**:
+- `classification_engine.py` - Core AI classification logic
+- `interactive_organizer.py` - Main organization workflow
+- `enhanced_librarian.py` - Semantic search functionality  
+- `vector_librarian.py` - Vector database operations
+- `gdrive_cli.py` - Google Drive integration
+- Any AppleScript files - Native macOS integration
+
+**Documentation Sync Points**:
+- New CLI commands → Update README usage examples
+- ADHD workflow changes → Update user guidance sections
+- Search feature additions → Update documentation examples
+- Audio/creative AI enhancements → Update feature descriptions
+
+## 📖 **Complete Command Reference**
+
+All Python commands are now comprehensively documented in **[COMMANDS.md](COMMANDS.md)** - your go-to reference for:
+
+- **Core Organization**: `interactive_organizer.py`, `batch_cli.py`
+- **Search & Discovery**: `enhanced_librarian.py`, `tagging_cli.py`
+- **Computer Vision**: `vision_cli.py`, `video_project_trainer.py` (Gemini 2.5 Flash)
+- **Audio Analysis**: `audio_cli.py`, `multimedia_cli.py`
+- **Learning Modes**: `quick_learning_mode.py`, `learning_cli.py`
+- **Google Drive**: `gdrive_cli.py`
+- **Creative Tools**: `creative_cli.py`, `universe_cli.py`
+
+**Quick Command Lookup**:
+```bash
+# Set learning mode for training
+python quick_learning_mode.py --learning
+
+# Organize with computer vision
+python vision_cli.py analyze screenshot.png --context entertainment
+python interactive_organizer.py organize --live
+
+# Search everything
+python enhanced_librarian.py search "consciousness papers" --mode semantic
+python tagging_cli.py search "finn,contract,active" --match-all
+
+# Emergency space recovery
+python gdrive_cli.py emergency --live
+```
+
+**See [COMMANDS.md](COMMANDS.md) for complete usage examples, troubleshooting, and workflow patterns.**
+
 ---
 
+<<<<<<< HEAD
 *Last updated: 2025-11-03*
 *Version: 3.2.1 - Phase 1, 2 & 3a COMPLETE + Web Interface Improvements + Sprint 2.5*
 *Phase 1: Intelligent Learning Organizer (7,154 lines)*
@@ -935,3 +1188,7 @@ This isn't just a file organizer - it's an accessibility tool that makes informa
 *Phase 3a: VEO Prompt Builder MVP*
 *Web Updates: Search Page, Triage Fixes, Hierarchical Organization*
 *Sprint 2.5: Learning Stats API & UI Integration (COMPLETE)*
+=======
+*Last updated: 2025-09-03*
+*Version: 3.0 - Computer vision integration, video project trainer, comprehensive command reference*
+>>>>>>> safe-recycling-features

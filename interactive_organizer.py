@@ -23,8 +23,10 @@ sys.path.insert(0, str(project_dir))
 from interactive_classifier import InteractiveClassifier
 from staging_monitor import StagingMonitor
 from enhanced_librarian import EnhancedLibrarianCLI
+<<<<<<< HEAD
 from safe_file_recycling import SafeFileRecycling
 from gdrive_integration import get_ai_organizer_root
+from audio_ai_analyzer import AudioAIAnalyzer
 
 class InteractiveOrganizer:
     """
@@ -38,6 +40,7 @@ class InteractiveOrganizer:
         self.classifier = InteractiveClassifier(str(self.base_dir))
         self.staging_monitor = StagingMonitor(str(self.base_dir))
         self.librarian = EnhancedLibrarianCLI(str(self.base_dir))
+        self.audio_analyzer = AudioAIAnalyzer(str(self.base_dir))
         self.recycling = SafeFileRecycling(str(self.base_dir))
         
         # ADHD-friendly safety mode (default on)
@@ -84,6 +87,12 @@ class InteractiveOrganizer:
         print(f"   High confidence: {self.session_stats['high_confidence']}")
         print(f"   Learning events: {self.session_stats['learned_preferences']}")
         
+        if self.use_recycling and self.session_stats['files_recycled'] > 0:
+            print(f"   ♻️  Files recycled safely: {self.session_stats['files_recycled']}")
+            print(f"   💡 Complete organization: python safe_file_recycling.py --list")
+        elif not self.use_recycling and self.session_stats['files_organized'] > 0:
+            print(f"   ✅ Files moved directly: {self.session_stats['files_organized']}")
+        
         return self.session_stats
     
     def organize_specific_file(self, file_path: Path, dry_run: bool = True) -> bool:
@@ -118,8 +127,33 @@ class InteractiveOrganizer:
             
             # Extract content for better classification
             content = ""
+            audio_analysis = None
+            
             try:
-                if file_path.suffix.lower() == '.txt':
+                # Check if it's an audio file first
+                audio_extensions = {'.mp3', '.wav', '.flac', '.m4a', '.aac', '.ogg', '.wma', '.aiff'}
+                if file_path.suffix.lower() in audio_extensions:
+                    print(f"🎵 Detected audio file - running AudioAI analysis...")
+                    try:
+                        audio_analysis = self.audio_analyzer.analyze_audio_file(file_path)
+                        self.audio_analyzer.save_analysis(audio_analysis)
+                        
+                        # Use audio analysis for classification context
+                        content = f"Audio file: {audio_analysis.content_type}, {audio_analysis.duration_seconds:.1f}s"
+                        if audio_analysis.transcription:
+                            content += f" - {audio_analysis.transcription[:500]}"
+                        
+                        print(f"   🎯 Audio type: {audio_analysis.content_type}")
+                        print(f"   ⏱️  Duration: {audio_analysis.duration_seconds:.1f}s")
+                        if audio_analysis.creative_tags:
+                            print(f"   🏷️  Tags: {', '.join(audio_analysis.creative_tags[:3])}")
+                            
+                    except Exception as e:
+                        print(f"   ⚠️  Audio analysis failed: {e}")
+                        print(f"   📄 Falling back to basic file classification...")
+                
+                # Text file content extraction
+                elif file_path.suffix.lower() == '.txt':
                     content = file_path.read_text(encoding='utf-8', errors='ignore')[:2000]
                 elif file_path.suffix.lower() == '.pdf':
                     # Use existing content extractor
@@ -134,6 +168,28 @@ class InteractiveOrganizer:
             # Classify with interactive questions
             print(f"🤔 Analyzing file...")
             classification = self.classifier.classify_with_questions(file_path, content)
+            
+            # Enhanced classification for audio files
+            if audio_analysis and audio_analysis.confidence_score > 0.7:
+                # Use AudioAI analysis to improve classification
+                if audio_analysis.content_type == 'interview':
+                    classification.category = "Entertainment_Industry/Interviews"
+                    classification.confidence = max(classification.confidence, 90)
+                elif audio_analysis.content_type == 'voice_sample':
+                    classification.category = "Entertainment_Industry/Voice_Samples"
+                    classification.confidence = max(classification.confidence, 85)
+                elif audio_analysis.content_type == 'scene_audio':
+                    classification.category = "Entertainment_Industry/Scene_Work"
+                    classification.confidence = max(classification.confidence, 85)
+                elif audio_analysis.content_type == 'music':
+                    classification.category = "Creative_Projects/Music"
+                    classification.confidence = max(classification.confidence, 80)
+                
+                # Add audio-specific reasoning
+                if audio_analysis.creative_tags:
+                    classification.reasoning.extend([f"AudioAI: {tag}" for tag in audio_analysis.creative_tags[:2]])
+                
+                print(f"   🎵 AudioAI enhanced classification: {audio_analysis.content_type}")
             
             # Update session stats
             self.session_stats['files_processed'] += 1
@@ -176,7 +232,8 @@ class InteractiveOrganizer:
                     if recycled_path:
                         self.session_stats['files_recycled'] += 1
                         print(f"   ♻️  File recycled safely (can undo)")
-                        print(f"   💡 Restore with: python safe_file_recycling.py --restore {recycled_path.name}")
+                        print(f"   💡 Complete organization: python safe_file_recycling.py --complete {recycled_path.name}")
+                        print(f"   ↩️  Or restore: python safe_file_recycling.py --restore {recycled_path.name}")
                     else:
                         print(f"   ❌ Failed to recycle file safely")
                         return False
@@ -284,6 +341,16 @@ class InteractiveOrganizer:
             self._organize_single_file(file_path, dry_run)
         
         return self.session_stats
+    
+    def enable_direct_moves(self):
+        """Disable recycling for direct file moves (less safe)"""
+        self.use_recycling = False
+        print("⚠️  Direct moves enabled - files will be moved immediately without recycling safety")
+    
+    def enable_recycling(self):
+        """Enable recycling for safe file moves (default)"""
+        self.use_recycling = True
+        print("✅ Recycling enabled - files will be moved to recycling first for safety")
 
 def main():
     """Command line interface for interactive organization"""
@@ -304,6 +371,8 @@ Examples:
     )
     
     parser.add_argument('--base-dir', help='Base directory for file organization')
+    parser.add_argument('--direct-moves', action='store_true', 
+                       help='Move files directly without recycling (less safe)')
     subparsers = parser.add_subparsers(dest='command', help='Available commands')
     
     # Organize staging areas
@@ -327,6 +396,10 @@ Examples:
     
     # Initialize organizer
     organizer = InteractiveOrganizer(args.base_dir)
+    
+    # Handle recycling mode
+    if args.direct_moves:
+        organizer.enable_direct_moves()
     
     # Execute command
     try:
