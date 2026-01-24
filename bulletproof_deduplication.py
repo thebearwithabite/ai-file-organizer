@@ -39,12 +39,12 @@ class BulletproofDeduplicator:
         
         # Bulletproof duplicate patterns
         self.safe_duplicate_patterns = [
-            r'.*\s\(\d+\)\..*',          # "filename (1).ext"
-            r'.*\scopy\..*',             # "filename copy.ext" 
-            r'Generated Image.*\.jpeg',   # ChatGPT generated images
-            r'.*_\d{8}_\d{6}\..*',       # Timestamped duplicates
-            r'Screenshot.*\.png',         # Screenshot duplicates
-            r'Copy of.*',                 # "Copy of filename.ext"
+            re.compile(r'.*\s\(\d+\)\..*'),          # "filename (1).ext"
+            re.compile(r'.*\scopy\..*'),             # "filename copy.ext"
+            re.compile(r'Generated Image.*\.jpeg'),   # ChatGPT generated images
+            re.compile(r'.*_\d{8}_\d{6}\..*'),       # Timestamped duplicates
+            re.compile(r'Screenshot.*\.png'),         # Screenshot duplicates
+            re.compile(r'Copy of.*'),                 # "Copy of filename.ext"
         ]
         
         # Protected paths - never delete from these
@@ -53,8 +53,22 @@ class BulletproofDeduplicator:
             '/.git', '/.svn', '/node_modules'
         }
 
+        # Optimized protection lists for O(1) lookups instead of regex
+        # 1. Protected Extensions (Fast Set Lookup)
+        self.protected_extensions = {
+            '.db', '.sqlite', '.sqlite3', '.pkl', '.pickle'
+        }
+
+        # 2. Protected Keywords (Fast String Search)
+        # Replaces regex patterns and directory name checks
+        self.protected_keywords = [
+            'vector_db', 'chroma', 'metadata', '_system', 'learning',
+            'adaptive', 'embeddings', 'index', 'classification_logs', 'deduplication'
+        ]
+
         # PROTECTED DATABASE PATTERNS - ABSOLUTELY NEVER DELETE OR MODIFY
         # These patterns protect all learned data, embeddings, and metadata
+        # DEPRECATED: Kept for reference, logic moved to is_database_or_learned_data optimized checks
         self.protected_database_patterns = [
             r'.*vector_db.*',
             r'.*chroma.*',
@@ -227,25 +241,23 @@ class BulletproofDeduplicator:
             True if file is database/learned data (PROTECTED)
             False if file is safe to scan
         """
-        path_str = str(file_path).lower()
-
-        # Check against protected database patterns
-        for pattern in self.protected_database_patterns:
-            if re.search(pattern, path_str, re.IGNORECASE):
-                return True
-
-        # Check file extensions (absolute protection)
-        if file_path.suffix.lower() in ['.db', '.sqlite', '.sqlite3', '.pkl', '.pickle']:
+        # 1. Fast Suffix Check (O(1))
+        # Checks for .db, .sqlite, .pkl, etc.
+        if file_path.suffix.lower() in self.protected_extensions:
             return True
 
-        # Check directory names (any parent directory with these names)
-        protected_dir_names = [
-            'vector_db', 'chroma', 'metadata_system', 'learning',
-            'adaptive', 'embeddings', 'index', '_system', 'classification_logs'
-        ]
-        for part in file_path.parts:
-            if any(protected in part.lower() for protected in protected_dir_names):
+        path_str = str(file_path).lower()
+
+        # 2. Fast Keyword Check (O(N) string search)
+        # Replaces complex regexes and directory iteration
+        # Keywords: vector_db, chroma, metadata, _system, learning, adaptive, etc.
+        for keyword in self.protected_keywords:
+            if keyword in path_str:
                 return True
+
+        # 3. Handle edge case: .sqlite in filename but not as suffix (e.g., .sqlite.bak)
+        if '.sqlite' in path_str:
+            return True
 
         return False
 
