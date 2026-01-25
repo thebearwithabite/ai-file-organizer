@@ -17,6 +17,7 @@ import json
 import sqlite3
 from dataclasses import dataclass
 from enum import Enum
+from gdrive_integration import get_metadata_root
 
 project_dir = Path(__file__).parent
 sys.path.insert(0, str(project_dir))
@@ -64,7 +65,7 @@ class SafeFileMover:
         self.backup_dir.mkdir(parents=True, exist_ok=True)
         
         # Database for tracking file moves
-        self.db_path = self.base_dir / "04_METADATA_SYSTEM" / "file_moves.db"
+        self.db_path = get_metadata_root() / "file_moves.db"
         self._init_moves_db()
         
         # Default strategies per interaction mode

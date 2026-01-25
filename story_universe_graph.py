@@ -10,6 +10,7 @@ import os
 import sqlite3
 import json
 import re
+from gdrive_integration import get_metadata_root
 from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any, Tuple, Set
@@ -69,7 +70,7 @@ class StoryUniverseKnowledgeGraph:
     
     def __init__(self, base_dir: str = None):
         self.base_dir = Path(base_dir) if base_dir else Path.home() / "Documents" / "AI_ORGANIZER_BASE"
-        self.graph_dir = self.base_dir / "04_METADATA_SYSTEM" / "story_universe"
+        self.graph_dir = get_metadata_root() / "story_universe"
         self.graph_dir.mkdir(parents=True, exist_ok=True)
         
         # Initialize dependencies

@@ -8,6 +8,7 @@ Based on AudioAI learning patterns but focused on document organization
 import sys
 import os
 import sqlite3
+from gdrive_integration import get_metadata_root
 import pandas as pd
 from pathlib import Path
 from datetime import datetime, timedelta
@@ -28,7 +29,7 @@ class LearningStatsTracker:
     
     def __init__(self, base_dir: str = None):
         self.base_dir = Path(base_dir) if base_dir else Path.home() / "Documents" / "AI_ORGANIZER_BASE"
-        self.stats_dir = self.base_dir / "04_METADATA_SYSTEM" / "learning_stats"
+        self.stats_dir = get_metadata_root() / "learning_stats"
         self.stats_dir.mkdir(parents=True, exist_ok=True)
         
         # Database for learning statistics
@@ -36,7 +37,7 @@ class LearningStatsTracker:
         self._init_learning_db()
         
         # Load metadata database path
-        self.metadata_db = self.base_dir / "04_METADATA_SYSTEM" / "metadata_tracking.db"
+        self.metadata_db = get_metadata_root() / "metadata_tracking.db"
         
         # Category mappings for analysis
         self.category_groups = {

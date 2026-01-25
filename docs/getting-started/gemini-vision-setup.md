@@ -147,7 +147,7 @@ python vision_analyzer.py
 ✅ Vision Analyzer initialized
    API Status: True
    Base Directory: /Users/user/GoogleDrive/AI_Organizer
-   Cache Directory: .../04_METADATA_SYSTEM/vision_cache
+   Cache Directory: .../04_METADATA_SYSTEM/vision_cache (DEPRECATED - now in ~/Documents/AI_METADATA_SYSTEM)
 
 📊 Statistics:
    API Calls: 0

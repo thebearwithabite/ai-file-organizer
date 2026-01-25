@@ -80,3 +80,7 @@ test_audacity_upload_setup.py
 test_veo_output/
 validate_pii_scrubbing.py
 venv/
+# System artifacts
+server.lock
+compile_log.txt
+gdrive_credentials_BACKUP.json

@@ -73,7 +73,7 @@ class BatchProcessor:
     
     def __init__(self, base_dir: str = None):
         self.base_dir = Path(base_dir) if base_dir else Path.home() / "Documents" / "AI_ORGANIZER_BASE"
-        self.batch_dir = self.base_dir / "04_METADATA_SYSTEM" / "batch_jobs"
+        self.batch_dir = get_metadata_root() / "batch_jobs"
         self.batch_dir.mkdir(parents=True, exist_ok=True)
         
         # Initialize components

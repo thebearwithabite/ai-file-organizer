@@ -187,7 +187,7 @@ python test_vision_integration.py
 
 **2. Adaptive Learning System**
 - ✅ Vision patterns compatible with `universal_adaptive_learning.py`
-- ✅ Pattern storage in `04_METADATA_SYSTEM/adaptive_learning/`
+- ✅ Pattern storage in `AI_METADATA_SYSTEM/adaptive_learning/` (Transitioned from legacy `04_METADATA_SYSTEM`)
 - ✅ Learning data structure follows established patterns
 
 **3. Classification Rules**
@@ -203,7 +203,7 @@ AI File Organizer/
 ├── test_vision_integration.py              (new, ~600 lines)
 ├── GEMINI_VISION_SETUP.md                  (new, complete guide)
 ├── requirements_v3.txt                     (updated)
-└── 04_METADATA_SYSTEM/
+└── 04_METADATA_SYSTEM/ (DEPRECATED - now in ~/Documents/AI_METADATA_SYSTEM)
     ├── vision_cache/                       (created)
     │   └── {cache_key}.json
     └── adaptive_learning/
