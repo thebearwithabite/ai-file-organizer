@@ -14,7 +14,7 @@ import sys
 import argparse
 from pathlib import Path
 from datetime import datetime
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 from query_interface import LocalLibrarian
 from staging_monitor import StagingMonitor

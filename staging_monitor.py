@@ -89,8 +89,8 @@ class StagingMonitor:
             "notification_time": "23:00",
             "excluded_extensions": [".tmp", ".cache", ".DS_Store"],
             "excluded_folders": ["node_modules", ".git", "__pycache__"],
-            "auto_organize_confidence": 0.8,
-            "suggestion_confidence": 0.6
+            "auto_organize_confidence": 0.65,
+            "suggestion_confidence": 0.50
         }
         
         if self.config_path.exists():

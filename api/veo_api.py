@@ -392,10 +392,9 @@ def get_veo_prompt_by_id(prompt_id: int) -> Optional[Dict[str, Any]]:
 
 # ===== API Endpoints =====
 
-@router.on_event("startup")
-async def startup():
-    """Initialize database on startup"""
-    init_veo_prompts_table()
+# Database initialization should be handled via the lifespan manager in main.py
+# or lazily upon first access.
+# init_veo_prompts_table() is kept as a utility function.
 
 
 @router.get("/prompts", response_model=List[VEOPromptResponse])

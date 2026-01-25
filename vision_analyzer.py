@@ -38,14 +38,14 @@ try:
     VERTEX_AVAILABLE = True
 except ImportError:
     VERTEX_AVAILABLE = False
-    print("Warning: vertexai or google-auth not available. Service account auth will be limited.")
+    # print("Warning: vertexai or google-auth not available. Service account auth will be limited.")
 
 try:
     from PIL import Image
     PIL_AVAILABLE = True
 except ImportError:
     PIL_AVAILABLE = False
-    print("Warning: PIL/Pillow not available. Image preprocessing will be limited.")
+    # print("Warning: PIL/Pillow not available. Image preprocessing will be limited.")
 
 
 class VisionAnalyzer:

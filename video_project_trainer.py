@@ -9,6 +9,7 @@ import json
 import sqlite3
 from pathlib import Path
 from datetime import datetime
+from gdrive_integration import get_metadata_root
 from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass
 from collections import Counter, defaultdict
@@ -49,7 +50,7 @@ class VideoProjectTrainer:
         self.base_dir = Path(base_dir) if base_dir else Path.home() / "Documents" / "AI_ORGANIZER_BASE"
         
         # Project learning directory
-        self.project_dir = self.base_dir / "04_METADATA_SYSTEM" / "project_learning"
+        self.project_dir = get_metadata_root() / "project_learning"
         self.project_dir.mkdir(parents=True, exist_ok=True)
         
         # Database for project learning

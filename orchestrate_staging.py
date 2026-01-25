@@ -46,7 +46,7 @@ def update_stats(processed, moved, skipped):
     except Exception as e:
         logger.error(f"Failed to sync stats: {e}")
 
-def orchestrate(dry_run: bool = False, confidence_threshold: float = 0.80, scan_folder: str = None, recursive: bool = True):
+def orchestrate(dry_run: bool = False, confidence_threshold: float = 0.65, scan_folder: str = None, recursive: bool = True):
     logger.info("🚀 Starting Staging Orchestration...")
     
     # 1. Initialize System Service (and Librarian)
@@ -224,7 +224,7 @@ def orchestrate(dry_run: bool = False, confidence_threshold: float = 0.80, scan_
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Orchestrate AI File Organization")
     parser.add_argument("--dry-run", action="store_true", help="Simulate without moving files")
-    parser.add_argument("--threshold", type=float, default=0.80, help="Confidence threshold for auto-move")
+    parser.add_argument("--threshold", type=float, default=0.65, help="Confidence threshold for auto-move")
     parser.add_argument("--scan-folder", type=str, help="Specific folder to scan (overrides defaults)")
     parser.add_argument("--no-recursive", action="store_false", dest="recursive", help="Disable recursive scanning")
     
