@@ -56,10 +56,20 @@ class GoogleDriveAuthError(Exception):
 class GoogleDriveAuth:
     """
     Google Drive API Authentication Manager
-    
-    Handles OAuth 2.0 flow, token management, and service creation
-    with automatic refresh and error recovery.
     """
+    
+    _instances: Dict[str, 'GoogleDriveAuth'] = {}
+
+    @classmethod
+    def get_instance(cls, config_dir: Optional[Path] = None, **kwargs) -> 'GoogleDriveAuth':
+        """Keyed singleton to ensure one instance per config directory"""
+        if config_dir is None:
+            config_dir = get_metadata_root() / "config"
+        
+        key = str(Path(config_dir).absolute())
+        if key not in cls._instances:
+            cls._instances[key] = cls(config_dir=config_dir, **kwargs)
+        return cls._instances[key]
     
     # OAuth 2.0 scopes
     SCOPES = [
@@ -75,7 +85,7 @@ class GoogleDriveAuth:
     def __init__(self, 
                  credentials_file: str = 'gdrive_credentials.json',
                  token_file: str = None,
-                 config_dir: Path = None):
+                 config_dir: Optional[Path] = None):
         """
         Initialize Google Drive authentication
         

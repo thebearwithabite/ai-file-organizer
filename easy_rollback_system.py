@@ -149,7 +149,7 @@ class EasyRollbackSystem:
         
         if GOOGLE_DRIVE_AVAILABLE:
             try:
-                self.gdrive_auth = GoogleDriveAuth()
+                self.gdrive_auth = GoogleDriveAuth.get_instance()
                 # Don't auto-authenticate - only when needed
             except Exception as e:
                 print(f"⚠️  Google Drive authentication failed: {e}")

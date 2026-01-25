@@ -23,6 +23,7 @@ sys.path.insert(0, str(project_dir))
 
 from content_extractor import ContentExtractor
 from creative_ai_partner import CreativeAIPartner
+from gdrive_integration import get_metadata_root
 
 @dataclass
 class CreativeIdea:
@@ -56,7 +57,7 @@ class CreativeIdeaGenerator:
     
     def __init__(self, base_dir: str = None):
         self.base_dir = Path(base_dir) if base_dir else Path.home() / "Documents" / "AI_ORGANIZER_BASE"
-        self.ideas_dir = self.base_dir / "04_METADATA_SYSTEM" / "creative_ideas"
+        self.ideas_dir = get_metadata_root() / "creative_ideas"
         self.ideas_dir.mkdir(parents=True, exist_ok=True)
         
         # Initialize content extractor and creative partner

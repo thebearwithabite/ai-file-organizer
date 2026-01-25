@@ -230,7 +230,7 @@ AI_Organizer/
 │   ├── invoices/
 │   ├── tax_records/
 │   └── agreements/
-├── 04_METADATA_SYSTEM/
+├── 04_METADATA_SYSTEM/ (DEPRECATED - now at ~/Documents/AI_METADATA_SYSTEM)
 │   ├── learning_data.pkl
 │   ├── discovered_categories.json
 │   └── classification_history/

@@ -9,7 +9,8 @@ import sys
 import os
 import base64
 import json
-import time
+import sqlite3
+from gdrive_integration import get_metadata_root
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Optional, Any, Tuple
@@ -45,7 +46,7 @@ class GeminiVisionExtractor:
         self.base_dir = Path(base_dir) if base_dir else Path.home() / "Documents" / "AI_ORGANIZER_BASE"
         
         # Vision processing directory
-        self.vision_dir = self.base_dir / "04_METADATA_SYSTEM" / "vision_analysis"
+        self.vision_dir = get_metadata_root() / "vision_analysis"
         self.vision_dir.mkdir(parents=True, exist_ok=True)
         
         # Cache directory for vision results
