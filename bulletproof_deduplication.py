@@ -46,6 +46,7 @@ class BulletproofDeduplicator:
             r'Screenshot.*\.png',         # Screenshot duplicates
             r'Copy of.*',                 # "Copy of filename.ext"
         ]
+        self.safe_duplicate_compiled = [re.compile(p, re.IGNORECASE) for p in self.safe_duplicate_patterns]
         
         # Protected paths - never delete from these
         self.protected_paths = {
@@ -71,6 +72,14 @@ class BulletproofDeduplicator:
             r'.*\.sqlite.*',       # All SQLite variants
             r'.*index.*\.pkl$',    # Index files
             r'.*metadata.*',       # Any metadata folders/files
+        ]
+        self.protected_database_compiled = [re.compile(p, re.IGNORECASE) for p in self.protected_database_patterns]
+
+        # Optimization: Sets and lists for fast lookup
+        self.protected_extensions = {'.db', '.sqlite', '.sqlite3', '.pkl', '.pickle'}
+        self.protected_dir_names = [
+            'vector_db', 'chroma', 'metadata_system', 'learning',
+            'adaptive', 'embeddings', 'index', '_system', 'classification_logs'
         ]
     
     def init_database(self):
@@ -227,24 +236,20 @@ class BulletproofDeduplicator:
             True if file is database/learned data (PROTECTED)
             False if file is safe to scan
         """
-        path_str = str(file_path).lower()
-
-        # Check against protected database patterns
-        for pattern in self.protected_database_patterns:
-            if re.search(pattern, path_str, re.IGNORECASE):
-                return True
-
-        # Check file extensions (absolute protection)
-        if file_path.suffix.lower() in ['.db', '.sqlite', '.sqlite3', '.pkl', '.pickle']:
+        # OPTIMIZATION: Check extensions first (fastest O(1) lookup)
+        if file_path.suffix.lower() in self.protected_extensions:
             return True
 
-        # Check directory names (any parent directory with these names)
-        protected_dir_names = [
-            'vector_db', 'chroma', 'metadata_system', 'learning',
-            'adaptive', 'embeddings', 'index', '_system', 'classification_logs'
-        ]
-        for part in file_path.parts:
-            if any(protected in part.lower() for protected in protected_dir_names):
+        path_str = str(file_path).lower()
+
+        # OPTIMIZATION: Check directory names using string search (faster than regex or tuple iteration)
+        for protected in self.protected_dir_names:
+            if protected in path_str:
+                return True
+
+        # Check against protected database patterns (regex fallback)
+        for pattern in self.protected_database_compiled:
+            if pattern.search(path_str):
                 return True
 
         return False
@@ -315,8 +320,8 @@ class BulletproofDeduplicator:
         
         # Pattern recognition (obvious duplicates safer)
         filename = file_path.name
-        for pattern in self.safe_duplicate_patterns:
-            if re.match(pattern, filename):
+        for pattern in self.safe_duplicate_compiled:
+            if pattern.match(filename):
                 score += 0.4
                 break
         
