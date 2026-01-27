@@ -46,7 +46,7 @@ class BulletproofDeduplicator:
             r'Screenshot.*\.png',         # Screenshot duplicates
             r'Copy of.*',                 # "Copy of filename.ext"
         ]
-        self.safe_duplicate_compiled = [re.compile(p, re.IGNORECASE) for p in self.safe_duplicate_patterns]
+        self.safe_duplicate_compiled = [re.compile(p) for p in self.safe_duplicate_patterns]
         
         # Protected paths - never delete from these
         self.protected_paths = {
