@@ -431,14 +431,16 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
                     # We open connections to both rules DB and processed files DB to prevent N+1 overhead
                     try:
                         with sqlite3.connect(self.rules_db_path) as rules_conn, \
-                             sqlite3.connect(self.db_path) as processed_conn:
+                             sqlite3.connect(self.db_path) as processed_conn, \
+                             sqlite3.connect(self.staging_monitor.db_path) as staging_conn:
 
                             # Process collected events
                             for event in events_to_process:
                                 self._learn_from_file_event(
                                     event,
                                     db_connection=rules_conn,
-                                    processed_db_connection=processed_conn
+                                    processed_db_connection=processed_conn,
+                                    staging_db_connection=staging_conn
                                 )
                     except Exception as db_err:
                         self.logger.error(f"Database error in event loop: {db_err}")
@@ -454,7 +456,8 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
 
     def _learn_from_file_event(self, event: Dict[str, Any],
                               db_connection: Optional[sqlite3.Connection] = None,
-                              processed_db_connection: Optional[sqlite3.Connection] = None):
+                              processed_db_connection: Optional[sqlite3.Connection] = None,
+                              staging_db_connection: Optional[sqlite3.Connection] = None):
         """Learn from a file system event"""
         
         event_type = event['type']
@@ -470,7 +473,7 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
         
         elif event_type == 'created':
             # New file created - check for auto-organization opportunity
-            self._handle_new_file(event['path'], event['timestamp'])
+            self._handle_new_file(event['path'], event['timestamp'], staging_db_connection=staging_db_connection)
             
         elif event_type == 'folder_created':
             # New folder created - learn new project structure?
@@ -582,7 +585,7 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
         except Exception as e:
             self.logger.error(f"Error handling new folder {folder_path}: {e}")
 
-    def _handle_new_file(self, file_path: str, timestamp: datetime):
+    def _handle_new_file(self, file_path: str, timestamp: datetime, staging_db_connection: Optional[sqlite3.Connection] = None):
         """
         Handle newly created file with adaptive intelligence.
         Delegates to _handle_new_file_with_cooldown for 7-day safety rule.
@@ -598,12 +601,12 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
                 return
 
             # Delegate to 7-day cooldown logic
-            self._handle_new_file_with_cooldown(file_obj)
+            self._handle_new_file_with_cooldown(file_obj, staging_db_connection=staging_db_connection)
             
         except Exception as e:
             self.logger.error(f"Error handling new file {file_path}: {e}")
 
-    def _handle_new_file_with_cooldown(self, path: Path) -> bool:
+    def _handle_new_file_with_cooldown(self, path: Path, staging_db_connection: Optional[sqlite3.Connection] = None) -> bool:
         """
         Handle new file with 7-day cooldown safety rule.
 
@@ -666,7 +669,7 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
             
             # --- V3.1 ENHANCEMENT: 7-DAY STAGING COOLDOWN ---
             # Instead of executing automatically, check if it's ready
-            is_organized = self._handle_new_file_with_cooldown(file_obj)
+            is_organized = self._handle_new_file_with_cooldown(file_obj, staging_db_connection=staging_db_connection)
             
             if is_organized:
                 action_taken = True
@@ -713,17 +716,19 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
 
         try:
             self.logger.debug(f"Scanning directory for deferred files: {path}")
-            for file_path in path.iterdir():
-                if file_path.is_file():
-                    results["files_found"] += 1
-                    # Process file (will check age again)
-                    try:
-                        # We use _handle_new_file directly to go through the cooldown logic
-                        self._handle_new_file(str(file_path), datetime.now())
-                        results["files_processed"] += 1
-                    except Exception as e:
-                        self.logger.error(f"Error processing {file_path}: {e}")
-                        results["errors"] += 1
+            # OPTIMIZATION: Use shared connection for batch scanning
+            with sqlite3.connect(self.staging_monitor.db_path) as staging_conn:
+                for file_path in path.iterdir():
+                    if file_path.is_file():
+                        results["files_found"] += 1
+                        # Process file (will check age again)
+                        try:
+                            # We use _handle_new_file directly to go through the cooldown logic
+                            self._handle_new_file(str(file_path), datetime.now(), staging_db_connection=staging_conn)
+                            results["files_processed"] += 1
+                        except Exception as e:
+                            self.logger.error(f"Error processing {file_path}: {e}")
+                            results["errors"] += 1
 
         except Exception as e:
             self.logger.error(f"Error scanning {path}: {e}")
@@ -1492,7 +1497,7 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
 
         self.logger.info("Adaptive monitoring stopped")
 
-    def _handle_new_file_with_cooldown(self, path: Path) -> bool:
+    def _handle_new_file_with_cooldown(self, path: Path, staging_db_connection: Optional[sqlite3.Connection] = None) -> bool:
         """
         Handle new file with 7-day cooldown safety rule
         
@@ -1502,13 +1507,13 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
         try:
             # 1. Capture observation immediately
             # This ensures we have a 'first_seen' timestamp even if it's a new file
-            is_new = self.staging_monitor.record_observation(path)
+            is_new = self.staging_monitor.record_observation(path, db_connection=staging_db_connection)
             
             # 2. Extract confidence-based logic
             # (In a real system, we'd reuse the decision from _handle_new_file, 
             # but we need to check if it's MATURE enough now)
             
-            age_days = self.staging_monitor.get_file_age_days(str(path))
+            age_days = self.staging_monitor.get_file_age_days(str(path), db_connection=staging_db_connection)
             
             if age_days is None:
                 return False
