@@ -53,24 +53,20 @@ class BulletproofDeduplicator:
             '/.git', '/.svn', '/node_modules'
         }
 
-        # PROTECTED DATABASE PATTERNS - ABSOLUTELY NEVER DELETE OR MODIFY
-        # These patterns protect all learned data, embeddings, and metadata
-        self.protected_database_patterns = [
-            r'.*vector_db.*',
-            r'.*chroma.*',
-            r'.*_METADATA_SYSTEM.*',
-            r'.*_SYSTEM/.*\.db$',
-            r'.*\.pkl$',           # Pickle learning data
-            r'.*adaptive_learning.*',
-            r'.*deduplication.*\.db$',
-            # r'.*04_METADATA_SYSTEM.*',  # [REMOVED] Legacy path - replaced by AI_METADATA_SYSTEM
-            r'.*learning_data.*',
-            r'.*classification_logs.*',
-            r'.*embeddings.*',
-            r'.*\.db$',            # All SQLite databases
-            r'.*\.sqlite.*',       # All SQLite variants
-            r'.*index.*\.pkl$',    # Index files
-            r'.*metadata.*',       # Any metadata folders/files
+        # PROTECTED EXTENSIONS - ABSOLUTELY NEVER DELETE OR MODIFY
+        # O(1) lookup for critical file types
+        self.protected_extensions = (
+            '.db', '.sqlite', '.sqlite3', '.pkl', '.pickle'
+        )
+
+        # PROTECTED KEYWORDS - ABSOLUTELY NEVER DELETE OR MODIFY
+        # Substring checks for protected directories and files
+        # Covers all previous regex patterns but ~100x faster
+        self.protected_keywords = [
+            'vector_db', 'chroma', '_metadata_system', 'metadata_system',
+            'adaptive_learning', 'learning_data', 'classification_logs',
+            'embeddings', 'metadata', 'learning', 'adaptive', 'index',
+            '_system', '.sqlite'
         ]
     
     def init_database(self):
@@ -223,28 +219,25 @@ class BulletproofDeduplicator:
         Check if file is a database or contains learned data
         ABSOLUTE PROTECTION - never consider these for deletion or modification
 
+        Optimized for performance:
+        1. Suffix check (O(1))
+        2. Substring check (Fast C implementation)
+        3. No regex or path splitting
+
         Returns:
             True if file is database/learned data (PROTECTED)
             False if file is safe to scan
         """
         path_str = str(file_path).lower()
 
-        # Check against protected database patterns
-        for pattern in self.protected_database_patterns:
-            if re.search(pattern, path_str, re.IGNORECASE):
-                return True
-
-        # Check file extensions (absolute protection)
-        if file_path.suffix.lower() in ['.db', '.sqlite', '.sqlite3', '.pkl', '.pickle']:
+        # 1. Check file extensions (absolute protection) - Fastest check
+        if path_str.endswith(self.protected_extensions):
             return True
 
-        # Check directory names (any parent directory with these names)
-        protected_dir_names = [
-            'vector_db', 'chroma', 'metadata_system', 'learning',
-            'adaptive', 'embeddings', 'index', '_system', 'classification_logs'
-        ]
-        for part in file_path.parts:
-            if any(protected in part.lower() for protected in protected_dir_names):
+        # 2. Check protected keywords (covers directories and filenames)
+        # This replaces both regex patterns and directory splitting loops
+        for keyword in self.protected_keywords:
+            if keyword in path_str:
                 return True
 
         return False
