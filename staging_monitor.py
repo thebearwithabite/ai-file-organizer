@@ -150,7 +150,7 @@ class StagingMonitor:
         
         return results
     
-    def record_observation(self, file_path: Path, folder_location: str = "custom") -> bool:
+    def record_observation(self, file_path: Path, folder_location: str = "custom", db_connection: Optional[sqlite3.Connection] = None) -> bool:
         """
         Instantly record an observation of a file for age tracking.
         Returns True if newly discovered.
@@ -162,57 +162,72 @@ class StagingMonitor:
         file_hash = self._get_file_hash(file_path)
         
         try:
-            with sqlite3.connect(self.db_path) as conn:
-                # Check if exists
-                cursor = conn.execute(
-                    "SELECT file_hash, first_seen, status FROM file_tracking WHERE file_path = ?",
-                    (str(file_path),)
-                )
-                existing = cursor.fetchone()
-                
-                if existing:
-                    # Update status to active if it was removed/organized but reappeared
-                    if existing[2] != 'active':
-                        conn.execute(
-                            "UPDATE file_tracking SET status = 'active', last_modified = ? WHERE file_path = ?",
-                            (current_time, str(file_path))
-                        )
-                    return False
-                else:
-                    # New discovery
-                    conn.execute("""
-                        INSERT INTO file_tracking 
-                        (file_path, file_hash, first_seen, last_modified, size_bytes, folder_location)
-                        VALUES (?, ?, ?, ?, ?, ?)
-                    """, (
-                        str(file_path), file_hash, current_time, current_time,
-                        file_path.stat().st_size, folder_location
-                    ))
-                    
-                    conn.execute("""
-                        INSERT INTO staging_events (file_path, event_type, event_data)
-                        VALUES (?, 'discovered', ?)
-                    """, (str(file_path), json.dumps({"folder": folder_location, "instant": True})))
-                    
-                    return True
+            if db_connection:
+                return self._perform_record_observation(db_connection, file_path, folder_location, current_time, file_hash)
+            else:
+                with sqlite3.connect(self.db_path) as conn:
+                    return self._perform_record_observation(conn, file_path, folder_location, current_time, file_hash)
         except Exception as e:
             print(f"Error recording observation for {file_path}: {e}")
             return False
+
+    def _perform_record_observation(self, conn: sqlite3.Connection, file_path: Path, folder_location: str, current_time: datetime, file_hash: str) -> bool:
+        """Internal logic for record_observation to support connection reuse"""
+        # Check if exists
+        cursor = conn.execute(
+            "SELECT file_hash, first_seen, status FROM file_tracking WHERE file_path = ?",
+            (str(file_path),)
+        )
+        existing = cursor.fetchone()
+
+        if existing:
+            # Update status to active if it was removed/organized but reappeared
+            if existing[2] != 'active':
+                conn.execute(
+                    "UPDATE file_tracking SET status = 'active', last_modified = ? WHERE file_path = ?",
+                    (current_time, str(file_path))
+                )
+            return False
+        else:
+            # New discovery
+            conn.execute("""
+                INSERT INTO file_tracking
+                (file_path, file_hash, first_seen, last_modified, size_bytes, folder_location)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (
+                str(file_path), file_hash, current_time, current_time,
+                file_path.stat().st_size, folder_location
+            ))
+
+            conn.execute("""
+                INSERT INTO staging_events (file_path, event_type, event_data)
+                VALUES (?, 'discovered', ?)
+            """, (str(file_path), json.dumps({"folder": folder_location, "instant": True})))
             
-    def get_file_age_days(self, file_path: str) -> Optional[int]:
+            return True
+
+    def get_file_age_days(self, file_path: str, db_connection: Optional[sqlite3.Connection] = None) -> Optional[int]:
         """Get the number of days a file has been known to the system"""
         try:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.execute(
-                    "SELECT first_seen FROM file_tracking WHERE file_path = ?",
-                    (str(file_path),)
-                )
-                result = cursor.fetchone()
-                if result:
-                    first_seen = datetime.fromisoformat(result[0])
-                    return (datetime.now() - first_seen).days
+            if db_connection:
+                return self._perform_get_file_age(db_connection, file_path)
+            else:
+                with sqlite3.connect(self.db_path) as conn:
+                    return self._perform_get_file_age(conn, file_path)
         except Exception as e:
             print(f"Error getting file age: {e}")
+        return None
+
+    def _perform_get_file_age(self, conn: sqlite3.Connection, file_path: str) -> Optional[int]:
+        """Internal logic for get_file_age_days to support connection reuse"""
+        cursor = conn.execute(
+            "SELECT first_seen FROM file_tracking WHERE file_path = ?",
+            (str(file_path),)
+        )
+        result = cursor.fetchone()
+        if result:
+            first_seen = datetime.fromisoformat(result[0])
+            return (datetime.now() - first_seen).days
         return None
     
     def update_tracking_database(self, scan_results: Dict[str, List[Dict]]):
