@@ -13,6 +13,7 @@ deletion safety in the future.
 
 import unittest
 import tempfile
+import re
 from pathlib import Path
 from bulletproof_deduplication import BulletproofDeduplicator
 
@@ -338,8 +339,8 @@ class TestIsDatabaseOrLearnedData(unittest.TestCase):
         """Test that similar names that shouldn't be protected are not protected"""
         # These should NOT be protected (they don't match the patterns exactly)
         test_files = [
-            self.test_dir / "learning_materials" / "document.pdf",  # Contains "learning" but also other text
-            self.test_dir / "chroma_tutorial" / "guide.txt",  # Contains "chroma" but also other text
+            self.test_dir / "learning_materials" / "document.pdf",  # contains "learning" but also other text
+            self.test_dir / "chroma_tutorial" / "guide.txt",  # contains "chroma" but also other text
         ]
         # Note: Due to substring matching in directory names, these WILL be protected
         # This is intentional - better to over-protect than under-protect
@@ -427,7 +428,6 @@ class TestIsDatabaseOrLearnedData(unittest.TestCase):
             "Should have pre-compiled regex patterns"
         )
         # Verify they're actually compiled regex objects
-        import re
         for pattern in self.deduplicator.protected_database_compiled:
             self.assertIsInstance(
                 pattern,
