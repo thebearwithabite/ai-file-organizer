@@ -46,6 +46,7 @@ class BulletproofDeduplicator:
             r'Screenshot.*\.png',         # Screenshot duplicates
             r'Copy of.*',                 # "Copy of filename.ext"
         ]
+        # REVERT: Maintain original case-sensitive behavior for strict matching unless proven otherwise
         self.safe_duplicate_compiled = [re.compile(p) for p in self.safe_duplicate_patterns]
         
         # Protected paths - never delete from these
