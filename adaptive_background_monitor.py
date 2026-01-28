@@ -718,16 +718,20 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
             self.logger.debug(f"Scanning directory for deferred files: {path}")
             # OPTIMIZATION: Use shared connection for batch scanning
             with sqlite3.connect(self.staging_monitor.db_path) as staging_conn:
-                for file_path in path.iterdir():
-                    if file_path.is_file():
-                        results["files_found"] += 1
-                        # Process file (will check age again)
+                # Use os.scandir for performance (yields DirEntry with cached stat)
+                with os.scandir(path) as it:
+                    for entry in it:
                         try:
-                            # We use _handle_new_file directly to go through the cooldown logic
-                            self._handle_new_file(str(file_path), datetime.now(), staging_db_connection=staging_conn)
-                            results["files_processed"] += 1
+                            if entry.is_file():
+                                results["files_found"] += 1
+                                # Pass path string directly to avoid Path object creation overhead if not needed immediately
+                                self._handle_new_file(entry.path, datetime.now(), staging_db_connection=staging_conn)
+                                results["files_processed"] += 1
+                        except OSError as e:
+                            self.logger.error(f"Error accessing entry {entry.name}: {e}")
+                            results["errors"] += 1
                         except Exception as e:
-                            self.logger.error(f"Error processing {file_path}: {e}")
+                            self.logger.error(f"Error processing {entry.name}: {e}")
                             results["errors"] += 1
 
         except Exception as e:
