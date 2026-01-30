@@ -717,32 +717,32 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
         try:
             self.logger.debug(f"Scanning directory for deferred files: {path}")
 
-            # OPTIMIZATION: Check for directory-level ignore markers ONCE
-            if (path / ".noai").exists():
-                return results
-
-            if any(part.endswith('_NOAI') for part in path.parts):
+            # OPTIMIZATION: Check directory-level ignore markers ONCE
+            if (path / ".noai").exists() or any(p.endswith('_NOAI') for p in path.parts):
+                self.logger.debug(f"Skipping ignored directory: {path}")
                 return results
 
             # OPTIMIZATION: Use shared connection for batch scanning
             with sqlite3.connect(self.staging_monitor.db_path) as staging_conn:
-                for file_path in path.iterdir():
-                    if file_path.is_file():
-                        results["files_found"] += 1
-                        # Process file (will check age again)
-                        try:
-                            # We use _handle_new_file directly to go through the cooldown logic
-                            # Pass check_parent_marker=False since we checked the directory above
-                            self._handle_new_file(
-                                str(file_path),
-                                datetime.now(),
-                                staging_db_connection=staging_conn,
-                                check_parent_marker=False
-                            )
-                            results["files_processed"] += 1
-                        except Exception as e:
-                            self.logger.error(f"Error processing {file_path}: {e}")
-                            results["errors"] += 1
+                # OPTIMIZATION: Use os.scandir instead of path.iterdir()
+                with os.scandir(path) as it:
+                    for entry in it:
+                        if entry.is_file():
+                            results["files_found"] += 1
+                            # Process file (will check age again)
+                            try:
+                                # We use _handle_new_file directly to go through the cooldown logic
+                                # Pass check_parent_marker=False since we checked the directory above
+                                self._handle_new_file(
+                                    entry.path,
+                                    datetime.now(),
+                                    staging_db_connection=staging_conn,
+                                    check_parent_marker=False
+                                )
+                                results["files_processed"] += 1
+                            except Exception as e:
+                                self.logger.error(f"Error processing {entry.name}: {e}")
+                                results["errors"] += 1
 
         except Exception as e:
             self.logger.error(f"Error scanning {path}: {e}")
