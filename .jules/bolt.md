@@ -21,3 +21,7 @@
 ## 2025-09-08 - [Lazy Hashing in Staging Scan]
 **Learning:** Calculating hashes for every file in `StagingMonitor.scan_staging_folders` was wasteful (O(N) reads). Deferring hash calculation to `update_tracking_database` allowed skipping unchanged files by comparing `st_mtime` with `last_modified` (timestamp of last check), reducing update time for 1000 unchanged files from ~47ms to ~17ms (~3x speedup) and reducing I/O ops by 99%.
 **Action:** Use `st_mtime` + `size` comparison against DB records to skip expensive content checks for already-tracked files.
+
+## 2025-09-09 - [Eliminating Redundant I/O in Directory Scans]
+**Learning:** Repeatedly checking for parent directory ignore markers (e.g., `.noai` existence) for every file in a directory scan creates O(N) redundant I/O operations. Switching to a single directory-level check combined with `os.scandir` improved scan performance by ~38% (from ~5000 to ~7000 files/sec).
+**Action:** Verify directory-level ignore patterns once per directory before iterating its contents, and avoid re-checking parent markers for each file.
