@@ -13,3 +13,7 @@
 ## 2025-09-08 - [Batch Processing for Adaptive Learning Sync]
 **Learning:** Replacing iterative `execute` calls with `executemany` for syncing adaptive learning data reduced sync time significantly (e.g., from ~1.1s to ~0.7s for 50k items). While impact on small datasets is minimal, this scales much better for large pattern libraries.
 **Action:** Use `executemany` for all bulk database insertion/update operations.
+
+## 2025-09-08 - [Deferred Hashing in Staging Monitor]
+**Learning:** `StagingMonitor.record_observation` calculated file hash BEFORE checking if the file was already tracked. This caused redundant I/O (file open + read) for every file in every scan, even if unchanged. Deferring hash calculation until after the existence check reduced call latency by ~70% (0.7ms -> 0.2ms) for tracked files.
+**Action:** Always check existence/metadata in DB before performing expensive file operations (like hashing), even if the operation seems cheap (1KB read).
