@@ -17,3 +17,6 @@
 ## 2025-09-09 - [Eliminating Redundant I/O in Directory Scans]
 **Learning:** Repeatedly checking for parent directory ignore markers (e.g., `.noai` existence) for every file in a directory scan creates O(N) redundant I/O operations. Switching to a single directory-level check combined with `os.scandir` improved scan performance by ~38% (from ~5000 to ~7000 files/sec).
 **Action:** Verify directory-level ignore patterns once per directory before iterating its contents, and avoid re-checking parent markers for each file.
+## 2025-09-08 - [Deferred Hashing in Staging Monitor]
+**Learning:** `StagingMonitor.record_observation` calculated file hash BEFORE checking if the file was already tracked. This caused redundant I/O (file open + read) for every file in every scan, even if unchanged. Deferring hash calculation until after the existence check reduced call latency by ~70% (0.7ms -> 0.2ms) for tracked files.
+**Action:** Always check existence/metadata in DB before performing expensive file operations (like hashing), even if the operation seems cheap (1KB read).
