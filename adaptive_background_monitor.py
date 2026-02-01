@@ -585,7 +585,7 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
         except Exception as e:
             self.logger.error(f"Error handling new folder {folder_path}: {e}")
 
-    def _handle_new_file(self, file_path: str, timestamp: datetime, staging_db_connection: Optional[sqlite3.Connection] = None):
+    def _handle_new_file(self, file_path: str, timestamp: datetime, staging_db_connection: Optional[sqlite3.Connection] = None, check_parent_marker: bool = True):
         """
         Handle newly created file with adaptive intelligence.
         Delegates to _handle_new_file_with_cooldown for 7-day safety rule.
@@ -597,7 +597,7 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
                 return
             
             # Check if file should be processed
-            if not self._should_process_file(file_obj):
+            if not self._should_process_file(file_obj, check_parent_marker=check_parent_marker):
                 return
 
             # Delegate to 7-day cooldown logic
@@ -716,6 +716,14 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
 
         try:
             self.logger.debug(f"Scanning directory for deferred files: {path}")
+
+            # OPTIMIZATION: Check for directory-level ignore markers ONCE
+            if (path / ".noai").exists():
+                return results
+
+            if any(part.endswith('_NOAI') for part in path.parts):
+                return results
+
             # OPTIMIZATION: Use shared connection for batch scanning
             with sqlite3.connect(self.staging_monitor.db_path) as staging_conn:
                 for file_path in path.iterdir():
@@ -724,7 +732,13 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
                         # Process file (will check age again)
                         try:
                             # We use _handle_new_file directly to go through the cooldown logic
-                            self._handle_new_file(str(file_path), datetime.now(), staging_db_connection=staging_conn)
+                            # Pass check_parent_marker=False since we checked the directory above
+                            self._handle_new_file(
+                                str(file_path),
+                                datetime.now(),
+                                staging_db_connection=staging_conn,
+                                check_parent_marker=False
+                            )
                             results["files_processed"] += 1
                         except Exception as e:
                             self.logger.error(f"Error processing {file_path}: {e}")
