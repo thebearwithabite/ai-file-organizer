@@ -159,19 +159,19 @@ class StagingMonitor:
             return False
             
         current_time = datetime.now()
-        file_hash = self._get_file_hash(file_path)
+        # file_hash calculation deferred to _perform_record_observation if needed
         
         try:
             if db_connection:
-                return self._perform_record_observation(db_connection, file_path, folder_location, current_time, file_hash)
+                return self._perform_record_observation(db_connection, file_path, folder_location, current_time)
             else:
                 with sqlite3.connect(self.db_path) as conn:
-                    return self._perform_record_observation(conn, file_path, folder_location, current_time, file_hash)
+                    return self._perform_record_observation(conn, file_path, folder_location, current_time)
         except Exception as e:
             print(f"Error recording observation for {file_path}: {e}")
             return False
 
-    def _perform_record_observation(self, conn: sqlite3.Connection, file_path: Path, folder_location: str, current_time: datetime, file_hash: str) -> bool:
+    def _perform_record_observation(self, conn: sqlite3.Connection, file_path: Path, folder_location: str, current_time: datetime, file_hash: Optional[str] = None) -> bool:
         """Internal logic for record_observation to support connection reuse"""
         # Check if exists
         cursor = conn.execute(
@@ -189,7 +189,10 @@ class StagingMonitor:
                 )
             return False
         else:
-            # New discovery
+            # New discovery - NOW calculate hash if not provided
+            if file_hash is None:
+                file_hash = self._get_file_hash(file_path)
+
             conn.execute("""
                 INSERT INTO file_tracking
                 (file_path, file_hash, first_seen, last_modified, size_bytes, folder_location)
