@@ -9,6 +9,7 @@ import sys
 import os
 import json
 import sqlite3
+from gdrive_integration import get_metadata_root
 from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any, Tuple
@@ -57,7 +58,7 @@ class ProactiveLearningEngine:
         self.base_dir = Path(base_dir) if base_dir else Path.home() / "Documents" / "AI_ORGANIZER_BASE"
         
         # Initialize learning directory
-        self.learning_dir = self.base_dir / "04_METADATA_SYSTEM" / "proactive_learning"
+        self.learning_dir = get_metadata_root() / "proactive_learning"
         self.learning_dir.mkdir(parents=True, exist_ok=True)
         
         # Initialize database

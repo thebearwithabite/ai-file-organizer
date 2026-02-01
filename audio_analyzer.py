@@ -19,14 +19,14 @@ try:
     MUTAGEN_AVAILABLE = True
 except ImportError:
     MUTAGEN_AVAILABLE = False
-    print("Warning: mutagen not available. Audio metadata extraction will be limited.")
+    # print("Warning: mutagen not available. Audio metadata extraction will be limited.")
 
 try:
     from openai import OpenAI
     OPENAI_AVAILABLE = True
 except ImportError:
     OPENAI_AVAILABLE = False
-    print("Warning: OpenAI not available. AI classification will be disabled.")
+    # print("Warning: OpenAI not available. AI classification will be disabled.")
 
 try:
     import librosa
@@ -34,14 +34,14 @@ try:
     LIBROSA_AVAILABLE = True
 except ImportError:
     LIBROSA_AVAILABLE = False
-    print("Warning: librosa not available. Spectral analysis will be disabled.")
+    # print("Warning: librosa not available. Spectral analysis will be disabled.")
 
 try:
     from faster_whisper import WhisperModel
     FASTER_WHISPER_AVAILABLE = True
 except ImportError:
     FASTER_WHISPER_AVAILABLE = False
-    print("Information: faster-whisper not available. Local transcription disabled.")
+    # print("Information: faster-whisper not available. Local transcription disabled.")
 
 
 class AudioAnalyzer:

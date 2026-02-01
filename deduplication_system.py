@@ -6,6 +6,7 @@ ADHD-friendly with multiple safety confirmations
 """
 
 import hashlib
+from gdrive_integration import get_metadata_root
 import os
 import sqlite3
 import time
@@ -46,7 +47,7 @@ class BulletproofDeduplicator:
         self.base_dir = Path(base_dir) if base_dir else Path.home() / "Documents" / "AI_ORGANIZER_BASE"
         
         # Deduplication database
-        self.db_path = self.base_dir / "04_METADATA_SYSTEM" / "deduplication.db"
+        self.db_path = get_metadata_root() / "deduplication.db"
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         
         # Safety mechanisms

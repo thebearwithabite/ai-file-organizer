@@ -14,9 +14,7 @@ from datetime import datetime
 from typing import Dict, List, Optional, Any, Tuple
 import re
 
-project_dir = Path(__file__).parent
-sys.path.insert(0, str(project_dir))
-
+from gdrive_integration import get_metadata_root
 from content_extractor import ContentExtractor
 
 class CustomCategoryManager:
@@ -27,7 +25,9 @@ class CustomCategoryManager:
     
     def __init__(self, base_dir: str = None):
         self.base_dir = Path(base_dir) if base_dir else Path.home() / "Documents" / "AI_ORGANIZER_BASE"
-        self.categories_dir = self.base_dir / "04_METADATA_SYSTEM" / "custom_categories"
+        # Use centralized local metadata root (Rule #3)
+        metadata_root = get_metadata_root()
+        self.categories_dir = metadata_root / "custom_categories"
         self.categories_dir.mkdir(parents=True, exist_ok=True)
         
         # Initialize content extractor

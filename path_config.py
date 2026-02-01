@@ -51,6 +51,9 @@ class PathConfig:
         current_file = Path(__file__).resolve()
         organizer_base = current_file.parent
         
+        # Centralized local metadata root (Rule #1 compliance)
+        metadata_root = home / 'Documents' / 'AI_METADATA_SYSTEM'
+
         return {
             # User directories (standard across all systems)
             'home': home,
@@ -58,24 +61,27 @@ class PathConfig:
             'downloads': base / 'Downloads', 
             'desktop': base / 'Desktop',
             
-            # AI Organizer specific directories
+            # AI Organizer specific directories (SYSTEM ONLY)
             'organizer_base': organizer_base,
-            'logs': organizer_base / 'logs',
-            'cache': home / '.ai_organizer_cache',
             
-            # Database and storage
-            'metadata_db': organizer_base / 'metadata_tracking.db',
-            'vector_db': organizer_base / 'vector_store',
+            # Metadata System (LOCAL ONLY - Rule #1 & #5)
+            'metadata_root': metadata_root,
+            'logs': metadata_root / 'logs',
+            'cache': metadata_root / 'cache',
+            'config': metadata_root / 'config',
+
+            # Database and storage (STRICTLY LOCAL)
+            'metadata_db': metadata_root / 'databases' / 'metadata.db',
+            'vector_db': metadata_root / 'databases' / 'vector_store',
             
             # Configuration files
-            'config': organizer_base / 'config',
-            'user_preferences': organizer_base / 'user_preferences.json',
-            'classification_rules': organizer_base / 'classification_rules.json',
+            'user_preferences': metadata_root / 'config' / 'user_preferences.json',
+            'classification_rules': metadata_root / 'config' / 'classification_rules.json',
             
-            # Temporary and processing directories
+            # Temporary and processing directories (Managed by Rules)
             'temp_processing': base / 'Documents' / 'TEMP_PROCESSING',
-            'staging': organizer_base / 'staging',
-            'backups': organizer_base / 'backups'
+            'staging': metadata_root / 'staging',
+            'backups': metadata_root / 'backups'
         }
     
     def _validate_critical_paths(self):

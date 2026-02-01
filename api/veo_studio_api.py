@@ -321,10 +321,8 @@ def count_scenes_and_shots(script_content: str) -> tuple[int, int]:
 
 # ===== API Endpoints =====
 
-@router.on_event("startup")
-async def startup():
-    """Initialize database tables on startup"""
-    init_veo_studio_tables()
+# Table initialization is handled via the lifespan manager in main.py
+# init_veo_studio_tables() is kept as a utility function.
 
 
 @router.post("/analyze-script", response_model=ScriptAnalysisResponse)

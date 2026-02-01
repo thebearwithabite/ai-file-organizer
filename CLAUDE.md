@@ -79,15 +79,10 @@ User has ADHD and managing file organization is genuinely difficult. This system
 ## 🏗️ **System Architecture**
 
 ```
-<<<<<<< HEAD
 📁 AI File Organizer v3.1 - Intelligent Learning Organizer (Phase 1, 2 & 3a COMPLETE)/
-=======
-📁 AI File Organizer v3.0/
->>>>>>> safe-recycling-features
 ├── 🧠 Vector Database (ChromaDB)         # Semantic search engine
 ├── 📧 Email Integration (.emlx files)    # macOS Mail integration
 ├── 📄 Document Processing               # PDFs, DOCX, scripts
-<<<<<<< HEAD
 ├── 🔮 Computer Vision (Gemini Vision)   # Image/video analysis (Phase 2)
 ├── ☁️ Google Drive Hybrid Integration    # 2TB cloud storage with local caching
 ├── 🌊 File Streaming Service            # On-demand cloud file access
@@ -355,33 +350,6 @@ Use templates from `TODO_TEMPLATES_AGENT_INTEGRATION.py` for automatic agent int
 - **Test files** - Individual test scripts, no test framework
 - **Audio Analysis** - Uses librosa, mutagen, OpenAI for spectral analysis
 - **Adaptive Learning** - Pickle files store classification patterns and user corrections
-=======
-├── 🎬 Computer Vision (Gemini 2.5 Flash) # Images and video analysis
-├── 🎵 Audio AI Analysis               # Professional audio processing
-├── 📚 Video Project Trainer           # Learns user's projects
-├── 🔍 Smart Search Interface           # Natural language queries
-├── 🍎 AppleScript GUI                  # Native macOS integration
-├── 🤔 Interactive Classification       # 5 interaction modes with learning
-├── 🏷️ Comprehensive Tagging System     # Multi-source auto-tagging
-├── ☁️ Google Drive Integration         # 2TB cloud storage
-└── 🗂️ Intelligent Organization         # Auto-categorization with learning
-```
-
-### Core Components:
-- **enhanced_librarian.py**: Advanced semantic search with hybrid modes
-- **interactive_organizer.py**: Main organization workflow with questioning
-- **vision_content_extractor.py**: Computer vision analysis (Gemini 2.5 Flash)
-- **video_project_trainer.py**: Learns user's specific projects (thebearwithabite, Papers That Dream)
-- **interactive_classifier.py**: 5 interaction modes (SMART, MINIMAL, LEARNING, ALWAYS, NEVER)
-- **quick_learning_mode.py**: Easy mode switching for training
-- **tagging_cli.py**: Comprehensive auto-tagging system
-- **gdrive_cli.py**: Google Drive integration with emergency space recovery
-- **audio_cli.py**: Professional audio analysis and transcription
-- **batch_cli.py**: ADHD-friendly batch processing
-- **email_extractor.py**: macOS Mail integration
-- **vector_librarian.py**: Vector database operations
-- **Enhanced_Search_GUI.applescript**: Native Mac search interface
->>>>>>> safe-recycling-features
 
 ## 🚀 **How to Use**
 
@@ -406,30 +374,13 @@ Use templates from `TODO_TEMPLATES_AGENT_INTEGRATION.py` for automatic agent int
 
 ### Command Line Search (Hybrid Cloud + Local):
 ```bash
-<<<<<<< HEAD
 # Unified search across Google Drive + local files
-=======
-# Enhanced semantic search
->>>>>>> safe-recycling-features
 python enhanced_librarian.py search "AI consciousness papers" --mode semantic
 python enhanced_librarian.py search "payment terms" --mode fast  
 python enhanced_librarian.py search "meeting schedules" --mode auto
 
-<<<<<<< HEAD
 # Google Drive specific commands
 python gdrive_integration.py  # Check Google Drive status and create directory structure
-=======
-# Search by tags
-python tagging_cli.py search "project:,netflix" --match-all
-python tagging_cli.py search "contract,client"
-
-# Audio content search
-python audio_cli.py search "consciousness"
-python audio_cli.py search "interview" --type interview
-
-# Google Drive search
-python gdrive_cli.py search --query "contract"
->>>>>>> safe-recycling-features
 ```
 
 ### Interactive File Organization:
@@ -486,7 +437,6 @@ python gdrive_cli.py folders              # List folder structure
 
 ### Index New Content (Hybrid Architecture):
 ```bash
-<<<<<<< HEAD
 # Index from Google Drive primary storage
 python enhanced_librarian.py index --folder "/Users/user/GoogleDrive/AI_Organizer/01_ACTIVE_PROJECTS"
 python vector_librarian.py  # Index emails + documents with smart chunking across cloud and local
@@ -509,16 +459,6 @@ python easy_rollback_system.py --search "contract"  # Find operations on files c
 
 # Show today's operations only (helpful for debugging):
 python easy_rollback_system.py --today
-=======
-# Enhanced indexing
-python enhanced_librarian.py index --folder "/Users/user/Documents/NewProject"
-python enhanced_librarian.py index --semantic  # Build vector database
-python vector_librarian.py                     # Index emails + documents
-
-# Tagging and metadata
-python tagging_cli.py directory ~/Documents
-python metadata_cli.py analyze ~/Documents
->>>>>>> safe-recycling-features
 ```
 
 ## 💡 **Real Examples**
@@ -957,16 +897,11 @@ ls ~/GoogleDrive/AI_Organizer/05_VEO_PROMPTS/*.json
 - **Videos**: MP4, MOV, AVI, MKV (with computer vision and project recognition)
 - **Audio**: MP3, WAV, FLAC, M4A, AUP3 (with AI analysis and transcription)
 - **Emails**: macOS Mail (.emlx files)
-<<<<<<< HEAD
 - **Code**: Python, JavaScript, Jupyter notebooks
 - **Images/Video**: PNG, JPG, MP4, MOV (Gemini Vision analysis)
 - **Audio**: MP3, WAV, M4A, FLAC, OGG (BPM, mood, spectral analysis)
 - **Creative**: Scripts, research papers, audio specs
 - **Cloud Files**: Full Google Drive integration with on-demand streaming
-=======
-- **Code**: Python, JavaScript, Jupyter notebooks, HTML, CSS
-- **Creative**: Scripts, research papers, story documents
->>>>>>> safe-recycling-features
 
 ### Smart Chunking System:
 - **Contracts**: Chunks by sections (compensation, terms, exclusivity)
@@ -1180,7 +1115,6 @@ python gdrive_cli.py emergency --live
 
 ---
 
-<<<<<<< HEAD
 *Last updated: 2025-11-03*
 *Version: 3.2.1 - Phase 1, 2 & 3a COMPLETE + Web Interface Improvements + Sprint 2.5*
 *Phase 1: Intelligent Learning Organizer (7,154 lines)*
@@ -1188,7 +1122,3 @@ python gdrive_cli.py emergency --live
 *Phase 3a: VEO Prompt Builder MVP*
 *Web Updates: Search Page, Triage Fixes, Hierarchical Organization*
 *Sprint 2.5: Learning Stats API & UI Integration (COMPLETE)*
-=======
-*Last updated: 2025-09-03*
-*Version: 3.0 - Computer vision integration, video project trainer, comprehensive command reference*
->>>>>>> safe-recycling-features

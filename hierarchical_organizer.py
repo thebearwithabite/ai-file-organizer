@@ -68,7 +68,8 @@ class HierarchicalOrganizer:
             try:
                 from taxonomy_service import TaxonomyService
                 from gdrive_integration import get_metadata_root
-                self.taxonomy_service = TaxonomyService(get_metadata_root() / "config")
+                config_dir = get_metadata_root() / "config"
+                self.taxonomy_service = TaxonomyService.get_instance(config_dir)
             except Exception as e:
                 self.logger.error(f"Failed to load TaxonomyService: {e}")
                 self.taxonomy_service = None

@@ -13,7 +13,7 @@ import sqlite3
 import os
 import re
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Set, Iterator
+from typing import Dict, List, Optional, Tuple, Set, Iterator, Union
 import time
 import json
 from datetime import datetime
@@ -46,6 +46,8 @@ class BulletproofDeduplicator:
             r'Screenshot.*\.png',         # Screenshot duplicates
             r'Copy of.*',                 # "Copy of filename.ext"
         ]
+        # REVERT: Maintain original case-sensitive behavior for strict matching unless proven otherwise
+        self.safe_duplicate_compiled = [re.compile(p) for p in self.safe_duplicate_patterns]
         
         # Protected paths - never delete from these
         self.protected_paths = {
@@ -71,6 +73,14 @@ class BulletproofDeduplicator:
             r'.*\.sqlite.*',       # All SQLite variants
             r'.*index.*\.pkl$',    # Index files
             r'.*metadata.*',       # Any metadata folders/files
+        ]
+        self.protected_database_compiled = [re.compile(p, re.IGNORECASE) for p in self.protected_database_patterns]
+
+        # Optimization: Sets and lists for fast lookup
+        self.protected_extensions = {'.db', '.sqlite', '.sqlite3', '.pkl', '.pickle'}
+        self.protected_dir_names = [
+            'vector_db', 'chroma', 'metadata_system', 'learning',
+            'adaptive', 'embeddings', 'index', '_system', 'classification_logs'
         ]
     
     def init_database(self):
@@ -218,7 +228,7 @@ class BulletproofDeduplicator:
             print(f"⚠️ Error checking hash existence: {e}")
             return None
 
-    def is_database_or_learned_data(self, file_path: Path) -> bool:
+    def is_database_or_learned_data(self, file_path: Union[Path, str, os.DirEntry]) -> bool:
         """
         Check if file is a database or contains learned data
         ABSOLUTE PROTECTION - never consider these for deletion or modification
@@ -227,32 +237,38 @@ class BulletproofDeduplicator:
             True if file is database/learned data (PROTECTED)
             False if file is safe to scan
         """
-        path_str = str(file_path).lower()
+        if isinstance(file_path, os.DirEntry):
+            path_str = file_path.path.lower()
+            # For extension check on DirEntry, we need to parse it out or assume
+            # But wait, self.protected_extensions is a set now.
+            # We need to extract suffix.
+            # Fast suffix extraction:
+            _, ext = os.path.splitext(file_path.name)
+            if ext.lower() in self.protected_extensions:
+                 return True
+        else:
+            file_path_obj = Path(file_path)
+            # OPTIMIZATION: Check extensions first (fastest O(1) lookup)
+            if file_path_obj.suffix.lower() in self.protected_extensions:
+                return True
+            path_str = str(file_path).lower()
 
-        # Check against protected database patterns
-        for pattern in self.protected_database_patterns:
-            if re.search(pattern, path_str, re.IGNORECASE):
+        # OPTIMIZATION: Check directory names using string search (faster than regex or tuple iteration)
+        for protected in self.protected_dir_names:
+            if protected in path_str:
                 return True
 
-        # Check file extensions (absolute protection)
-        if file_path.suffix.lower() in ['.db', '.sqlite', '.sqlite3', '.pkl', '.pickle']:
-            return True
-
-        # Check directory names (any parent directory with these names)
-        protected_dir_names = [
-            'vector_db', 'chroma', 'metadata_system', 'learning',
-            'adaptive', 'embeddings', 'index', '_system', 'classification_logs'
-        ]
-        for part in file_path.parts:
-            if any(protected in part.lower() for protected in protected_dir_names):
+        # Check against protected database patterns (regex fallback)
+        for pattern in self.protected_database_compiled:
+            if pattern.search(path_str):
                 return True
 
         return False
 
-    def _fast_scan(self, directory: Path) -> Iterator[Tuple[Path, os.stat_result]]:
+    def _fast_scan(self, directory: Path) -> Iterator[Tuple[Union[Path, os.DirEntry], os.stat_result]]:
         """
         Recursively scan directory using os.scandir for better performance.
-        Yields (Path, stat_result) tuples.
+        Yields (DirEntry, stat_result) tuples.
         """
         try:
             # os.scandir is faster than os.walk because it yields DirEntry objects
@@ -272,7 +288,7 @@ class BulletproofDeduplicator:
                         try:
                             # entry.stat() is cached from scandir result
                             stat = entry.stat()
-                            yield (Path(entry.path), stat)
+                            yield (entry, stat)
                         except OSError as e:
                             print(f"   ⚠️ Error accessing {entry.name}: {e}")
 
@@ -315,8 +331,8 @@ class BulletproofDeduplicator:
         
         # Pattern recognition (obvious duplicates safer)
         filename = file_path.name
-        for pattern in self.safe_duplicate_patterns:
-            if re.match(pattern, filename):
+        for pattern in self.safe_duplicate_compiled:
+            if pattern.match(filename):
                 score += 0.4
                 break
         
@@ -375,15 +391,21 @@ class BulletproofDeduplicator:
         stat_cache = {}
 
         try:
-            for file_path, stat in self._fast_scan(directory):
+            # Yields (DirEntry, stat) to avoid Path creation overhead
+            for entry, stat in self._fast_scan(directory):
                 scanned_count += 1
-                if self.is_database_or_learned_data(file_path):
+
+                # Check directly on entry (avoids Path creation)
+                if self.is_database_or_learned_data(entry):
                     protected_files += 1
                     continue
 
                 size = stat.st_size
                 if size not in size_groups:
                     size_groups[size] = []
+
+                # Only convert to Path when storing
+                file_path = Path(entry.path)
                 size_groups[size].append(file_path)
 
                 # Cache stat for later use in this scan session
@@ -393,6 +415,7 @@ class BulletproofDeduplicator:
             print(f"   ❌ Critical error during scan: {e}")
             return {"error": str(e)}
 
+        results["scanned_files"] = scanned_count
         print(f"📁 Scanned {scanned_count} files")
 
         # Only process size groups with multiple files
@@ -594,15 +617,14 @@ class BulletproofDeduplicator:
 
                 print(f"   📂 Scanning: {gdrive_dir.name}")
 
-                for file_path in gdrive_dir.rglob('*'):
-                    if not file_path.is_file():
+                for entry, stat in self._fast_scan(gdrive_dir):
+                    # Skip database/learned data (check on entry directly)
+                    if self.is_database_or_learned_data(entry):
                         continue
 
-                    # Skip database/learned data
-                    if self.is_database_or_learned_data(file_path):
-                        continue
-
-                    secure_hash = self.calculate_secure_hash(file_path, db_connection=conn)
+                    file_path = Path(entry.path)
+                    secure_hash = self.calculate_secure_hash(file_path, db_connection=conn,
+                                                           file_size=stat.st_size, last_modified=stat.st_mtime)
                     if secure_hash:
                         gdrive_hashes[secure_hash] = file_path
                         results["gdrive_files_scanned"] += 1
@@ -623,16 +645,14 @@ class BulletproofDeduplicator:
 
                 print(f"   📂 Scanning: {local_dir}")
 
-                for file_path in local_dir.rglob('*'):
-                    if not file_path.is_file():
-                        continue
-
+                for entry, stat in self._fast_scan(local_dir):
                     # Skip database/learned data (ABSOLUTE PROTECTION)
-                    if self.is_database_or_learned_data(file_path):
+                    if self.is_database_or_learned_data(entry):
                         continue
 
-                    # Skip files in protected paths
-                    if any(protected in str(file_path) for protected in self.protected_paths):
+                    # Check protected paths on string (faster)
+                    entry_path_str = entry.path
+                    if any(protected in entry_path_str for protected in self.protected_paths):
                         continue
 
                     results["local_files_scanned"] += 1
@@ -640,8 +660,11 @@ class BulletproofDeduplicator:
                     if results["local_files_scanned"] % 50 == 0:
                         print(f"      Progress: {results['local_files_scanned']} local files scanned")
 
+                    file_path = Path(entry_path_str)
+
                     # Calculate hash and check if exists in Google Drive
-                    secure_hash = self.calculate_secure_hash(file_path, db_connection=conn)
+                    secure_hash = self.calculate_secure_hash(file_path, db_connection=conn,
+                                                           file_size=stat.st_size, last_modified=stat.st_mtime)
 
                     if secure_hash and secure_hash in gdrive_hashes:
                         # Found a duplicate!
@@ -649,7 +672,7 @@ class BulletproofDeduplicator:
                         results["duplicates_found"] += 1
 
                         try:
-                            file_size = file_path.stat().st_size
+                            file_size = stat.st_size
                             results["space_recoverable"] += file_size
 
                             print(f"   🔗 DUPLICATE FOUND:")

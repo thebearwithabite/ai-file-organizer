@@ -14,16 +14,21 @@ class TaxonomyService:
     """
     V3 Category Management System.
     The Authoritative Source of Truth for Classification Taxonomy.
-    
-    Handles:
-    1. Category Metadata (taxonomy.json)
-    2. Bidirectional Sync (Settings <-> Filesystem)
-    3. Safety Checks (Collisions, Overwrites)
     """
 
+    _instances: Dict[str, 'TaxonomyService'] = {}
+
+    @classmethod
+    def get_instance(cls, config_dir: Path) -> 'TaxonomyService':
+        """Keyed singleton to ensure one instance per config directory"""
+        key = str(Path(config_dir).absolute())
+        if key not in cls._instances:
+            cls._instances[key] = cls(config_dir)
+        return cls._instances[key]
+
     def __init__(self, config_dir: Path):
-        self.config_dir = config_dir
-        self.taxonomy_path = config_dir / "taxonomy.json"
+        self.config_dir = Path(config_dir)
+        self.taxonomy_path = self.config_dir / "taxonomy.json"
         
         # In-memory cache
         self.categories: Dict[str, Dict[str, Any]] = {}
