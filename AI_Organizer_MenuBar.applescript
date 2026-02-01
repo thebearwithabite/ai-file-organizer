@@ -136,7 +136,7 @@ import sqlite3
 from pathlib import Path
 
 base_dir = Path.home() / 'Documents' / 'AI_ORGANIZER_BASE'
-metadata_dir = base_dir / '04_METADATA_SYSTEM'
+metadata_dir = Path.home() / 'Documents' / 'AI_METADATA_SYSTEM'
 
 print('🤖 System Status Summary')
 print('=' * 30)

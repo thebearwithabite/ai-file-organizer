@@ -22,6 +22,7 @@ sys.path.insert(0, str(project_dir))
 from content_extractor import ContentExtractor
 from classification_engine import FileClassificationEngine
 from interaction_modes import InteractionModeManager
+from gdrive_integration import get_metadata_root
 
 class MetadataGenerator:
     """
@@ -31,7 +32,7 @@ class MetadataGenerator:
     
     def __init__(self, base_dir: str = None):
         self.base_dir = Path(base_dir) if base_dir else Path.home() / "Documents" / "AI_ORGANIZER_BASE"
-        self.metadata_dir = self.base_dir / "04_METADATA_SYSTEM"
+        self.metadata_dir = get_metadata_root()
         self.metadata_dir.mkdir(parents=True, exist_ok=True)
         
         # Initialize components

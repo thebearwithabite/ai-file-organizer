@@ -52,7 +52,7 @@ class UnifiedClassificationService:
         from gdrive_integration import get_metadata_root
         
         config_dir = get_metadata_root() / "config"
-        self.taxonomy_service = TaxonomyService(config_dir)
+        self.taxonomy_service = TaxonomyService.get_instance(config_dir)
         
         # Review Queue Path (Hidden .corpus directory)
         self.review_queue_path = get_metadata_root() / ".AI_LIBRARIAN_CORPUS" / "03_ADAPTIVE_FEEDBACK" / "review_queue.jsonl"
@@ -82,7 +82,7 @@ class UnifiedClassificationService:
             openai_api_key = os.getenv('OPENAI_API_KEY')
             self._audio_analyzer = AudioAnalyzer(
                 base_dir=str(self.base_dir),
-                confidence_threshold=0.7,
+                confidence_threshold=0.65,
                 openai_api_key=openai_api_key
             )
             print("✅ Audio analyzer loaded")
@@ -408,8 +408,9 @@ class UnifiedClassificationService:
         conflicts = fusion_result['final']['conflicts']
         
         # Thresholds
-        AUTO_ROUTE_THRESHOLD = 0.80
-        QUEUE_THRESHOLD = 0.72
+        # Thresholds
+        AUTO_ROUTE_THRESHOLD = 0.65
+        QUEUE_THRESHOLD = 0.65
         
         should_queue = False
         
@@ -449,10 +450,10 @@ class UnifiedClassificationService:
             "source": winner.get('source', 'Fusion'),
             "suggested_filename": winner.get('suggested_filename', file_path.name),
             "signals": signals,
-            "fusion": fusion_result['final']
+            "final": fusion_result['final']
         }
         
-        return final_result
+        return self._normalize_confidence(final_result, file_path, file_type)
 
     def _get_file_type(self, file_path: Path) -> str:
         """Determine the general file type (audio, image, video, text, etc.)."""
@@ -488,7 +489,7 @@ class UnifiedClassificationService:
         Algorithm:
         - Extract text content.
         - Run regex keyword check with word boundaries (fixes 'agenda' != 'nda').
-        - If Keyword Confidence > 0.85 AND contains 'strong' keywords -> Return fast result.
+        - If Keyword Confidence > 0.65 AND contains 'strong' keywords -> Return fast result.
         - Otherwise -> Send to SemanticTextAnalyzer (Gemini) for deep reading.
         """
         print(f"DEBUG: --- Classifying Text Document: {file_path.name} ---")
@@ -569,9 +570,9 @@ class UnifiedClassificationService:
             use_ai = False
             
             # Condition 1: Low confidence
-            if best_confidence < 0.85:
+            if best_confidence < 0.65:
                 use_ai = True
-                print(f"DEBUG: Confidence {best_confidence:.2f} < 0.85. Engaging AI.")
+                print(f"DEBUG: Confidence {best_confidence:.2f} < 0.65. Engaging AI.")
                 
             # Condition 2: Ambiguous Categories (Short acronyms like NDA can be tricky despite regex)
             if 'nda' in matched_keywords or len(full_text) < 100:
@@ -613,16 +614,19 @@ class UnifiedClassificationService:
                             f"Reasoning: {ai_result.get('reasoning', '')}"
                         ]
                         
-                        # Use AI suggested filename if available
+                        # Consolidate AI Result
+                        result_payload = {
+                            'source': 'Semantic Text Analyzer (Gemini)',
+                            'category': best_category,
+                            'confidence': best_confidence,
+                            'reasoning': reasoning,
+                            'keywords': ai_result.get("keywords", [])
+                        }
+
                         if ai_result.get("suggested_filename"):
-                            return {
-                                'source': 'Semantic Text Analyzer (Gemini)',
-                                'category': best_category,
-                                'confidence': best_confidence,
-                                'reasoning': reasoning,
-                                'suggested_filename': ai_result.get("suggested_filename"),
-                                'keywords': ai_result.get("keywords", [])  # Return AI keywords
-                            }
+                            result_payload['suggested_filename'] = ai_result.get("suggested_filename")
+
+                        return result_payload
 
             # Final Cleanup
             final_confidence = min(best_confidence, 1.0)

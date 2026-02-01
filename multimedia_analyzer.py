@@ -14,6 +14,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass
 import sqlite3
+from gdrive_integration import get_metadata_root
 import hashlib
 
 project_dir = Path(__file__).parent
@@ -58,7 +59,7 @@ class MultimediaAnalyzer:
     
     def __init__(self, base_dir: str = None):
         self.base_dir = Path(base_dir) if base_dir else Path.home() / "Documents" / "AI_ORGANIZER_BASE"
-        self.analysis_dir = self.base_dir / "04_METADATA_SYSTEM" / "multimedia_analysis"
+        self.analysis_dir = get_metadata_root() / "multimedia_analysis"
         self.analysis_dir.mkdir(parents=True, exist_ok=True)
         
         # Database for multimedia analysis results

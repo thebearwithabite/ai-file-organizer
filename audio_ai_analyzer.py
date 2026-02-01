@@ -15,6 +15,7 @@ from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass, asdict
 import sqlite3
 import hashlib
+from gdrive_integration import get_metadata_root
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -102,7 +103,7 @@ class AudioAIAnalyzer:
     
     def __init__(self, base_dir: str = None):
         self.base_dir = Path(base_dir) if base_dir else Path.home() / "Documents" / "AI_ORGANIZER_BASE"
-        self.audio_ai_dir = self.base_dir / "04_METADATA_SYSTEM" / "audio_ai_analysis"
+        self.audio_ai_dir = get_metadata_root() / "audio_ai_analysis"
         self.audio_ai_dir.mkdir(parents=True, exist_ok=True)
         
         # Database for audio analysis

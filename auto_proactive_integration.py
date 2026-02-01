@@ -14,6 +14,8 @@ from typing import Optional
 project_dir = Path(__file__).parent
 sys.path.insert(0, str(project_dir))
 
+from gdrive_integration import get_metadata_root
+
 from proactive_learning_engine import ProactiveLearningEngine
 
 class AutoProactiveIntegration:
@@ -26,7 +28,7 @@ class AutoProactiveIntegration:
         self.base_dir = Path(base_dir) if base_dir else Path.home() / "Documents" / "AI_ORGANIZER_BASE"
         
         # Integration settings
-        self.integration_dir = self.base_dir / "04_METADATA_SYSTEM" / "auto_proactive"
+        self.integration_dir = get_metadata_root() / "auto_proactive"
         self.integration_dir.mkdir(parents=True, exist_ok=True)
         
         self.settings_file = self.integration_dir / "integration_settings.json"

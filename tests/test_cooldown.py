@@ -20,6 +20,11 @@ class TestCooldownLogic:
         monitor.confidence_system = MagicMock(spec=ADHDFriendlyConfidenceSystem)
         monitor.rollback_system = MagicMock()
 
+        # Mock staging monitor
+        monitor.staging_monitor = MagicMock()
+        monitor.staging_monitor.config = {"staging_days": 7}
+        monitor.staging_monitor.record_observation.return_value = True
+
         # Mock logging to avoid clutter
         monitor.logger = MagicMock()
 
@@ -50,6 +55,9 @@ class TestCooldownLogic:
         mock_stat_obj.st_size = 1024
         mock_stat.return_value = mock_stat_obj
 
+        # Mock staging age
+        monitor.staging_monitor.get_file_age_days.return_value = 1
+
         # Mock prediction
         monitor.learning_system.predict_user_action.return_value = {
             "predicted_action": {"target_category": "documents"},
@@ -61,7 +69,8 @@ class TestCooldownLogic:
 
         # Verify
         assert result is False
-        monitor.learning_system.record_classification.assert_called_once()
+        # monitor.learning_system.record_classification.assert_called_once() # No longer called in this path
+        monitor.staging_monitor.record_observation.assert_called_once()
         monitor.confidence_system.make_confidence_decision.assert_not_called()
 
         # Check log message (optional but good for debugging)
@@ -88,6 +97,9 @@ class TestCooldownLogic:
         mock_stat_obj.st_mtime = file_mtime
         mock_stat_obj.st_size = 1024
         mock_stat.return_value = mock_stat_obj
+
+        # Mock staging age
+        monitor.staging_monitor.get_file_age_days.return_value = 8
 
         # Mock prediction & Decision
         monitor.learning_system.predict_user_action.return_value = {
@@ -133,6 +145,9 @@ class TestCooldownLogic:
         mock_stat_obj.st_mtime = file_mtime
         mock_stat_obj.st_size = 1024
         mock_stat.return_value = mock_stat_obj
+
+        # Mock staging age
+        monitor.staging_monitor.get_file_age_days.return_value = 8
 
         # Mock prediction & Decision (Low Confidence)
         monitor.learning_system.predict_user_action.return_value = {
