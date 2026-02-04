@@ -52,7 +52,7 @@ class HierarchicalOrganizer:
     def __init__(self, taxonomy_service: Optional[Any] = None):
         """Initialize the hierarchical organizer with V2 Robust Dynamic Registry"""
         self.logger = logging.getLogger(__name__)
-        self.dynamic_projects_path = Path.home() / "AI_METADATA_SYSTEM" / "config" / "dynamic_projects.json"
+        self.dynamic_projects_path = Path.home() / "Documents" / "AI_METADATA_SYSTEM" / "config" / "dynamic_projects.json"
         
         # Instance-scoped storage (Prevents cross-instance bleed)
         self.registries = {"projects": {}}
@@ -66,10 +66,9 @@ class HierarchicalOrganizer:
             self.taxonomy_service = taxonomy_service
         else:
             try:
-                from taxonomy_service import TaxonomyService
+                from taxonomy_service import get_taxonomy_service
                 from gdrive_integration import get_metadata_root
-                config_dir = get_metadata_root() / "config"
-                self.taxonomy_service = TaxonomyService.get_instance(config_dir)
+                self.taxonomy_service = get_taxonomy_service(get_metadata_root() / "config")
             except Exception as e:
                 self.logger.error(f"Failed to load TaxonomyService: {e}")
                 self.taxonomy_service = None

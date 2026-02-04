@@ -19,6 +19,12 @@ import json
 from datetime import datetime
 from gdrive_integration import get_metadata_root
 
+# Ensure we're running with Python 3
+if sys.version_info[0] < 3:
+    print("❌ ERROR: This script requires Python 3.")
+    print("Try running with: python3 bulletproof_deduplication.py")
+    sys.exit(1)
+
 class BulletproofDeduplicator:
     """
     Military-grade duplicate detection using two-tier hashing system
@@ -712,8 +718,12 @@ def main():
     
     results = deduplicator.scan_directory(directory, args.execute, args.safety_threshold)
     
+    if results.get("error"):
+        print(f"\n❌ ERROR: {results['error']}")
+        sys.exit(1)
+        
     if results.get("errors"):
-        print("\n❌ ERRORS:")
+        print("\n⚠️  SUB-ERRORS:")
         for error in results["errors"]:
             print(f"   {error}")
     

@@ -447,3 +447,23 @@ class TaxonomyService:
         cat["display_name"] = new_name # Update display name too
         
         self._atomic_save()
+
+# Singleton Cache
+_taxonomy_instances: Dict[str, TaxonomyService] = {}
+
+def get_taxonomy_service(config_dir: Path) -> TaxonomyService:
+    """
+    Get or create a singleton instance of TaxonomyService for the given config directory.
+    
+    Args:
+        config_dir: Directory for storing taxonomy data
+        
+    Returns:
+        TaxonomyService singleton
+    """
+    key = str(config_dir.resolve())
+    
+    if key not in _taxonomy_instances:
+        _taxonomy_instances[key] = TaxonomyService(config_dir=config_dir)
+        
+    return _taxonomy_instances[key]

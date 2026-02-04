@@ -48,11 +48,11 @@ class UnifiedClassificationService:
 
 
         # Initialize Taxonomy Service (V3 Source of Truth)
-        from taxonomy_service import TaxonomyService
+        from taxonomy_service import get_taxonomy_service
         from gdrive_integration import get_metadata_root
         
         config_dir = get_metadata_root() / "config"
-        self.taxonomy_service = TaxonomyService.get_instance(config_dir)
+        self.taxonomy_service = get_taxonomy_service(config_dir)
         
         # Review Queue Path (Hidden .corpus directory)
         self.review_queue_path = get_metadata_root() / ".AI_LIBRARIAN_CORPUS" / "03_ADAPTIVE_FEEDBACK" / "review_queue.jsonl"
@@ -82,7 +82,7 @@ class UnifiedClassificationService:
             openai_api_key = os.getenv('OPENAI_API_KEY')
             self._audio_analyzer = AudioAnalyzer(
                 base_dir=str(self.base_dir),
-                confidence_threshold=0.65,
+                confidence_threshold=0.7,
                 openai_api_key=openai_api_key
             )
             print("✅ Audio analyzer loaded")
@@ -95,6 +95,12 @@ class UnifiedClassificationService:
             try:
                 print("👁️  Loading vision analyzer...")
                 self._vision_analyzer = VisionAnalyzer(base_dir=str(self.base_dir))
+                
+                # Link learning system if enabled
+                if self.learning_enabled and self.learning_system:
+                    self._vision_analyzer.learning_enabled = True
+                    self._vision_analyzer.learning_system = self.learning_system
+                
                 self.vision_enabled = self._vision_analyzer.api_initialized
                 if self.vision_enabled:
                     print("✅ Vision analysis enabled with Gemini API")
@@ -408,9 +414,8 @@ class UnifiedClassificationService:
         conflicts = fusion_result['final']['conflicts']
         
         # Thresholds
-        # Thresholds
-        AUTO_ROUTE_THRESHOLD = 0.65
-        QUEUE_THRESHOLD = 0.65
+        AUTO_ROUTE_THRESHOLD = 0.65 # Lowered from 0.80 to 0.65
+        QUEUE_THRESHOLD = 0.65      # Lowered from 0.70 to 0.65
         
         should_queue = False
         
@@ -450,10 +455,10 @@ class UnifiedClassificationService:
             "source": winner.get('source', 'Fusion'),
             "suggested_filename": winner.get('suggested_filename', file_path.name),
             "signals": signals,
-            "final": fusion_result['final']
+            "fusion": fusion_result['final']
         }
         
-        return self._normalize_confidence(final_result, file_path, file_type)
+        return final_result
 
     def _get_file_type(self, file_path: Path) -> str:
         """Determine the general file type (audio, image, video, text, etc.)."""
@@ -489,7 +494,7 @@ class UnifiedClassificationService:
         Algorithm:
         - Extract text content.
         - Run regex keyword check with word boundaries (fixes 'agenda' != 'nda').
-        - If Keyword Confidence > 0.65 AND contains 'strong' keywords -> Return fast result.
+        - If Keyword Confidence > 0.85 AND contains 'strong' keywords -> Return fast result.
         - Otherwise -> Send to SemanticTextAnalyzer (Gemini) for deep reading.
         """
         print(f"DEBUG: --- Classifying Text Document: {file_path.name} ---")
@@ -570,19 +575,16 @@ class UnifiedClassificationService:
             use_ai = False
             
             # Condition 1: Low confidence
-            if best_confidence < 0.65:
+            if best_confidence < 0.85:
                 use_ai = True
-                print(f"DEBUG: Confidence {best_confidence:.2f} < 0.65. Engaging AI.")
+                print(f"DEBUG: Confidence {best_confidence:.2f} < 0.85. Engaging AI.")
                 
             # Condition 2: Ambiguous Categories (Short acronyms like NDA can be tricky despite regex)
             if 'nda' in matched_keywords or len(full_text) < 100:
                 use_ai = True
                 print("DEBUG: Ambiguous content detected. Engaging AI for verification.")
 
-            # Check if AI is available
-            if use_ai and self.semantic_text_enabled and self.semantic_text_analyzer:
-                print("✨ Engaging Semantic Text Analyzer (Gemini)...")
-                
+            if use_ai:
                 # Fetch valid categories from TaxonomyService to guide the AI
                 allowed_categories = []
                 if self.taxonomy_service:
@@ -592,13 +594,27 @@ class UnifiedClassificationService:
                         for cid, meta in all_cats.items()
                     ]
                 
-                ai_result = self.semantic_text_analyzer.analyze_text(
-                    full_text, 
-                    file_path.name,
-                    allowed_categories=allowed_categories
-                )
+                # --- NEW: Offload to Remote Powerhouse (Ollama) if enabled ---
+                ai_result = None
+                if self.vision_analyzer and self.vision_analyzer.remote_enabled and self.vision_analyzer.remote_ip:
+                    print(f"🛰️ Dispatching text analysis to remote 5090 ({self.vision_analyzer.remote_ip})...")
+                    ai_result = self._classify_text_remote(full_text, file_path.name, allowed_categories)
+                    if ai_result and ai_result.get('success'):
+                        ai_result['source'] = f"Remote Powerhouse (Ollama)"
+                    else:
+                        print("⚠️  Remote text analysis failed, falling back to Gemini.")
                 
-                if ai_result.get("success"):
+                # Fallback to SemanticTextAnalyzer (Gemini)
+                if not ai_result or not ai_result.get('success'):
+                    if self.semantic_text_enabled and self.semantic_text_analyzer:
+                        print("✨ Engaging Semantic Text Analyzer (Gemini)...")
+                        ai_result = self.semantic_text_analyzer.analyze_text(
+                            text_content=full_text,
+                            filename=file_path.name,
+                            allowed_categories=allowed_categories
+                        )
+                
+                if ai_result and ai_result.get("success"):
                     ai_category = ai_result.get("category")
                     ai_confidence = ai_result.get("confidence", 0.0)
                     
@@ -614,19 +630,16 @@ class UnifiedClassificationService:
                             f"Reasoning: {ai_result.get('reasoning', '')}"
                         ]
                         
-                        # Consolidate AI Result
-                        result_payload = {
-                            'source': 'Semantic Text Analyzer (Gemini)',
-                            'category': best_category,
-                            'confidence': best_confidence,
-                            'reasoning': reasoning,
-                            'keywords': ai_result.get("keywords", [])
-                        }
-
+                        # Use AI suggested filename if available
                         if ai_result.get("suggested_filename"):
-                            result_payload['suggested_filename'] = ai_result.get("suggested_filename")
-                        
-                        return result_payload
+                            return {
+                                'source': 'Semantic Text Analyzer (Gemini)',
+                                'category': best_category,
+                                'confidence': best_confidence,
+                                'reasoning': reasoning,
+                                'suggested_filename': ai_result.get("suggested_filename"),
+                                'keywords': ai_result.get("keywords", [])  # Return AI keywords
+                            }
 
             # Final Cleanup
             final_confidence = min(best_confidence, 1.0)
@@ -1009,37 +1022,93 @@ class UnifiedClassificationService:
             'suggested_filename': file_path.name
         }
 
-def save_metadata_sidecar(file_path: Path, classification_result: Dict[str, Any]):
-    """
-    Save classification metadata to a JSON sidecar file.
-    
-    Args:
-        file_path: Path to the organized file
-        classification_result: The classification dictionary
-    """
-    import json
-    from datetime import datetime
-    
-    try:
-        # Relocate sidecar to hidden .metadata folder to prevent clutter
-        # e.g., folder/image.jpg -> folder/.metadata/image.jpg.json
-        metadata_dir = file_path.parent / ".metadata"
-        metadata_dir.mkdir(parents=True, exist_ok=True)
+    def save_metadata_sidecar(self, file_path: Path, classification_result: Dict[str, Any]):
+        """
+        Save classification metadata to a JSON sidecar file.
         
-        sidecar_path = metadata_dir / f"{file_path.name}.json"
-        
-        # Prepare metadata for saving
-        metadata = {
-            'original_filename': file_path.name,
-            'classification': classification_result,
-            'timestamp': datetime.now().isoformat(),
-            'system_version': '3.1'
-        }
-        
-        with open(sidecar_path, 'w') as f:
-            json.dump(metadata, f, indent=2)
+        Args:
+            file_path: Path to the organized file
+            classification_result: The classification dictionary
+        """
+        try:
+            # Relocate sidecar to hidden .metadata folder to prevent clutter
+            # e.g., folder/image.jpg -> folder/.metadata/image.jpg.json
+            metadata_dir = file_path.parent / ".metadata"
+            metadata_dir.mkdir(parents=True, exist_ok=True)
             
-        print(f"📝 Saved metadata sidecar to hidden folder: .metadata/{sidecar_path.name}")
-        
-    except Exception as e:
-        print(f"❌ Failed to save metadata sidecar for {file_path.name}: {e}")
+            sidecar_path = metadata_dir / f"{file_path.name}.json"
+            
+            # Prepare metadata for saving
+            metadata = {
+                'original_filename': file_path.name,
+                'classification': classification_result,
+                'timestamp': time.time(),
+                'system_version': '3.1'
+            }
+            
+            with open(sidecar_path, 'w') as f:
+                json.dump(metadata, f, indent=2)
+                
+            print(f"📝 Saved metadata sidecar to hidden folder: .metadata/{sidecar_path.name}")
+            
+        except Exception as e:
+            print(f"❌ Failed to save metadata sidecar for {file_path.name}: {e}")
+
+    def _classify_text_remote(self, text: str, filename: str, allowed_categories: List[Dict[str, str]]) -> Dict[str, Any]:
+        """Dispatch text classification to remote Ollama server (5090)"""
+        import requests
+        try:
+            prompt = f"""
+            Analyze this document text and strictly output JSON.
+            
+            Filename: "{filename}"
+            
+            ALLOWED CATEGORIES (Pick the best fit from this list):
+            {chr(10).join([f"- {c['id']}: {c['name']}" for c in allowed_categories])}
+            
+            Task:
+            1. Determine the exact document type (e.g., "Legal Contract", "Meeting Minutes", "Invoice", "Screenplay", "Technical Spec", "Financial Report").
+            2. Assign a confidence score (0.0 to 1.0).
+            3. Extract 3-5 key topics/entities.
+            4. Suggest the BEST category ID from the list above. If NO category fits, suggest a new slug.
+            5. Suggest a descriptive filename (IMPORTANT: preserve the extension).
+            
+            Text Content (First 2000 chars):
+            \"\"\"
+            {text[:2000]}
+            \"\"\"
+            
+            Output JSON Format:
+            {{
+                "category": "category_id",
+                "document_type": "Human Readable Type",
+                "confidence": 0.85,
+                "summary": "1-sentence summary",
+                "keywords": ["tag1", "tag2"],
+                "reasoning": "Why you chose this category",
+                "suggested_filename": "New_Filename.ext"
+            }}
+            """
+
+            url = f"http://{self.vision_analyzer.remote_ip}:{self.vision_analyzer.remote_ollama_port}/api/generate"
+            payload = {
+                "model": "qwen2.5:7b", # Using standard Qwen 2.5 for text
+                "prompt": prompt,
+                "stream": False,
+                "format": "json"
+            }
+
+            response = requests.post(url, json=payload, timeout=30)
+            response.raise_for_status()
+            
+            result = response.json()
+            response_text = result.get("response", "{}")
+            
+            import json
+            parsed = json.loads(response_text)
+            parsed["success"] = True
+            return parsed
+
+        except Exception as e:
+            print(f"Error in remote text classification: {e}")
+            return {"success": False, "error": str(e)}

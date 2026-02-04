@@ -75,7 +75,8 @@ class GoogleDriveAuth:
     SCOPES = [
         'https://www.googleapis.com/auth/drive.file',     # Access files created by the app
         'https://www.googleapis.com/auth/drive',          # Full access to Drive
-        'https://www.googleapis.com/auth/drive.metadata.readonly'  # Read metadata
+        'https://www.googleapis.com/auth/drive.metadata.readonly', # Read metadata
+        'https://www.googleapis.com/auth/devstorage.read_only'    # GCS Read Access
     ]
     
     # API configuration
@@ -418,6 +419,30 @@ class GoogleDriveAuth:
         except:
             return {}
 
+# Singleton Cache
+_auth_instances: Dict[str, GoogleDriveAuth] = {}
+
+def get_auth(config_dir: Path = None) -> GoogleDriveAuth:
+    """
+    Get or create a singleton instance of GoogleDriveAuth for the given config directory.
+    
+    Args:
+        config_dir: Directory for storing auth data
+        
+    Returns:
+        GoogleDriveAuth singleton
+    """
+    if config_dir is None:
+        from gdrive_integration import get_metadata_root
+        config_dir = get_metadata_root() / "config"
+        
+    key = str(config_dir.resolve())
+    
+    if key not in _auth_instances:
+        _auth_instances[key] = GoogleDriveAuth(config_dir=config_dir)
+        
+    return _auth_instances[key]
+
 def main():
     """Test the Google Drive authentication"""
     
@@ -425,8 +450,8 @@ def main():
     print("=" * 50)
     
     try:
-        # Initialize authenticator
-        auth = GoogleDriveAuth()
+        # Initialize authenticator via factory
+        auth = get_auth()
         
         # Test authentication
         results = auth.test_authentication()

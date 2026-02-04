@@ -37,7 +37,7 @@ except ImportError as e:
     print("Run: pip install google-api-python-client google-auth-httplib2 google-auth-oauthlib")
     raise e
 
-from google_drive_auth import GoogleDriveAuth
+from google_drive_auth import GoogleDriveAuth, get_auth
 from local_metadata_store import LocalMetadataStore, FileMetadata
 from gdrive_streamer import GoogleDriveStreamer, StreamingProgress
 from background_sync_service import BackgroundSyncService, ConflictResolution
@@ -129,9 +129,7 @@ class GoogleDriveLibrarian:
         logger.info("🔧 Initializing Google Drive Librarian...")
         
         # Authentication
-        self.auth_service = GoogleDriveAuth.get_instance(
-            config_dir=config_dir
-        )
+        self.auth_service = get_auth(config_dir)
         
         # Metadata store
         from gdrive_integration import get_metadata_root

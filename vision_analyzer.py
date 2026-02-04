@@ -225,6 +225,10 @@ Return a valid JSON object with this structure:
         self.remote_model = "qwen2.5vl:7b" # Verified in user's ollama list
         self._load_remote_config()
 
+        # Learning System Integration
+        self.learning_enabled = False
+        self.learning_system = None
+
     def _load_remote_config(self):
         """Load remote powerhouse settings from hybrid_config.json"""
         try:
@@ -272,7 +276,7 @@ Return a valid JSON object with this structure:
                 with open(config_file, 'r') as f:
                     api_key = f.read().strip()
                     if api_key:
-                        self.logger.info("Loaded Gemini API key from config file")
+                        self.logger.info(f"🔑 Gemini Trace: Loaded key from {config_file}")
                         return api_key
             except Exception as e:
                 self.logger.warning(f"Could not read API key from config file: {e}")
@@ -280,7 +284,12 @@ Return a valid JSON object with this structure:
         # Fall back to environment variable
         api_key = os.getenv('GEMINI_API_KEY')
         if api_key:
-            self.logger.info("Loaded Gemini API key from environment")
+            self.logger.info("🔑 Gemini Trace: Loaded key from environment (GEMINI_API_KEY)")
+            return api_key
+
+        api_key = os.getenv('GOOGLE_API_KEY')
+        if api_key:
+            self.logger.info("🔑 Gemini Trace: Loaded key from environment (GOOGLE_API_KEY)")
             return api_key
 
         return None
