@@ -52,7 +52,7 @@ class PathConfig:
         organizer_base = current_file.parent
         
         # Centralized local metadata root (Rule #1 compliance)
-        metadata_root = home / 'Documents' / 'AI_METADATA_SYSTEM'
+        metadata_root = home / 'AI_METADATA_SYSTEM'
         
         return {
             # User directories (standard across all systems)

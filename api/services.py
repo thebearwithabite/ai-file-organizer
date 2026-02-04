@@ -802,7 +802,7 @@ class TriageService:
             Dict mapping project keys to display names
         """
         if self.hierarchical_organizer:
-            return self.hierarchical_organizer.KNOWN_PROJECTS
+            return self.hierarchical_organizer.known_projects
         return {}
 
     def classify_file(self, file_path: str, confirmed_category: str, project: str = None, episode: str = None) -> Dict[str, Any]:

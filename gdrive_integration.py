@@ -383,9 +383,9 @@ def get_metadata_root() -> Path:
     This replaces all instances of get_metadata_root()
 
     Returns:
-        Path: Local metadata system at ~/Documents/AI_METADATA_SYSTEM
+        Path: Local metadata system at ~/AI_METADATA_SYSTEM
     """
-    return Path.home() / "Documents/AI_METADATA_SYSTEM"
+    return Path.home() / "AI_METADATA_SYSTEM"
 
 def ensure_safe_local_path(path: Path) -> Path:
     """
