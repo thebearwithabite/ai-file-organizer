@@ -122,31 +122,39 @@ class StagingMonitor:
         for folder_name, folder_path in [("desktop", self.desktop_path), ("downloads", self.downloads_path)]:
             if not folder_path.exists():
                 continue
-                
-            for file_path in folder_path.iterdir():
-                if not file_path.is_file():
-                    continue
-                    
-                # Skip excluded files
-                if file_path.suffix.lower() in self.config["excluded_extensions"]:
-                    continue
-                    
-                if any(excluded in file_path.name for excluded in self.config["excluded_folders"]):
-                    continue
-                
-                try:
-                    stat = file_path.stat()
-                    file_info = {
-                        "path": str(file_path),
-                        "name": file_path.name,
-                        "size": stat.st_size,
-                        "modified": datetime.fromtimestamp(stat.st_mtime),
-                        "created": datetime.fromtimestamp(stat.st_ctime),
-                        "hash": None  # Lazy hashing: computed only if needed in update_tracking_database
-                    }
-                    results[folder_name].append(file_info)
-                except Exception as e:
-                    print(f"Error scanning {file_path}: {e}")
+
+            try:
+                # Use os.scandir for performance (avoids extra stat calls)
+                with os.scandir(folder_path) as it:
+                    for entry in it:
+                        try:
+                            if not entry.is_file():
+                                continue
+
+                            # Skip excluded files
+                            # Check extension
+                            _, ext = os.path.splitext(entry.name)
+                            if ext.lower() in self.config["excluded_extensions"]:
+                                continue
+
+                            # Check excluded folders/patterns in name
+                            if any(excluded in entry.name for excluded in self.config["excluded_folders"]):
+                                continue
+
+                            stat = entry.stat()
+                            file_info = {
+                                "path": entry.path,
+                                "name": entry.name,
+                                "size": stat.st_size,
+                                "modified": datetime.fromtimestamp(stat.st_mtime),
+                                "created": datetime.fromtimestamp(stat.st_ctime),
+                                "hash": None  # Lazy hashing: computed only if needed in update_tracking_database
+                            }
+                            results[folder_name].append(file_info)
+                        except Exception as e:
+                            print(f"Error scanning entry {entry.name}: {e}")
+            except OSError as e:
+                print(f"Error scanning folder {folder_path}: {e}")
         
         return results
     
