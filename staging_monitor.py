@@ -142,7 +142,7 @@ class StagingMonitor:
                         "size": stat.st_size,
                         "modified": datetime.fromtimestamp(stat.st_mtime),
                         "created": datetime.fromtimestamp(stat.st_ctime),
-                        "hash": self._get_file_hash(file_path)
+                        "hash": None  # Lazy hashing: computed only if needed in update_tracking_database
                     }
                     results[folder_name].append(file_info)
                 except Exception as e:
@@ -241,18 +241,41 @@ class StagingMonitor:
             for folder_name, files in scan_results.items():
                 for file_info in files:
                     file_path = file_info["path"]
-                    file_hash = file_info["hash"]
+                    file_hash = file_info.get("hash")
                     
                     # Check if file exists in tracking
                     cursor = conn.execute(
-                        "SELECT file_hash, first_seen FROM file_tracking WHERE file_path = ?",
+                        "SELECT file_hash, first_seen, size_bytes, last_modified FROM file_tracking WHERE file_path = ?",
                         (file_path,)
                     )
                     existing = cursor.fetchone()
                     
                     if existing:
+                        db_hash, db_first_seen, db_size, db_last_mod_str = existing
+
+                        # Determine if we need to calculate hash
+                        if file_hash is None:
+                            # Parse DB timestamp (assuming ISO format)
+                            try:
+                                # Handle case where last_modified might be None or invalid
+                                if db_last_mod_str:
+                                    db_last_mod = datetime.fromisoformat(str(db_last_mod_str))
+                                else:
+                                    db_last_mod = datetime.min
+                            except Exception:
+                                db_last_mod = datetime.min
+
+                            # Lazy Hashing Logic:
+                            # If file on disk has NOT been modified since we last checked it (db_last_mod),
+                            # AND the size is identical, we assume the content is unchanged.
+                            # We use < because db_last_mod is the time we WROTE the record, so content MUST be older.
+                            if file_info["modified"] < db_last_mod and file_info["size"] == db_size:
+                                file_hash = db_hash # Optimized: reuse existing hash
+                            else:
+                                file_hash = self._get_file_hash(Path(file_path))
+
                         # File exists - check if modified
-                        if existing[0] != file_hash:
+                        if db_hash != file_hash:
                             # File modified - update tracking
                             conn.execute("""
                                 UPDATE file_tracking 
@@ -267,6 +290,9 @@ class StagingMonitor:
                             """, (file_path, json.dumps({"new_size": file_info["size"]})))
                     else:
                         # New file - add to tracking
+                        if file_hash is None:
+                            file_hash = self._get_file_hash(Path(file_path))
+
                         conn.execute("""
                             INSERT INTO file_tracking 
                             (file_path, file_hash, first_seen, last_modified, size_bytes, folder_location)
