@@ -52,7 +52,7 @@ class HierarchicalOrganizer:
     def __init__(self, taxonomy_service: Optional[Any] = None):
         """Initialize the hierarchical organizer with V2 Robust Dynamic Registry"""
         self.logger = logging.getLogger(__name__)
-        self.dynamic_projects_path = Path.home() / "Documents" / "AI_METADATA_SYSTEM" / "config" / "dynamic_projects.json"
+        self.dynamic_projects_path = Path.home() / "AI_METADATA_SYSTEM" / "config" / "dynamic_projects.json"
         
         # Instance-scoped storage (Prevents cross-instance bleed)
         self.registries = {"projects": {}}

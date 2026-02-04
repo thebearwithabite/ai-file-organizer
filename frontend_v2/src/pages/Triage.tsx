@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { CheckCircle, XCircle, RefreshCw, FileText, AlertTriangle, Sparkles, FolderOpen, Clock } from 'lucide-react'
 import { api } from '../services/api'
+import { taxonomyService, Category } from '../services/taxonomy'
 import { toast } from 'sonner'
 import FilePreview from '../components/triage/FilePreview'
 import { formatPath } from '../lib/utils'
@@ -138,15 +139,31 @@ export default function Triage() {
 
   const files: TriageFile[] = data?.files || []
 
-  const categories = [
-    { value: 'entertainment', label: 'Entertainment', color: 'bg-purple-500' },
-    { value: 'financial', label: 'Financial', color: 'bg-green-500' },
-    { value: 'creative', label: 'Creative', color: 'bg-blue-500' },
-    { value: 'development', label: 'Development', color: 'bg-orange-500' },
-    { value: 'audio', label: 'Audio', color: 'bg-pink-500' },
-    { value: 'image', label: 'Images', color: 'bg-cyan-500' },
-    { value: 'text_document', label: 'Documents', color: 'bg-gray-500' },
+  // Fetch taxonomy from backend
+  const { data: taxonomyData } = useQuery({
+    queryKey: ['taxonomy'],
+    queryFn: taxonomyService.getTaxonomy,
+    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
+  })
+
+  // Color palette for categories (rotates through)
+  const categoryColors = [
+    'bg-purple-500', 'bg-green-500', 'bg-blue-500', 'bg-orange-500',
+    'bg-pink-500', 'bg-cyan-500', 'bg-amber-500', 'bg-rose-500',
+    'bg-indigo-500', 'bg-teal-500', 'bg-lime-500', 'bg-fuchsia-500',
   ]
+
+  // Derive categories from taxonomy, grouped by parent_path
+  const categories = useMemo(() => {
+    if (!taxonomyData) return []
+    
+    return Object.entries(taxonomyData).map(([id, cat], index) => ({
+      value: id,
+      label: cat.display_name,
+      parent: cat.parent_path,
+      color: categoryColors[index % categoryColors.length],
+    }))
+  }, [taxonomyData])
 
   const handleClassify = (file: TriageFile) => {
     const category = selectedCategory[file.file_id] || file.classification.category
@@ -368,13 +385,13 @@ export default function Triage() {
                       <label className="text-xs text-white/50 mb-1 block">Project Name</label>
                       <input
                         type="text"
-                        list={`projects - ${file.file_id} `}
+                        list={`projects-${file.file_id}`}
                         value={projectInput[file.file_id] || ''}
                         onChange={(e) => setProjectInput({ ...projectInput, [file.file_id]: e.target.value })}
                         placeholder="e.g., The_Papers_That_Dream, VEO_Prompt_Machine"
                         className="w-full px-3 py-2 bg-white/5 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 placeholder:text-white/30"
                       />
-                      <datalist id={`projects - ${file.file_id} `}>
+                      <datalist id={`projects-${file.file_id}`}>
                         {knownProjects?.projects.map((p) => (
                           <option key={p.id} value={p.name} />
                         ))}

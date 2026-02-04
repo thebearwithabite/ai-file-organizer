@@ -48,10 +48,10 @@ def format_size(size_bytes):
     return f"{size_bytes:.1f}TB"
 
 def check_local_metadata():
-    """Check local metadata system at ~/Documents/AI_METADATA_SYSTEM"""
+    """Check local metadata system at ~/AI_METADATA_SYSTEM"""
     print_header("LOCAL METADATA SYSTEM CHECK")
 
-    local_path = Path.home() / "Documents" / "AI_METADATA_SYSTEM"
+    local_path = Path.home() / "AI_METADATA_SYSTEM"
 
     if not local_path.exists():
         print_error(f"Local metadata directory not found: {local_path}")
