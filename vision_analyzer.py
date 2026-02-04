@@ -670,9 +670,12 @@ Return a valid JSON object with this structure:
         try:
             self.logger.info(f"🛰️ Dispatching image analysis to remote 5090 ({self.remote_ip})")
             
-            # Encode image for Ollama
+            # Encode image for Ollama - read raw bytes and base64 encode
             with open(image_path, "rb") as f:
-                img_data = base64.b64encode(f.read()).decode("utf-8")
+                raw_bytes = f.read()
+                img_data = base64.b64encode(raw_bytes).decode("utf-8")
+            
+            self.logger.debug(f"Image size: {len(raw_bytes)} bytes, base64 length: {len(img_data)}")
 
             # Prepare prompt
             identity_context = ""
@@ -701,15 +704,26 @@ Return a valid JSON object with this structure:
                 "format": "json"
             }
 
+            self.logger.debug(f"Sending to {url} with model={self.remote_model}")
             response = requests.post(url, json=payload, timeout=60)
+            
+            # Log response details for debugging
+            if response.status_code != 200:
+                self.logger.error(f"Ollama returned {response.status_code}: {response.text[:500]}")
+            
             response.raise_for_status()
             
             response_data = response.json()
             analysis_text = response_data.get("response", "")
             
+            if not analysis_text:
+                self.logger.warning(f"Ollama returned empty response: {response_data}")
+                return {"success": False, "error": "Empty response from Ollama"}
+            
             # Parse result using existing parsing logic
             result = self._parse_image_analysis(analysis_text, image_path)
             result['source'] = f"Remote Powerhouse ({self.remote_model})"
+            result['success'] = True
             
             # Record observation for learning system
             if self.learning_enabled and self.learning_system:
@@ -723,6 +737,11 @@ Return a valid JSON object with this structure:
 
             return result
 
+        except requests.exceptions.HTTPError as e:
+            self.logger.error(f"Remote analysis HTTP error: {e}")
+            if hasattr(e, 'response') and e.response is not None:
+                self.logger.error(f"Response body: {e.response.text[:500]}")
+            return {"success": False, "error": str(e)}
         except Exception as e:
             self.logger.error(f"Remote analysis failed: {e}")
             return {"success": False, "error": str(e)}
