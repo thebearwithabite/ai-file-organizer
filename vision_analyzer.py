@@ -987,6 +987,18 @@ Return a valid JSON object with this structure:
             try:
                 img = Image.open(image_path)
 
+                # Convert RGBA to RGB (Gemini doesn't handle alpha channel well)
+                if img.mode == 'RGBA':
+                    # Create white background and composite the image onto it
+                    background = Image.new('RGB', img.size, (255, 255, 255))
+                    background.paste(img, mask=img.split()[3])  # 3 is the alpha channel
+                    img = background
+                    self.logger.info(f"Converted RGBA to RGB for {image_path.name}")
+                elif img.mode not in ('RGB', 'L'):
+                    # Convert other modes (P, LA, etc.) to RGB
+                    img = img.convert('RGB')
+                    self.logger.info(f"Converted {img.mode} to RGB for {image_path.name}")
+
                 # Resize if too large (Gemini has size limits)
                 max_dimension = 3072  # Gemini's max dimension
                 if max(img.size) > max_dimension:
