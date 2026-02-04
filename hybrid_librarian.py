@@ -23,7 +23,7 @@ except ImportError:
 
 from query_interface import QueryProcessor, QueryResult
 from content_extractor import ContentExtractor
-from classification_engine import FileClassificationEngine
+from unified_classifier import UnifiedClassificationService
 from gdrive_integration import get_ai_organizer_root
 
 @dataclass
@@ -57,7 +57,7 @@ class HybridLibrarian:
         # Initialize your existing components
         self.query_processor = QueryProcessor(str(self.base_dir))
         self.content_extractor = ContentExtractor(str(self.base_dir))
-        self.classifier = FileClassificationEngine(str(self.base_dir))
+        self.classifier = UnifiedClassificationService()
         
         # Semantic search setup
         self.embeddings_db_path = self.base_dir / "embeddings.db"
@@ -257,7 +257,8 @@ class HybridLibrarian:
             try:
                 file_path = Path(result.file_path)
                 classification = self.classifier.classify_file(file_path)
-                tags = classification.tags if hasattr(classification, 'tags') else []
+                # UnifiedClassificationService returns a dict
+                tags = classification.get('tags', []) if isinstance(classification, dict) else []
             except:
                 tags = []
             
@@ -443,8 +444,9 @@ class HybridLibrarian:
                 # Get file classification for tags
                 try:
                     classification = self.classifier.classify_file(Path(match['file_path']))
-                    tags = classification.tags if hasattr(classification, 'tags') else []
-                    category = classification.category if hasattr(classification, 'category') else 'unknown'
+                    # UnifiedClassificationService returns a dict
+                    tags = classification.get('tags', []) if isinstance(classification, dict) else []
+                    category = classification.get('category', 'unknown') if isinstance(classification, dict) else 'unknown'
                 except:
                     tags = []
                     category = 'unknown'
