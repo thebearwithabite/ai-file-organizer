@@ -139,6 +139,20 @@ export default function Triage() {
 
   const files: TriageFile[] = data?.files || []
 
+  // Skip file (remove from triage queue without classifying)
+  const handleSkip = (file: TriageFile) => {
+    queryClient.setQueryData(['triage-files'], (oldData: any) => {
+      if (!oldData) return oldData
+      return {
+        ...oldData,
+        files: oldData.files.filter((f: TriageFile) => f.file_id !== file.file_id)
+      }
+    })
+    toast.info(`Skipped ${file.file_name}`, {
+      description: 'File removed from triage queue'
+    })
+  }
+
   // Fetch taxonomy from backend
   const { data: taxonomyData } = useQuery({
     queryKey: ['taxonomy'],
@@ -425,8 +439,9 @@ export default function Triage() {
                       Confirm & Organize
                     </button>
                     <button
-                      onClick={() => toast.info('Skip functionality coming soon')}
+                      onClick={() => handleSkip(file)}
                       className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors"
+                      title="Skip this file"
                     >
                       <XCircle size={18} className="text-white/60" />
                     </button>
