@@ -22,9 +22,12 @@ from dataclasses import dataclass, field
 from datetime import datetime
 import logging
 
+# Configure logging
+logger = logging.getLogger(__name__)
+
 # V3 Integration
 from unified_classifier import UnifiedClassificationService
-from taxonomy_service import TaxonomyService
+from taxonomy_service import TaxonomyService, get_taxonomy_service
 from gdrive_integration import get_metadata_root
 
 # Standard Policy Config
@@ -58,7 +61,7 @@ class LibrarianPolicyEngine:
         # Initialize Services
         self.classifier = UnifiedClassificationService()
         config_dir = get_metadata_root() / "config"
-        self.taxonomy_service = TaxonomyService(config_dir)
+        self.taxonomy_service = get_taxonomy_service(config_dir)
         
         # --- BUSINESS RULES (Legacy "Wolfhard" Logic) ---
         # Maps "Logical Categories" -> "Physical Drive Paths"
