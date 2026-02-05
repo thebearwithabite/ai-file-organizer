@@ -236,29 +236,44 @@ class InteractiveBatchProcessor:
             if preview:
                 file_previews.append(preview)
         
-        # Group files intelligently
-        batch_groups = self._create_intelligent_groups(file_previews)
-        
-        # Create session
-        session_data = {
-            "session_id": session_id,
-            "session_name": session_name or f"Batch_{datetime.now().strftime('%Y%m%d_%H%M')}",
-            "start_time": datetime.now(),
-            "source_directory": str(source_path),
-            "total_files": len(files_found),
-            "file_previews": file_previews,
-            "batch_groups": batch_groups,
-            "current_group_index": 0,
-            "processed_groups": [],
-            "pending_operations": [],
-            "user_decisions": [],
-            "status": "active"
-        }
-        
-        self.active_sessions[session_id] = session_data
-        
-        # Record session in database
-        self._record_batch_session(session_data)
+        # OPTIMIZATION: Reuse database connection for batch processing
+        # This prevents N+1 connection overhead (opens 1 connection instead of 2*N)
+        try:
+            with sqlite3.connect(self.batch_db_path) as conn:
+                # OPTIMIZATION: Also reuse content extractor connection
+                with sqlite3.connect(self.content_extractor.db_path) as content_db_conn:
+                    for file_path in files_found:
+                        preview = self._generate_file_preview(file_path, db_connection=conn, content_db_connection=content_db_conn)
+                        if preview:
+                            file_previews.append(preview)
+
+                # Group files intelligently (CPU bound, no DB)
+                batch_groups = self._create_intelligent_groups(file_previews)
+
+                # Create session
+                session_data = {
+                    "session_id": session_id,
+                    "session_name": session_name or f"Batch_{datetime.now().strftime('%Y%m%d_%H%M')}",
+                    "start_time": datetime.now(),
+                    "source_directory": str(source_path),
+                    "total_files": len(files_found),
+                    "file_previews": file_previews,
+                    "batch_groups": batch_groups,
+                    "current_group_index": 0,
+                    "processed_groups": [],
+                    "pending_operations": [],
+                    "user_decisions": [],
+                    "status": "active"
+                }
+
+                self.active_sessions[session_id] = session_data
+
+                # Record session in database (reusing connection)
+                self._record_batch_session(session_data, db_connection=conn)
+
+        except Exception as e:
+            self.logger.error(f"Error in batch session initialization: {e}")
+            raise
         
         self.logger.info(f"Batch session {session_id} created with {len(batch_groups)} groups")
         
@@ -376,7 +391,7 @@ class InteractiveBatchProcessor:
         
         return files
 
-    def _generate_file_preview(self, file_path: Path) -> Optional[FilePreview]:
+    def _generate_file_preview(self, file_path: Path, db_connection: Optional[sqlite3.Connection] = None, content_db_connection: Optional[sqlite3.Connection] = None) -> Optional[FilePreview]:
         """Generate preview for a file"""
         
         try:
@@ -407,7 +422,7 @@ class InteractiveBatchProcessor:
                 
                 elif file_path.suffix.lower() in ['.pdf', '.docx', '.doc', '.pages', '.rtf']:
                     # Use content extractor for documents
-                    extraction_result = self.content_extractor.extract_content(file_path)
+                    extraction_result = self.content_extractor.extract_content(file_path, db_connection=content_db_connection)
                     if extraction_result['success']:
                         content = extraction_result['text']
                         content_preview = content[:self.config["preview_length"]]
