@@ -268,7 +268,7 @@ class SystemService:
         import sqlite3
         from gdrive_integration import get_metadata_root
         
-        db_path = get_metadata_root() / "adaptive_rules.db"
+        db_path = get_metadata_root() / "databases" / "adaptive_rules.db"
         logs = []
         
         if not db_path.exists():
@@ -293,7 +293,7 @@ class SystemService:
         import sqlite3
         from gdrive_integration import get_metadata_root
         
-        db_path = get_metadata_root() / "adaptive_rules.db"
+        db_path = get_metadata_root() / "databases" / "adaptive_rules.db"
         logs = []
         
         if not db_path.exists():
@@ -505,19 +505,19 @@ class TriageService:
             # 2. FAILBACK SCAN (V2 Legacy/Hybrid)
             # ------------------------------------------------------------------
             # If queue is empty (or < 20 items), scan staging areas for new files
-            if len(files_for_review) < 20:
+            if len(files_for_review) < 200:
                 logger.debug("Queue low/empty - scanning staging areas for new files...")
                 confidence_threshold = 0.85 # Triage threshold
                 queued_paths = {f['file_path'] for f in files_for_review}
                 
                 for area in self.staging_areas:
-                    if len(files_for_review) >= 20: break
+                    if len(files_for_review) >= 200: break
                     if not area.exists(): continue
                     
                     try:
                         # Scan recent files
                         for file_path in area.iterdir():
-                            if len(files_for_review) >= 20: break
+                            if len(files_for_review) >= 200: break
                             
                             # Filter obvious junk
                             if not file_path.is_file() or file_path.name.startswith('.'): continue
@@ -988,12 +988,19 @@ class TriageService:
                         'content_keywords': found_keywords  # CRITICAL FOR LEARNING
                 }
                 
-                self.learning_system.record_classification(
+                # Use record_learning_event with manual_move for user confirmations
+                # This is critical for the Learning Loop to generate patterns
+                self.learning_system.record_learning_event(
+                    event_type='manual_move',
                     file_path=str(new_file_path),
-                    predicted_category=original_category,
-                    confidence=original_confidence,
-                    features=context_features,
-                    media_type=media_type
+                    original_prediction={
+                        'category': original_category,
+                        'confidence': original_confidence,
+                        'media_type': media_type
+                    },
+                    user_action={'category': confirmed_category, 'source': 'triage_confirmation'},
+                    confidence_before=original_confidence,
+                    context=context_features
                 )
                 logger.info(f"✅ Learning event recorded: {original_category} ({original_confidence:.2f}) → {confirmed_category} [{media_type}]")
             except Exception as e:
