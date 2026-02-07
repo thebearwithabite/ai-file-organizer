@@ -84,3 +84,4 @@ venv/
 server.lock
 compile_log.txt
 gdrive_credentials_BACKUP.json
+Antigravity-Agent-Logs/

@@ -137,7 +137,7 @@ class InteractiveOrganizer:
                     if file_path.is_file() and not file_path.name.startswith('.'):
                         staging_files.append(file_path)
         
-        return staging_files[:20]  # Limit to prevent overwhelming
+        return staging_files[:200]  # Limit to prevent overwhelming
     
     def _organize_single_file(self, file_path: Path, dry_run: bool) -> bool:
         """Organize a single file with interactive classification"""
