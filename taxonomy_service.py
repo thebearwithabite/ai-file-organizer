@@ -203,7 +203,7 @@ class TaxonomyService:
                 "locked": False,
                 "aliases": [],
                 "keywords": ["receipt", "subscription", "membership"],
-                "extensions": [".pdf", ".jpg", ".png"],
+                "extensions": [".pdf", ".jpg", ".jpeg", ".png", ".heic", ".webp"],
                 "confidence": 0.80
             },
 
