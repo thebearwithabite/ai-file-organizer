@@ -184,13 +184,18 @@ class UnifiedClassificationService:
         filename = file_path.name.lower()
         extension = file_path.suffix.lower()
         
+        # Image extensions that MUST go through vision analysis
+        IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif', '.webp', '.heic', '.heif', '.tiff', '.bmp', '.ico'}
+        
         # Iterate over Dynamic Taxonomy (V3)
         categories = self.taxonomy_service.get_all_categories()
         
         best_match = None
         
         for cat_id, meta in categories.items():
-            # Check Extension Match
+            # Check Extension Match - BUT skip images (they MUST use vision)
+            if extension and extension.lower() in IMAGE_EXTENSIONS:
+                continue  # Force images through vision pipeline, not extension matching
             if extension and extension in meta.get("extensions", []):
                 return {
                     'source': f'Obvious Pattern ({meta.get("display_name")})',
