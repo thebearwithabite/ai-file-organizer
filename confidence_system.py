@@ -85,7 +85,7 @@ class ADHDFriendlyConfidenceSystem:
                 "emergency_override": True
             },
             ConfidenceLevel.SMART: {
-                "auto_move_threshold": 0.80,
+                "auto_move_threshold": 0.60,
                 "max_questions": 2,
                 "question_style": "informed",
                 "preview_required": False,
