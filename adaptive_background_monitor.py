@@ -804,14 +804,22 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
                 confidence=decision.system_confidence
             )
             
-            # Move the file
-            new_file_path = target_path / file_obj.name
+            # Use intelligent suggested filename if available, otherwise original
+            classification_result = context.get('classification_result', {})
+            suggested_name = classification_result.get('suggested_filename')
+            if suggested_name and suggested_name != file_obj.name:
+                # Use the AI-suggested filename
+                new_file_path = target_path / suggested_name
+                logger.info(f"Using suggested filename: {suggested_name}")
+            else:
+                # Fall back to original name
+                new_file_path = target_path / file_obj.name
             
             # Handle name conflicts
             if new_file_path.exists():
                 counter = 1
-                base_name = file_obj.stem
-                extension = file_obj.suffix
+                base_name = new_file_path.stem
+                extension = new_file_path.suffix
                 while new_file_path.exists():
                     new_name = f"{base_name}_{counter}{extension}"
                     new_file_path = target_path / new_name
