@@ -171,8 +171,8 @@ Return a valid JSON object with this structure:
         self.learning_enabled = True
         self.learning_system = None
         try:
-            from universal_adaptive_learning import AdaptiveLearningSystem
-            self.learning_system = AdaptiveLearningSystem()
+            from universal_adaptive_learning import UniversalAdaptiveLearning
+            self.learning_system = UniversalAdaptiveLearning()
         except ImportError:
             self.logger.warning("AdaptiveLearningSystem not found. Visual learning will be disabled.")
             self.learning_enabled = False
