@@ -114,8 +114,7 @@ class EmergencySpaceProtection:
             # Detect real Google Drive path for offloading
             self.gdrive_root = None
             possible_gdrive_paths = [
-                Path.home() / "Google Drive" / "My Drive",
-                Path.home() / "Google Drive",
+                Path.home() / "Library" / "CloudStorage" / "GoogleDrive-thebearwithabite@gmail.com" / "My Drive",
                 Path("/Volumes/GoogleDrive/My Drive"),
                 Path("/Volumes/GoogleDrive")
             ]
@@ -396,7 +395,17 @@ class EmergencySpaceProtection:
         """Check disk usage for a specific disk"""
         
         try:
-            total, used, free = shutil.disk_usage(disk_path)
+            # On macOS APFS, check the actual data volume for accurate stats
+            import platform
+            if platform.system() == 'Darwin':
+                # Use /System/Volumes/Data for accurate user storage stats
+                data_volume = '/System/Volumes/Data'
+                if Path(data_volume).exists():
+                    total, used, free = shutil.disk_usage(data_volume)
+                else:
+                    total, used, free = shutil.disk_usage(disk_path)
+            else:
+                total, used, free = shutil.disk_usage(disk_path)
             
             total_gb = total / (1024**3)
             free_gb = free / (1024**3)
