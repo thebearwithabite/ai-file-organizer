@@ -507,7 +507,7 @@ class TriageService:
             # If queue is empty (or < 20 items), scan staging areas for new files
             if len(files_for_review) < 200:
                 logger.debug("Queue low/empty - scanning staging areas for new files...")
-                confidence_threshold = 0.85 # Triage threshold
+                confidence_threshold = 0.60 # Triage threshold
                 queued_paths = {f['file_path'] for f in files_for_review}
                 
                 for area in self.staging_areas:
@@ -652,7 +652,7 @@ class TriageService:
             }
 
             files_for_review = []
-            confidence_threshold = 0.85  # ADHD-friendly threshold
+            confidence_threshold = 0.60  # ADHD-friendly threshold
 
             # Scan folder recursively for files
             logger.info(f"Scanning {folder_path} recursively for supported files...")
