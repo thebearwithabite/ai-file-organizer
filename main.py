@@ -34,7 +34,7 @@ load_dotenv()
 # Import our services
 from api.services import SystemService, SearchService, TriageService
 from api.rollback_service import RollbackService
-from api.veo_api import router as veo_router, clip_router
+from api.veo_prompts_api import router as veo_router, clip_router
 from security_utils import sanitize_filename, validate_path_within_base
 from gdrive_integration import get_metadata_root, get_ai_organizer_root
 from universal_adaptive_learning import UniversalAdaptiveLearning
@@ -122,12 +122,14 @@ async def lifespan(app: FastAPI):
     # 1. Initialize core persistence
     try:
         from easy_rollback_system import ensure_rollback_db
-        from api.veo_api import init_veo_prompts_table
-        from api.veo_studio_api import init_veo_studio_tables
-        
+        from api.veo_prompts_api import init_veo_prompts_table
         ensure_rollback_db()
         init_veo_prompts_table()
-        init_veo_studio_tables()
+        try:
+            from api.veo_studio_api import init_veo_studio_tables
+            init_veo_studio_tables()
+        except ImportError:
+            logger.warning("veo_studio_api not available - skipping table init")
         logger.info("✅ Core DBs & Tables initialized")
     except Exception as e:
         logger.exception("Failed to initialize core DBs: %s", e)
@@ -216,12 +218,26 @@ monitor_paths = []
 # Move router inclusion AFTER lifespan definition
 from api.taxonomy_router import router as taxonomy_router
 from api.identity_router import router as identity_router
-from api.veo_studio_api import router as veo_studio_router
+# Optional routers (graceful degradation if dependencies missing)
+try:
+    from api.veo_studio_api import router as veo_studio_router
+except ImportError:
+    veo_studio_router = None
+    logging.getLogger(__name__).warning("veo_studio_api unavailable - skipping")
+
+try:
+    from api.veo_brain_api import router as veo_brain_router
+except ImportError:
+    veo_brain_router = None
+    logging.getLogger(__name__).warning("veo_brain_api unavailable - skipping")
 
 # Include VEO API routers
 app.include_router(veo_router)
 app.include_router(clip_router)
-app.include_router(veo_studio_router)
+if veo_studio_router:
+    app.include_router(veo_studio_router)
+if veo_brain_router:
+    app.include_router(veo_brain_router)
 app.include_router(taxonomy_router)
 app.include_router(identity_router)
 
