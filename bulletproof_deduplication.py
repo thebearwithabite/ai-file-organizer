@@ -391,12 +391,13 @@ class BulletproofDeduplicator:
                 if size not in size_groups:
                     size_groups[size] = []
 
+                # Optimization: Store string path to defer Path creation
                 # Only convert to Path when storing
-                file_path = Path(entry.path)
-                size_groups[size].append(file_path)
+                file_path_str = entry.path
+                size_groups[size].append(file_path_str)
 
-                # Cache stat for later use in this scan session
-                stat_cache[file_path] = stat
+                # Cache stat for later use in this scan session (using string key)
+                stat_cache[file_path_str] = stat
 
         except Exception as e:
             print(f"   ❌ Critical error during scan: {e}")
@@ -417,10 +418,13 @@ class BulletproofDeduplicator:
         skipped_files = 0
 
         for size, file_list in size_potential.items():
-            for file_path in file_list:
+            for file_path_str in file_list:
                 processed_count += 1
                 if processed_count % 50 == 0 or processed_count == total_potential_files:
                     print(f"   Progress: {processed_count}/{total_potential_files} files ({((processed_count/total_potential_files)*100):.1f}%)")
+
+                # Create Path object only for potential duplicates (optimization)
+                file_path = Path(file_path_str)
 
                 # Reuse size from tier 0
                 quick_hash = self.calculate_quick_hash(file_path, file_size=size)
@@ -456,7 +460,8 @@ class BulletproofDeduplicator:
 
                 for file_path in file_list:
                     # Get cached stat if available
-                    stat = stat_cache.get(file_path)
+                    # Optimization: Look up using string representation
+                    stat = stat_cache.get(str(file_path))
                     f_size = stat.st_size if stat else None
                     f_mtime = stat.st_mtime if stat else None
 
