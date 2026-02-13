@@ -11,7 +11,10 @@ export default function Header() {
       {/* Right side actions */}
       <div className="flex items-center gap-4">
         {/* Notifications */}
-        <button className="p-2 rounded-lg hover:bg-white/10 transition-colors relative">
+        <button
+          className="p-2 rounded-lg hover:bg-white/10 transition-colors relative"
+          aria-label="View notifications"
+        >
           <Bell size={20} className="text-white/60" />
           {/* Notification badge */}
           <div className="absolute top-1 right-1 w-2 h-2 bg-primary rounded-full" />
