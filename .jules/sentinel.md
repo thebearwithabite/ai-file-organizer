@@ -1,0 +1,4 @@
+## 2024-05-23 - Argument Injection in macOS open command
+**Vulnerability:** The `open-file` endpoint used `subprocess.run(['open', path])` without validating the path or using an argument delimiter. This allowed an attacker to execute arbitrary applications by supplying a path starting with `-` (e.g., `-aCalculator`), which `open` interprets as a flag.
+**Learning:** Even when `shell=False` is used, command argument injection is possible if the executed program parses flags from its arguments. The `open` command on macOS is a prime example, as it accepts flags like `-a` to launch applications.
+**Prevention:** Always use the `--` delimiter (e.g., `['open', '--', path]`) to signify the end of command options when passing untrusted input as positional arguments. Additionally, strictly validate that input paths exist and are of the expected type (file vs directory) before execution.
