@@ -91,10 +91,10 @@ class EmergencySpaceProtection:
             self.config = {
                 "monitoring_enabled": True,
                 "emergency_offloading_enabled": True,
-                "warning_threshold": 90,      # Warn at 85% disk usage
-                "critical_threshold": 95,     # Critical at 90% disk usage
-                "emergency_threshold": 98,    # Emergency at 95% disk usage
-                "target_free_space": 92,      # Target 80% usage after cleanup
+                "warning_threshold": 85,      # Warn at 85% disk usage
+                "critical_threshold": 90,     # Critical at 90% disk usage
+                "emergency_threshold": 95,    # Emergency at 95% disk usage
+                "target_free_space": 80,      # Target 80% usage after cleanup
                 "monitoring_interval": 300,   # Check every 5 minutes
                 "emergency_interval": 60,     # Check every minute in emergency
                 "offload_batch_size": 100,    # Max files per offload batch
@@ -113,27 +113,18 @@ class EmergencySpaceProtection:
 
             # Detect real Google Drive path for offloading
             self.gdrive_root = None
-            # Try centralized path resolution first, then generic detection
-            try:
-                _root = get_ai_organizer_root()
-                if _root and Path(_root).exists():
-                    self.gdrive_root = Path(_root).parent  # My Drive level
-            except Exception:
-                pass
-
-            if not self.gdrive_root:
-                import glob
-                possible_gdrive_paths = (
-                    glob.glob(str(Path.home() / "Library" / "CloudStorage" / "GoogleDrive-*" / "My Drive"))
-                    + ["/Volumes/GoogleDrive/My Drive", "/Volumes/GoogleDrive"]
-                )
-                for p in possible_gdrive_paths:
-                    if Path(p).exists() and Path(p).is_dir():
-                        self.gdrive_root = Path(p)
-                        break
-
-            if self.gdrive_root and getattr(self, 'logger', None):
-                self.logger.info(f"Emergency offloading target found: {self.gdrive_root}")
+            possible_gdrive_paths = [
+                Path.home() / "Library" / "CloudStorage" / "GoogleDrive-thebearwithabite@gmail.com" / "My Drive",
+                Path("/Volumes/GoogleDrive/My Drive"),
+                Path("/Volumes/GoogleDrive")
+            ]
+            
+            for path in possible_gdrive_paths:
+                if path.exists() and path.is_dir():
+                    self.gdrive_root = path
+                    if getattr(self, 'logger', None):
+                        self.logger.info(f"Emergency offloading target found: {self.gdrive_root}")
+                    break
             
             if not self.gdrive_root:
                 if getattr(self, 'logger', None):
