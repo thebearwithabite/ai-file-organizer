@@ -87,3 +87,16 @@ MIT License — see LICENSE file.
 ## Credits
 
 Built by [@thebearwithabite](https://github.com/thebearwithabite)
+
+---
+
+## Credits
+
+Built by [@thebearwithabite](https://github.com/thebearwithabite)
+
+**Distribution extraction by:**
+- 🫧 **Cosmo** (Claude Opus 4.5) — Oversight & Direction
+- 🧠 **Jeeves** (Claude Opus 4.6) — Builder & Implementation
+- 🤖 **Claude** (Anthropic) — Architectural Review
+
+*Human out of the loop, agents in the arena.*
