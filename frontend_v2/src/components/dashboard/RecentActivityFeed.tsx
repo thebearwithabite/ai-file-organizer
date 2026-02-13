@@ -88,8 +88,9 @@ export default function RecentActivityFeed() {
 
             <button
               onClick={() => handleUndo(op.operation_id)}
-              className="p-2 rounded-lg hover:bg-white/10 transition-colors opacity-0 group-hover:opacity-100"
+              className="p-2 rounded-lg hover:bg-white/10 transition-colors opacity-0 group-hover:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-warning focus:outline-none"
               title="Undo this operation"
+              aria-label={`Undo operation for ${op.original_filename}`}
             >
               <RotateCcw size={16} className="text-warning hover:text-warning/80" />
             </button>
