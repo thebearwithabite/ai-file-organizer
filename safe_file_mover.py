@@ -4,6 +4,7 @@ Safe File Moving with Collision Handling for AI File Organizer
 Ensures files are never lost or overwritten during organization
 ADHD-friendly design with clear confirmation and recovery options
 """
+import re
 
 import sys
 import os
@@ -148,14 +149,24 @@ class SafeFileMover:
         suffix = target_path.suffix
         parent = target_path.parent
         
-        for i in range(2, max_attempts + 1):
-            candidate = parent / f"{stem}_{i}{suffix}"
+        # Strip existing _N suffix to avoid _1_2_3_4 accumulation
+        match = re.match(r"^(.+?)(?:_(\d+))?$", stem)
+        if match:
+            base_stem = match.group(1)
+            existing_num = int(match.group(2)) if match.group(2) else 1
+        else:
+            base_stem = stem
+            existing_num = 1
+        
+        # Start from the next number after existing suffix
+        for i in range(existing_num + 1, max_attempts + existing_num):
+            candidate = parent / f"{base_stem}_{i}{suffix}"
             if not candidate.exists():
                 return candidate
         
         # If we get here, add timestamp
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        return parent / f"{stem}_{timestamp}{suffix}"
+        return parent / f"{base_stem}_{timestamp}{suffix}"
     
     def create_backup(self, file_path: Path) -> Path:
         """Create a backup of a file before moving/replacing"""
