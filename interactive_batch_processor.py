@@ -236,10 +236,12 @@ class InteractiveBatchProcessor:
         # This prevents N+1 connection overhead (opens 1 connection instead of 2*N)
         try:
             with sqlite3.connect(self.batch_db_path) as conn:
-                for file_path in files_found:
-                    preview = self._generate_file_preview(file_path, db_connection=conn)
-                    if preview:
-                        file_previews.append(preview)
+                # OPTIMIZATION: Also reuse content extractor connection
+                with sqlite3.connect(self.content_extractor.db_path) as content_db_conn:
+                    for file_path in files_found:
+                        preview = self._generate_file_preview(file_path, db_connection=conn, content_db_connection=content_db_conn)
+                        if preview:
+                            file_previews.append(preview)
 
                 # Group files intelligently (CPU bound, no DB)
                 batch_groups = self._create_intelligent_groups(file_previews)
@@ -385,7 +387,7 @@ class InteractiveBatchProcessor:
         
         return files
 
-    def _generate_file_preview(self, file_path: Path, db_connection: Optional[sqlite3.Connection] = None) -> Optional[FilePreview]:
+    def _generate_file_preview(self, file_path: Path, db_connection: Optional[sqlite3.Connection] = None, content_db_connection: Optional[sqlite3.Connection] = None) -> Optional[FilePreview]:
         """Generate preview for a file"""
         
         try:
@@ -416,7 +418,7 @@ class InteractiveBatchProcessor:
                 
                 elif file_path.suffix.lower() in ['.pdf', '.docx', '.doc', '.pages', '.rtf']:
                     # Use content extractor for documents
-                    extraction_result = self.content_extractor.extract_content(file_path)
+                    extraction_result = self.content_extractor.extract_content(file_path, db_connection=content_db_connection)
                     if extraction_result['success']:
                         content = extraction_result['text']
                         content_preview = content[:self.config["preview_length"]]
