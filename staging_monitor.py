@@ -245,18 +245,37 @@ class StagingMonitor:
         """Update database with current scan results"""
         current_time = datetime.now()
         
+        # Collect all file paths first for batch querying
+        all_file_paths = []
+        for folder_name, files in scan_results.items():
+            for file_info in files:
+                all_file_paths.append(file_info["path"])
+
+        existing_tracking = {}
+
         with sqlite3.connect(self.db_path) as conn:
+            # Batch fetch existing records
+            # Process in chunks of 900 to respect SQLite limits
+            chunk_size = 900
+            for i in range(0, len(all_file_paths), chunk_size):
+                chunk = all_file_paths[i:i + chunk_size]
+                placeholders = ','.join(['?'] * len(chunk))
+                query = f"SELECT file_path, file_hash, first_seen, size_bytes, last_modified FROM file_tracking WHERE file_path IN ({placeholders})"
+
+                try:
+                    cursor = conn.execute(query, chunk)
+                    for row in cursor.fetchall():
+                        existing_tracking[row[0]] = row[1:]
+                except Exception as e:
+                    print(f"Error fetching batch tracking data: {e}")
+
+            # Process files using in-memory cache
             for folder_name, files in scan_results.items():
                 for file_info in files:
                     file_path = file_info["path"]
                     file_hash = file_info.get("hash")
                     
-                    # Check if file exists in tracking
-                    cursor = conn.execute(
-                        "SELECT file_hash, first_seen, size_bytes, last_modified FROM file_tracking WHERE file_path = ?",
-                        (file_path,)
-                    )
-                    existing = cursor.fetchone()
+                    existing = existing_tracking.get(file_path)
                     
                     if existing:
                         db_hash, db_first_seen, db_size, db_last_mod_str = existing
