@@ -7,11 +7,12 @@ attacks and other file-based vulnerabilities in the AI File Organizer.
 Functions:
     sanitize_filename: Remove path traversal sequences from filenames
     validate_path_within_base: Verify paths stay within allowed directories
+    validate_path_is_monitored: Verify path is within one of the monitored/allowed directories
 """
 import os
 import re
 from pathlib import Path
-from typing import Union
+from typing import Union, List
 import logging
 
 logger = logging.getLogger(__name__)
@@ -204,3 +205,31 @@ def safe_join_path(base: Union[Path, str], *parts: str) -> Path:
         )
 
     return result_path
+
+
+def validate_path_is_monitored(path: Union[str, Path], allowed_paths: List[Union[str, Path]], warn: bool = True) -> bool:
+    """
+    Verify that path is within one of the allowed paths.
+
+    This acts as an allowlist check for file access.
+
+    Args:
+        path: Path to validate
+        allowed_paths: List of allowed base paths
+        warn: Whether to log a warning on validation failure (default: True)
+
+    Returns:
+        True if path is within one of the allowed paths, False otherwise
+    """
+    if isinstance(path, str):
+        path = Path(path)
+
+    for base_path in allowed_paths:
+        # We don't warn for each individual failure, only if ALL fail
+        if validate_path_within_base(path, base_path, warn=False):
+            return True
+
+    if warn:
+        logger.warning(f"Access denied: '{path}' is not within any monitored path")
+
+    return False

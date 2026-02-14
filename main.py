@@ -24,7 +24,7 @@ import asyncio
 import logging
 import threading
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 from dotenv import load_dotenv
 from datetime import datetime
 
@@ -35,7 +35,7 @@ load_dotenv()
 from api.services import SystemService, SearchService, TriageService
 from api.rollback_service import RollbackService
 from api.veo_prompts_api import router as veo_router, clip_router
-from security_utils import sanitize_filename, validate_path_within_base
+from security_utils import sanitize_filename, validate_path_within_base, validate_path_is_monitored
 from gdrive_integration import get_metadata_root, get_ai_organizer_root
 from universal_adaptive_learning import UniversalAdaptiveLearning
 from easy_rollback_system import ensure_rollback_db
@@ -302,6 +302,43 @@ def get_space_protection(request: Request):
 def get_background_monitor(request: Request):
     """Access background monitor from app state"""
     return getattr(request.app.state, 'background_monitor', None)
+
+def get_safe_monitored_paths(request: Request) -> List[Path]:
+    """
+    Get list of safe monitored paths.
+    """
+    paths = []
+
+    # Try to get from background monitor
+    monitor = get_background_monitor(request)
+    if monitor and hasattr(monitor, 'watch_directories'):
+        for info in monitor.watch_directories.values():
+            if 'path' in info:
+                paths.append(info['path'])
+
+    # Always include default safe paths as fallback or addition
+    default_paths = [
+        Path.home() / "Downloads",
+        Path.home() / "Desktop",
+        Path.home() / "Documents"
+    ]
+
+    # Add library root if available
+    try:
+        library_root = get_ai_organizer_root()
+        paths.append(library_root)
+    except:
+        pass
+
+    # Merge and deduplicate (using string representation for uniqueness)
+    # Filter out paths that don't exist
+    unique_paths = {}
+
+    for p in paths + default_paths:
+        if p.exists():
+            unique_paths[str(p.resolve())] = p
+
+    return list(unique_paths.values())
 
 # The old top-level initializations are now REMOVED or moved into get_* functions.
 # This prevents side effects on import.
@@ -1033,26 +1070,6 @@ async def scan_custom_folder(request: ScanFolderRequest):
     except HTTPException:
         raise
 
-@app.post("/api/open-file")
-async def open_file(request: OpenFileRequest):
-    """
-    Open a file in the system default application (Finder/Explorer)
-    """
-    try:
-        path = Path(request.path)
-        if not path.exists():
-            raise HTTPException(status_code=404, detail="File not found")
-            
-        # Use 'open' command on macOS
-        subprocess.run(['open', str(path)], check=True)
-        
-        return {"status": "success", "message": f"Opened {path.name}"}
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Failed to open file: {e}")
-        raise HTTPException(status_code=500, detail="Failed to open file")
-    except Exception as e:
-        logger.error(f"Error opening file: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
     except Exception as e:
         # Security: Log detailed error internally, return generic message to user
         logger.error(f"Failed to scan custom folder: {e}", exc_info=True)
@@ -1148,6 +1165,12 @@ async def get_file_content(request: Request, path: str = Query(..., description=
         if file_path.name.startswith('.') or file_path.name.startswith('~'):
              raise HTTPException(status_code=403, detail="Access denied to hidden/system files")
 
+        # Security: Ensure path is within monitored/allowed directories
+        allowed_paths = get_safe_monitored_paths(request)
+        if not validate_path_is_monitored(file_path, allowed_paths):
+            logger.warning(f"Access denied: {file_path} is not in monitored paths")
+            raise HTTPException(status_code=403, detail="Access denied: File is not in monitored directories")
+
         # Determine content type
         import mimetypes
         content_type, _ = mimetypes.guess_type(file_path)
@@ -1163,7 +1186,7 @@ async def get_file_content(request: Request, path: str = Query(..., description=
         raise HTTPException(status_code=500, detail="Failed to serve file content")
 
 @app.get("/api/files/preview-text")
-async def get_file_preview_text(path: str = Query(..., description="Absolute path to file")):
+async def get_file_preview_text(request: Request, path: str = Query(..., description="Absolute path to file")):
     """
     Get text preview for a file (supports Office docs, PDF, etc via ContentExtractor).
     """
@@ -1171,6 +1194,12 @@ async def get_file_preview_text(path: str = Query(..., description="Absolute pat
         file_path = Path(path)
         if not file_path.exists():
             raise HTTPException(status_code=404, detail="File not found")
+
+        # Security: Ensure path is within monitored/allowed directories
+        allowed_paths = get_safe_monitored_paths(request)
+        if not validate_path_is_monitored(file_path, allowed_paths):
+            logger.warning(f"Access denied: {file_path} is not in monitored paths")
+            raise HTTPException(status_code=403, detail="Access denied: File is not in monitored directories")
 
         # Initialize ContentExtractor
         from content_extractor import ContentExtractor
@@ -1269,31 +1298,39 @@ async def classify_file(request: ClassificationRequest):
         raise HTTPException(status_code=500, detail=f"Classification failed: {str(e)}")
 
 @app.post("/api/open-file")
-async def open_file(request: OpenFileRequest):
+async def open_file(request: Request, body: OpenFileRequest):
     """
     Open a file using the operating system's default application
     
     Args:
-        request: OpenFileRequest containing the file path to open
+        body: OpenFileRequest containing the file path to open
         
     Returns:
         JSON response with operation status
     """
     try:
-        file_path = request.path.strip()
+        file_path = body.path.strip()
         
         # Validate that the file path is provided
         if not file_path:
             raise HTTPException(status_code=400, detail="File path cannot be empty")
+
+        # Security: Prevent argument injection
+        if file_path.startswith('-'):
+             raise HTTPException(status_code=400, detail="Invalid file path")
         
         # Convert to Path object for better handling
         path_obj = Path(file_path)
         
-        # Check if file exists (for local files)
+        # Security: Ensure file exists (prevent opening URLs/protocols)
         if not path_obj.exists():
-            # For non-existent files, still try to open (might be a URL or special path)
-            # but provide a warning in the response
-            pass
+             raise HTTPException(status_code=404, detail="File not found")
+
+        # Security: Check against monitored paths
+        allowed_paths = get_safe_monitored_paths(request)
+        if not validate_path_is_monitored(path_obj, allowed_paths):
+             logger.warning(f"Access denied: {file_path} is not in monitored paths")
+             raise HTTPException(status_code=403, detail="Access denied: File is not in monitored directories")
         
         # Use macOS 'open' command to open the file with default application
         # The 'open' command works with files, URLs, and applications
