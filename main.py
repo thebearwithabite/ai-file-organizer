@@ -1033,30 +1033,6 @@ async def scan_custom_folder(request: ScanFolderRequest):
     except HTTPException:
         raise
 
-@app.post("/api/open-file")
-async def open_file(request: OpenFileRequest):
-    """
-    Open a file in the system default application (Finder/Explorer)
-    """
-    try:
-        path = Path(request.path)
-        if not path.exists():
-            raise HTTPException(status_code=404, detail="File not found")
-            
-        # Use 'open' command on macOS
-        subprocess.run(['open', str(path)], check=True)
-        
-        return {"status": "success", "message": f"Opened {path.name}"}
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Failed to open file: {e}")
-        raise HTTPException(status_code=500, detail="Failed to open file")
-    except Exception as e:
-        logger.error(f"Error opening file: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-    except Exception as e:
-        # Security: Log detailed error internally, return generic message to user
-        logger.error(f"Failed to scan custom folder: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="An error occurred while scanning the folder. Please try again later.")
 
 @app.get("/api/triage/projects")
 async def get_known_projects():
@@ -1289,16 +1265,20 @@ async def open_file(request: OpenFileRequest):
         # Convert to Path object for better handling
         path_obj = Path(file_path)
         
+        # Security: Prevent argument injection (flags)
+        if file_path.startswith("-"):
+            raise HTTPException(status_code=400, detail="Invalid file path (starts with -)")
+
         # Check if file exists (for local files)
         if not path_obj.exists():
-            # For non-existent files, still try to open (might be a URL or special path)
-            # but provide a warning in the response
-            pass
+            # For non-existent files, reject them (prevents URL opening or probing)
+            # This is safer than allowing arbitrary strings to be passed to open
+            raise HTTPException(status_code=404, detail="File not found")
         
         # Use macOS 'open' command to open the file with default application
-        # The 'open' command works with files, URLs, and applications
+        # Use '--' to ensure the argument is treated as a file path, not a flag
         result = subprocess.run(
-            ['open', file_path],
+            ['open', '--', file_path],
             capture_output=True,
             text=True,
             timeout=10  # Prevent hanging
@@ -1328,6 +1308,9 @@ async def open_file(request: OpenFileRequest):
             status_code=500, 
             detail=f"System error opening file: {str(e)}"
         )
+    except HTTPException:
+        # Re-raise HTTP exceptions (400, 404, etc)
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=500, 
