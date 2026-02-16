@@ -7,11 +7,12 @@ attacks and other file-based vulnerabilities in the AI File Organizer.
 Functions:
     sanitize_filename: Remove path traversal sequences from filenames
     validate_path_within_base: Verify paths stay within allowed directories
+    validate_path_is_safe: Verify paths are within one of the allowed roots
 """
 import os
 import re
 from pathlib import Path
-from typing import Union
+from typing import Union, List, Optional
 import logging
 
 logger = logging.getLogger(__name__)
@@ -204,3 +205,53 @@ def safe_join_path(base: Union[Path, str], *parts: str) -> Path:
         )
 
     return result_path
+
+def validate_path_is_safe(path: Union[Path, str], allowed_roots: Optional[List[Union[Path, str]]] = None) -> bool:
+    """
+    Validate that a path is within one of the allowed roots.
+
+    This function checks if the given path is a child of any of the allowed
+    root directories. It is used to prevent path traversal attacks where
+    a user might try to access system files or files outside the application's
+    scope.
+
+    Args:
+        path: Path to validate (can be relative or absolute)
+        allowed_roots: List of allowed root directories. If None, defaults to standard
+                       user directories (Downloads, Documents, Desktop, Pictures, Music, Movies, Public).
+
+    Returns:
+        True if the path is within one of the allowed roots, False otherwise.
+    """
+    if allowed_roots is None:
+        # Default safety: only allow standard user directories if no explicit roots provided
+        try:
+            allowed_roots = [
+                Path.home() / "Downloads",
+                Path.home() / "Documents",
+                Path.home() / "Desktop",
+                Path.home() / "Pictures",
+                Path.home() / "Music",
+                Path.home() / "Movies",
+                Path.home() / "Public",
+            ]
+        except Exception:
+             allowed_roots = []
+
+    try:
+        path_obj = Path(path).resolve()
+    except Exception:
+        # If path cannot be resolved, it's invalid
+        return False
+
+    # Check if the path exists (optional, but good for security contexts usually)
+    # However, sometimes we validate paths before creating them.
+    # validate_path_within_base handles non-existent paths by resolving them anyway.
+
+    for root in allowed_roots:
+        # Use warn=False to avoid spamming logs for valid rejections (e.g. searching across roots)
+        if validate_path_within_base(path_obj, root, warn=False):
+            return True
+
+    logger.warning(f"Security: Path '{path}' rejected. Not in allowed roots.")
+    return False
