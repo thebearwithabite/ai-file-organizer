@@ -70,8 +70,8 @@ class BulletproofDeduplicator:
         # Substring checks for protected directories and files
         # Covers all previous regex patterns but ~100x faster
         self.protected_keywords = [
-            'vector_db', 'chroma', '_metadata_system', 'metadata_system',
-            'adaptive_learning', 'learning_data', 'classification_logs',
+            'vector_db', 'chroma',
+            'classification_logs',
             'embeddings', 'metadata', 'learning', 'adaptive', 'index',
             '_system', '.sqlite'
         ]
@@ -102,24 +102,38 @@ class BulletproofDeduplicator:
                 CREATE INDEX IF NOT EXISTS idx_secure_hash ON file_hashes(secure_hash)
             ''')
     
-    def calculate_quick_hash(self, file_path: Path, file_size: Optional[int] = None) -> Optional[str]:
+    def calculate_quick_hash(self, file_path: Union[Path, str, os.DirEntry], file_size: Optional[int] = None) -> Optional[str]:
         """
         Tier 1: Lightning-fast MD5 screening (~0.1ms per file)
         Used for initial duplicate detection
         """
         try:
+            path_str = ""
+            is_symlink = False
+
+            # Determine path string and check symlink status without creating Path object if possible
+            if isinstance(file_path, os.DirEntry):
+                is_symlink = file_path.is_symlink()
+                path_str = file_path.path
+            elif isinstance(file_path, Path):
+                is_symlink = file_path.is_symlink()
+                path_str = str(file_path)
+            else: # str
+                path_str = file_path
+                is_symlink = os.path.islink(path_str)
+
             # Skip symlinks and special files
-            if file_path.is_symlink():
+            if is_symlink:
                 return None
 
             # Check file size - warn about large files
             if file_size is None:
-                file_size = file_path.stat().st_size
+                file_size = os.stat(path_str).st_size
 
             if file_size > 1024 * 1024 * 100:  # 100MB
-                print(f"   ⏸️  Large file ({file_size / (1024*1024):.1f}MB): {file_path.name}")
+                print(f"   ⏸️  Large file ({file_size / (1024*1024):.1f}MB): {os.path.basename(path_str)}")
 
-            with open(file_path, 'rb') as f:
+            with open(path_str, 'rb') as f:
                 # Read first 64KB for quick hash - catches most duplicates
                 content = f.read(65536)
                 return hashlib.md5(content).hexdigest()
@@ -127,22 +141,36 @@ class BulletproofDeduplicator:
             # Skip files we can't read (locked, network, etc.)
             return None
         except Exception as e:
-            print(f"⚠️ Quick hash error for {file_path.name}: {e}")
+            print(f"⚠️ Quick hash error for {path_str if 'path_str' in locals() else file_path}: {e}")
             return None
     
-    def calculate_secure_hash(self, file_path: Path, db_connection: Optional[sqlite3.Connection] = None,
+    def calculate_secure_hash(self, file_path: Union[Path, str, os.DirEntry], db_connection: Optional[sqlite3.Connection] = None,
                               file_size: Optional[int] = None, last_modified: Optional[float] = None) -> Optional[str]:
         """
         Tier 2: Bulletproof SHA-256 verification (~2ms per file)
         Used for cryptographic certainty before deletion
         """
         try:
+            path_str = ""
+            is_symlink = False
+
+            # Determine path string and check symlink status without creating Path object if possible
+            if isinstance(file_path, os.DirEntry):
+                is_symlink = file_path.is_symlink()
+                path_str = file_path.path
+            elif isinstance(file_path, Path):
+                is_symlink = file_path.is_symlink()
+                path_str = str(file_path)
+            else: # str
+                path_str = file_path
+                is_symlink = os.path.islink(path_str)
+
             # Skip symlinks and special files
-            if file_path.is_symlink():
+            if is_symlink:
                 return None
 
             sha256_hash = hashlib.sha256()
-            with open(file_path, 'rb') as f:
+            with open(path_str, 'rb') as f:
                 # Read file in chunks (1MB) for better performance than 64KB
                 for chunk in iter(lambda: f.read(1048576), b""):
                     sha256_hash.update(chunk)
@@ -150,10 +178,12 @@ class BulletproofDeduplicator:
             secure_hash = sha256_hash.hexdigest()
             
             # Use provided stats or fetch them
-            if file_size is None:
-                file_size = file_path.stat().st_size
-            if last_modified is None:
-                last_modified = file_path.stat().st_mtime
+            if file_size is None or last_modified is None:
+                stat = os.stat(path_str)
+                if file_size is None:
+                    file_size = stat.st_size
+                if last_modified is None:
+                    last_modified = stat.st_mtime
 
             # Persist to database
             try:
@@ -164,7 +194,7 @@ class BulletproofDeduplicator:
                         (file_path, secure_hash, file_size, last_modified)
                         VALUES (?, ?, ?, ?)
                     """, (
-                        str(file_path), secure_hash, 
+                        path_str, secure_hash,
                         file_size, last_modified
                     ))
                 else:
@@ -175,19 +205,19 @@ class BulletproofDeduplicator:
                             (file_path, secure_hash, file_size, last_modified)
                             VALUES (?, ?, ?, ?)
                         """, (
-                            str(file_path), secure_hash,
+                            path_str, secure_hash,
                             file_size, last_modified
                         ))
             except Exception as db_err:
                 # Don't fail if DB write fails, just log it
-                print(f"⚠️ Failed to persist hash for {file_path.name}: {db_err}")
+                print(f"⚠️ Failed to persist hash for {os.path.basename(path_str)}: {db_err}")
                 
             return secure_hash
         except (PermissionError, OSError) as e:
             # Skip files we can't read (locked, network, etc.)
             return None
         except Exception as e:
-            print(f"⚠️ Secure hash error for {file_path.name}: {e}")
+            print(f"⚠️ Secure hash error for {path_str if 'path_str' in locals() else file_path}: {e}")
             return None
 
     def check_if_hash_exists_in_gdrive(self, secure_hash: str) -> Optional[str]:
@@ -392,7 +422,7 @@ class BulletproofDeduplicator:
                     size_groups[size] = []
 
                 # Only convert to Path when storing
-                file_path = Path(entry.path)
+                file_path = entry.path # Store as string to avoid Path creation overhead
                 size_groups[size].append(file_path)
 
                 # Cache stat for later use in this scan session
@@ -505,12 +535,14 @@ class BulletproofDeduplicator:
             # Calculate safety scores for each file
             file_scores = []
             for file_info in duplicate_group:
-                file_path = file_info['path']
+                file_path_str = file_info['path']
+                file_path = Path(file_path_str) # Create Path object only for confirmed duplicates
+
                 safety_score = self.calculate_safety_score(file_path, duplicate_group, last_modified=file_info.get('mtime'))
                 
                 # Get more file info for the group
                 file_info_full = {
-                    'path': str(file_path),
+                    'path': file_path_str,
                     'name': file_path.name,
                     'size': file_info['size'],
                     'mtime': datetime.fromtimestamp(file_info['mtime']).isoformat() if hasattr(file_info, 'mtime') else time.strftime('%Y-%m-%dT%H:%M:%S', time.localtime(file_info.get('mtime', time.time()))),
@@ -609,7 +641,7 @@ class BulletproofDeduplicator:
                     if self.is_database_or_learned_data(entry):
                         continue
 
-                    file_path = Path(entry.path)
+                    file_path = entry.path # Store as string
                     secure_hash = self.calculate_secure_hash(file_path, db_connection=conn,
                                                            file_size=stat.st_size, last_modified=stat.st_mtime)
                     if secure_hash:
@@ -647,7 +679,7 @@ class BulletproofDeduplicator:
                     if results["local_files_scanned"] % 50 == 0:
                         print(f"      Progress: {results['local_files_scanned']} local files scanned")
 
-                    file_path = Path(entry_path_str)
+                    file_path = entry_path_str # Store as string
 
                     # Calculate hash and check if exists in Google Drive
                     secure_hash = self.calculate_secure_hash(file_path, db_connection=conn,
@@ -668,7 +700,7 @@ class BulletproofDeduplicator:
                             print(f"      Size:   {file_size / (1024*1024):.1f} MB")
 
                             if execute:
-                                file_path.unlink()
+                                os.remove(file_path)
                                 results["deleted_files"] += 1
                                 print(f"      ✅ Deleted local copy")
                             else:
