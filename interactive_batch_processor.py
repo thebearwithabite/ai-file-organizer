@@ -234,40 +234,58 @@ class InteractiveBatchProcessor:
         
         # OPTIMIZATION: Reuse database connection for batch processing
         # This prevents N+1 connection overhead (opens 1 connection instead of 2*N)
+        batch_conn = None
+        content_conn = None
         try:
-            with sqlite3.connect(self.batch_db_path) as conn:
-                for file_path in files_found:
-                    preview = self._generate_file_preview(file_path, db_connection=conn)
-                    if preview:
-                        file_previews.append(preview)
+            # Open connections
+            batch_conn = sqlite3.connect(self.batch_db_path)
+            # OPTIMIZATION: Also reuse content extractor connection
+            content_conn = sqlite3.connect(self.content_extractor.db_path)
 
-                # Group files intelligently (CPU bound, no DB)
-                batch_groups = self._create_intelligent_groups(file_previews)
+            for file_path in files_found:
+                preview = self._generate_file_preview(
+                    file_path,
+                    batch_db_connection=batch_conn,
+                    content_db_connection=content_conn
+                )
+                if preview:
+                    file_previews.append(preview)
 
-                # Create session
-                session_data = {
-                    "session_id": session_id,
-                    "session_name": session_name or f"Batch_{datetime.now().strftime('%Y%m%d_%H%M')}",
-                    "start_time": datetime.now(),
-                    "source_directory": str(source_path),
-                    "total_files": len(files_found),
-                    "file_previews": file_previews,
-                    "batch_groups": batch_groups,
-                    "current_group_index": 0,
-                    "processed_groups": [],
-                    "pending_operations": [],
-                    "user_decisions": [],
-                    "status": "active"
-                }
+            # Group files intelligently (CPU bound, no DB)
+            batch_groups = self._create_intelligent_groups(file_previews)
 
-                self.active_sessions[session_id] = session_data
+            # Create session
+            session_data = {
+                "session_id": session_id,
+                "session_name": session_name or f"Batch_{datetime.now().strftime('%Y%m%d_%H%M')}",
+                "start_time": datetime.now(),
+                "source_directory": str(source_path),
+                "total_files": len(files_found),
+                "file_previews": file_previews,
+                "batch_groups": batch_groups,
+                "current_group_index": 0,
+                "processed_groups": [],
+                "pending_operations": [],
+                "user_decisions": [],
+                "status": "active"
+            }
 
-                # Record session in database (reusing connection)
-                self._record_batch_session(session_data, db_connection=conn)
+            self.active_sessions[session_id] = session_data
+
+            # Record session in database (reusing connection)
+            self._record_batch_session(session_data, db_connection=batch_conn)
+
+            # Commit the batch transaction
+            batch_conn.commit()
 
         except Exception as e:
             self.logger.error(f"Error in batch session initialization: {e}")
             raise
+        finally:
+            if batch_conn:
+                batch_conn.close()
+            if content_conn:
+                content_conn.close()
         
         self.logger.info(f"Batch session {session_id} created with {len(batch_groups)} groups")
         
@@ -385,13 +403,13 @@ class InteractiveBatchProcessor:
         
         return files
 
-    def _generate_file_preview(self, file_path: Path, db_connection: Optional[sqlite3.Connection] = None) -> Optional[FilePreview]:
+    def _generate_file_preview(self, file_path: Path, batch_db_connection: Optional[sqlite3.Connection] = None, content_db_connection: Optional[sqlite3.Connection] = None) -> Optional[FilePreview]:
         """Generate preview for a file"""
         
         try:
             # Check cache first
             file_hash = self._calculate_file_hash(file_path)
-            cached_preview = self._get_cached_preview(str(file_path), file_hash, db_connection)
+            cached_preview = self._get_cached_preview(str(file_path), file_hash, batch_db_connection)
             
             if cached_preview:
                 self.stats["preview_cache_hits"] += 1
@@ -416,7 +434,7 @@ class InteractiveBatchProcessor:
                 
                 elif file_path.suffix.lower() in ['.pdf', '.docx', '.doc', '.pages', '.rtf']:
                     # Use content extractor for documents
-                    extraction_result = self.content_extractor.extract_content(file_path)
+                    extraction_result = self.content_extractor.extract_content(file_path, db_connection=content_db_connection)
                     if extraction_result['success']:
                         content = extraction_result['text']
                         content_preview = content[:self.config["preview_length"]]
@@ -458,7 +476,7 @@ class InteractiveBatchProcessor:
             )
             
             # Cache the preview
-            self._cache_preview(str(file_path), file_hash, preview, db_connection)
+            self._cache_preview(str(file_path), file_hash, preview, batch_db_connection)
             
             return preview
             
