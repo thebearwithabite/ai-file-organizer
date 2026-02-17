@@ -7,11 +7,12 @@ attacks and other file-based vulnerabilities in the AI File Organizer.
 Functions:
     sanitize_filename: Remove path traversal sequences from filenames
     validate_path_within_base: Verify paths stay within allowed directories
+    validate_path_is_safe: Check if a path is within one of the allowed root directories
 """
 import os
 import re
 from pathlib import Path
-from typing import Union
+from typing import Union, List, Optional
 import logging
 
 logger = logging.getLogger(__name__)
@@ -157,6 +158,46 @@ def validate_path_within_base(target_path: Union[Path, str],
         )
         return False
 
+def validate_path_is_safe(target_path: Union[Path, str], allowed_roots: Optional[List[Path]] = None) -> bool:
+    """
+    Check if the target path is within one of the allowed root directories.
+
+    This provides a multi-root validation for systems that allow access to
+    several specific directories (e.g. Downloads, Documents, Mounted Drives).
+
+    Args:
+        target_path: The path to check.
+        allowed_roots: List of allowed root directories. If None, defaults to standard user directories.
+
+    Returns:
+        True if safe (within one of the allowed roots), False otherwise.
+    """
+    if allowed_roots is None:
+        # Default safe roots (user data)
+        try:
+            allowed_roots = [
+                Path.home() / "Downloads",
+                Path.home() / "Desktop",
+                Path.home() / "Documents",
+            ]
+        except Exception:
+            # Fallback for environments without standard home dirs
+            allowed_roots = []
+
+    # If no allowed roots defined, fail secure
+    if not allowed_roots:
+        logger.warning("validate_path_is_safe called with no allowed roots defined")
+        return False
+
+    # Check against each allowed root
+    for root in allowed_roots:
+        # Use warn=False to avoid spamming logs for valid failures (checking next root)
+        if validate_path_within_base(target_path, root, warn=False):
+            return True
+
+    # If we get here, the path is not in any allowed root
+    logger.warning(f"Access denied: Path '{target_path}' is not within any allowed root.")
+    return False
 
 def safe_join_path(base: Union[Path, str], *parts: str) -> Path:
     """
