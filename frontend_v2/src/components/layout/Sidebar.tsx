@@ -1,30 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
-import {
-  Home,
-  FolderOpen,
-  ClipboardList,
-  Search,
-  Film,
-  Eye,
-  RotateCcw,
-  Settings,
-  Copy,
-  ShieldAlert
-} from 'lucide-react'
 import { cn } from '../../lib/utils'
-
-const navItems = [
-  { to: '/', icon: Home, label: 'Dashboard' },
-  { to: '/organize', icon: FolderOpen, label: 'Organize' },
-  { to: '/triage', icon: ClipboardList, label: 'Triage Center' },
-  { to: '/search', icon: Search, label: 'Search' },
-  { to: '/veo', icon: Film, label: 'VEO Studio' },
-  { to: '/analysis', icon: Eye, label: 'Analysis' },
-  { to: '/duplicates', icon: Copy, label: 'Duplicates' },
-  { to: '/forensic-vault', icon: ShieldAlert, label: 'Forensic Vault', highlight: true },
-  { to: '/rollback', icon: RotateCcw, label: 'Rollback Center', highlight: true },
-  { to: '/settings', icon: Settings, label: 'Settings' },
-]
+import { navItems } from '../../lib/navigation'
 
 export default function Sidebar() {
   const location = useLocation()
@@ -48,8 +24,10 @@ export default function Sidebar() {
             <Link
               key={item.to}
               to={item.to}
+              aria-current={isActive ? 'page' : undefined}
+              title={item.label}
               className={cn(
-                "flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-300",
+                "flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-300 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none",
                 isActive
                   ? "bg-primary text-white"
                   : "text-white/60 hover:bg-white/10 hover:text-white",
