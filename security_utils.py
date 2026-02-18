@@ -11,10 +11,14 @@ Functions:
 import os
 import re
 from pathlib import Path
-from typing import Union
+from typing import Union, List
 import logging
+from path_config import PathConfig
 
 logger = logging.getLogger(__name__)
+
+# Instantiate configuration
+paths = PathConfig()
 
 
 def sanitize_filename(filename: str, fallback_prefix: str = "file") -> str:
@@ -204,3 +208,74 @@ def safe_join_path(base: Union[Path, str], *parts: str) -> Path:
         )
 
     return result_path
+
+
+def get_allowed_roots() -> List[Path]:
+    """
+    Get list of allowed root directories for file access.
+
+    Returns:
+        List of Path objects representing safe directories (Documents, Downloads, Desktop)
+    """
+    return [
+        paths.get_path('documents'),
+        paths.get_path('downloads'),
+        paths.get_path('desktop')
+    ]
+
+
+def validate_path_is_safe(path: Union[str, Path]) -> bool:
+    """
+    Validate that a path is safe to access.
+
+    Checks:
+    1. Path is within one of the allowed roots (Documents, Downloads, Desktop)
+    2. Path does not point to a hidden file (starting with .)
+
+    Args:
+        path: Path to validate
+
+    Returns:
+        True if path is safe, False otherwise
+    """
+    try:
+        if isinstance(path, str):
+            path = Path(path)
+
+        # Check for hidden files
+        if path.name.startswith('.'):
+            logger.warning(f"Access denied: Hidden file '{path}'")
+            return False
+
+        # Check against allowed roots
+        allowed_roots = get_allowed_roots()
+        for root in allowed_roots:
+            if validate_path_within_base(path, root, warn=False):
+                return True
+
+        logger.warning(f"Access denied: Path '{path}' is not within any allowed root: {[str(r) for r in allowed_roots]}")
+        return False
+
+    except Exception as e:
+        logger.error(f"Error validating path safety: {e}")
+        return False
+
+
+def validate_path_does_not_start_with_dash(path: str) -> bool:
+    """
+    Validate that path does not start with a dash to prevent command injection flags.
+
+    Args:
+        path: Path string to check
+
+    Returns:
+        True if path is safe (doesn't start with -), False otherwise
+    """
+    if not path:
+        return False
+
+    if str(path).strip().startswith('-'):
+        logger.warning(f"Potential command injection detected: Path starts with dash '{path}'")
+        return False
+
+    return True
