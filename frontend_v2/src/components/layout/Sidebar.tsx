@@ -48,6 +48,7 @@ export default function Sidebar() {
             <Link
               key={item.to}
               to={item.to}
+              aria-current={isActive ? 'page' : undefined}
               className={cn(
                 "flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-300",
                 isActive
