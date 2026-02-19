@@ -354,6 +354,10 @@ class BulletproofDeduplicator:
         if not directory.exists():
             return {"error": f"Directory not found: {directory}"}
         
+        # Resolve to absolute path to ensure cache key consistency
+        # This prevents mismatches between os.scandir entry.path (str) and Path objects
+        directory = directory.resolve()
+
         print(f"🔍 Scanning directory: {directory}")
         print(f"🛡️  Mode: {'EXECUTE' if execute else 'DRY RUN'}")
         
@@ -391,12 +395,13 @@ class BulletproofDeduplicator:
                 if size not in size_groups:
                     size_groups[size] = []
 
-                # Only convert to Path when storing
-                file_path = Path(entry.path)
-                size_groups[size].append(file_path)
+                # Store path as string to delay Path object creation
+                # This significantly reduces memory and CPU for non-duplicate files
+                file_path_str = entry.path
+                size_groups[size].append(file_path_str)
 
                 # Cache stat for later use in this scan session
-                stat_cache[file_path] = stat
+                stat_cache[file_path_str] = stat
 
         except Exception as e:
             print(f"   ❌ Critical error during scan: {e}")
@@ -417,10 +422,13 @@ class BulletproofDeduplicator:
         skipped_files = 0
 
         for size, file_list in size_potential.items():
-            for file_path in file_list:
+            for file_path_str in file_list:
                 processed_count += 1
                 if processed_count % 50 == 0 or processed_count == total_potential_files:
                     print(f"   Progress: {processed_count}/{total_potential_files} files ({((processed_count/total_potential_files)*100):.1f}%)")
+
+                # Create Path object only for potential duplicates
+                file_path = Path(file_path_str)
 
                 # Reuse size from tier 0
                 quick_hash = self.calculate_quick_hash(file_path, file_size=size)
@@ -456,7 +464,7 @@ class BulletproofDeduplicator:
 
                 for file_path in file_list:
                     # Get cached stat if available
-                    stat = stat_cache.get(file_path)
+                    stat = stat_cache.get(str(file_path))
                     f_size = stat.st_size if stat else None
                     f_mtime = stat.st_mtime if stat else None
 
