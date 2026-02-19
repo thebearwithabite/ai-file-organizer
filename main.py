@@ -1033,30 +1033,6 @@ async def scan_custom_folder(request: ScanFolderRequest):
     except HTTPException:
         raise
 
-@app.post("/api/open-file")
-async def open_file(request: OpenFileRequest):
-    """
-    Open a file in the system default application (Finder/Explorer)
-    """
-    try:
-        path = Path(request.path)
-        if not path.exists():
-            raise HTTPException(status_code=404, detail="File not found")
-            
-        # Use 'open' command on macOS
-        subprocess.run(['open', str(path)], check=True)
-        
-        return {"status": "success", "message": f"Opened {path.name}"}
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Failed to open file: {e}")
-        raise HTTPException(status_code=500, detail="Failed to open file")
-    except Exception as e:
-        logger.error(f"Error opening file: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-    except Exception as e:
-        # Security: Log detailed error internally, return generic message to user
-        logger.error(f"Failed to scan custom folder: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="An error occurred while scanning the folder. Please try again later.")
 
 @app.get("/api/triage/projects")
 async def get_known_projects():
@@ -1286,19 +1262,37 @@ async def open_file(request: OpenFileRequest):
         if not file_path:
             raise HTTPException(status_code=400, detail="File path cannot be empty")
         
-        # Convert to Path object for better handling
+        safe_path = file_path
         path_obj = Path(file_path)
+
+        # Check if it looks like a URL
+        is_url = re.match(r'^[a-zA-Z]+://', file_path)
+
+        if not is_url:
+            # It is treated as a file path - validate and resolve
+            try:
+                # Resolve to absolute path to prevent argument injection (starts with /)
+                # This also handles relative paths and symlinks
+                safe_path = str(path_obj.resolve())
+            except Exception as e:
+                logger.warning(f"Failed to resolve path {file_path}: {e}")
+                # Fallback: if resolution fails, at least ensure it doesn't start with dash
+                if file_path.startswith("-"):
+                     raise HTTPException(status_code=400, detail="Invalid path: Cannot start with '-'")
+
+            # Check if file exists (for local files)
+            if not path_obj.exists():
+                logger.warning(f"File to open does not exist: {safe_path}")
         
-        # Check if file exists (for local files)
-        if not path_obj.exists():
-            # For non-existent files, still try to open (might be a URL or special path)
-            # but provide a warning in the response
-            pass
-        
+        # Final security check: Ensure path does not start with dash
+        # This prevents argument injection into the 'open' command
+        if safe_path.startswith("-"):
+             raise HTTPException(status_code=400, detail="Invalid path: Cannot start with '-'")
+
         # Use macOS 'open' command to open the file with default application
         # The 'open' command works with files, URLs, and applications
         result = subprocess.run(
-            ['open', file_path],
+            ['open', safe_path],
             capture_output=True,
             text=True,
             timeout=10  # Prevent hanging
@@ -1328,6 +1322,8 @@ async def open_file(request: OpenFileRequest):
             status_code=500, 
             detail=f"System error opening file: {str(e)}"
         )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=500, 
