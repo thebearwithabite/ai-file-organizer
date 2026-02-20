@@ -90,6 +90,7 @@ export default function RecentActivityFeed() {
               onClick={() => handleUndo(op.operation_id)}
               className="p-2 rounded-lg hover:bg-white/10 transition-colors opacity-0 group-hover:opacity-100"
               title="Undo this operation"
+              aria-label="Undo this operation"
             >
               <RotateCcw size={16} className="text-warning hover:text-warning/80" />
             </button>
