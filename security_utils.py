@@ -11,8 +11,9 @@ Functions:
 import os
 import re
 from pathlib import Path
-from typing import Union
+from typing import Union, List
 import logging
+from path_config import paths
 
 logger = logging.getLogger(__name__)
 
@@ -204,3 +205,95 @@ def safe_join_path(base: Union[Path, str], *parts: str) -> Path:
         )
 
     return result_path
+
+
+def get_allowed_roots() -> List[Path]:
+    """
+    Get list of allowed root directories for file access.
+
+    Returns:
+        List of Path objects representing allowed directories.
+    """
+    allowed = [
+        paths.get_path('documents'),
+        paths.get_path('downloads'),
+        paths.get_path('desktop'),
+        paths.get_path('organizer_base'),
+        paths.get_path('metadata_root'),
+    ]
+    return allowed
+
+
+def validate_path_is_safe(path: Union[str, Path], allow_non_existent: bool = False) -> bool:
+    """
+    Validate that a path is safe to access (within allowed roots).
+
+    This acts as a global firewall for file access, ensuring we never
+    read/write outside user's Documents/Downloads/Desktop or our own app dirs.
+
+    Args:
+        path: Path to validate
+        allow_non_existent: If True, allows paths that don't exist yet (for writing)
+                           If False, requires path to exist (for reading)
+
+    Returns:
+        True if safe, False otherwise
+    """
+    try:
+        if isinstance(path, str):
+            path = Path(path)
+
+        # 1. Basic Existence Check (if required)
+        if not allow_non_existent and not path.exists():
+            # If it doesn't exist, we can't really validate it fully safely usually,
+            # but usually we return False if we expect it to exist.
+            # However, logic downstream might handle 404, so this is nuanced.
+            # But strictly speaking, if we want to read it, it must exist.
+            # Let's verify location even if it doesn't exist (using resolve if parent exists)
+            pass
+
+        # 2. Resolve to absolute path
+        # If file doesn't exist, resolve() still works on most modern Pythons/OSs
+        # to normalize path, but strict=True would raise. Default is strict=False (3.10+).
+        # We need to be careful about symlinks.
+        resolved_path = path.resolve()
+
+        # 3. Check for hidden files (start with .)
+        # We check the name of the file and its parents (relative to root)
+        # But simply checking parts is safer.
+        # Exceptions: We might allow .DS_Store or specific app config files if needed,
+        # but generally hidden files are sensitive.
+        if path.name.startswith('.') and path.name != '.':
+             logger.warning(f"Access denied to hidden file: {path}")
+             return False
+
+        # 4. Check against allowed roots
+        allowed_roots = get_allowed_roots()
+        is_allowed = False
+
+        for root in allowed_roots:
+            # We use the same logic as validate_path_within_base but optimized
+            try:
+                # resolve root too just in case
+                root_abs = root.resolve()
+                if resolved_path.is_relative_to(root_abs):
+                    is_allowed = True
+                    break
+            except (AttributeError, ValueError):
+                # Python < 3.9 fallback or other error
+                try:
+                    resolved_path.relative_to(root_abs)
+                    is_allowed = True
+                    break
+                except ValueError:
+                    continue
+
+        if not is_allowed:
+            logger.warning(f"Path validation failed: {resolved_path} is not in any allowed root: {allowed_roots}")
+            return False
+
+        return True
+
+    except Exception as e:
+        logger.error(f"Error validating path safety for {path}: {e}")
+        return False

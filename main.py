@@ -35,7 +35,7 @@ load_dotenv()
 from api.services import SystemService, SearchService, TriageService
 from api.rollback_service import RollbackService
 from api.veo_prompts_api import router as veo_router, clip_router
-from security_utils import sanitize_filename, validate_path_within_base
+from security_utils import sanitize_filename, validate_path_within_base, validate_path_is_safe
 from gdrive_integration import get_metadata_root, get_ai_organizer_root
 from universal_adaptive_learning import UniversalAdaptiveLearning
 from easy_rollback_system import ensure_rollback_db
@@ -1032,27 +1032,6 @@ async def scan_custom_folder(request: ScanFolderRequest):
         return result
     except HTTPException:
         raise
-
-@app.post("/api/open-file")
-async def open_file(request: OpenFileRequest):
-    """
-    Open a file in the system default application (Finder/Explorer)
-    """
-    try:
-        path = Path(request.path)
-        if not path.exists():
-            raise HTTPException(status_code=404, detail="File not found")
-            
-        # Use 'open' command on macOS
-        subprocess.run(['open', str(path)], check=True)
-        
-        return {"status": "success", "message": f"Opened {path.name}"}
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Failed to open file: {e}")
-        raise HTTPException(status_code=500, detail="Failed to open file")
-    except Exception as e:
-        logger.error(f"Error opening file: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
     except Exception as e:
         # Security: Log detailed error internally, return generic message to user
         logger.error(f"Failed to scan custom folder: {e}", exc_info=True)
@@ -1148,6 +1127,10 @@ async def get_file_content(request: Request, path: str = Query(..., description=
         if file_path.name.startswith('.') or file_path.name.startswith('~'):
              raise HTTPException(status_code=403, detail="Access denied to hidden/system files")
 
+        # Security: Validate path is safe (Rule #1 & Path Traversal Prevention)
+        if not validate_path_is_safe(file_path):
+             raise HTTPException(status_code=403, detail="Access denied: Path is outside allowed directories")
+
         # Determine content type
         import mimetypes
         content_type, _ = mimetypes.guess_type(file_path)
@@ -1171,6 +1154,10 @@ async def get_file_preview_text(path: str = Query(..., description="Absolute pat
         file_path = Path(path)
         if not file_path.exists():
             raise HTTPException(status_code=404, detail="File not found")
+
+        # Security: Validate path is safe (Rule #1 & Path Traversal Prevention)
+        if not validate_path_is_safe(file_path):
+             raise HTTPException(status_code=403, detail="Access denied: Path is outside allowed directories")
 
         # Initialize ContentExtractor
         from content_extractor import ContentExtractor
@@ -1288,9 +1275,17 @@ async def open_file(request: OpenFileRequest):
         
         # Convert to Path object for better handling
         path_obj = Path(file_path)
+
+        # Check for URL
+        is_url = file_path.startswith("http://") or file_path.startswith("https://")
+
+        # Security: Validate path is safe if it's not a URL
+        if not is_url:
+            if not validate_path_is_safe(path_obj):
+                raise HTTPException(status_code=403, detail="Access denied: Path is outside allowed directories")
         
         # Check if file exists (for local files)
-        if not path_obj.exists():
+        if not is_url and not path_obj.exists():
             # For non-existent files, still try to open (might be a URL or special path)
             # but provide a warning in the response
             pass
