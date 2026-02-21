@@ -35,7 +35,7 @@ load_dotenv()
 from api.services import SystemService, SearchService, TriageService
 from api.rollback_service import RollbackService
 from api.veo_prompts_api import router as veo_router, clip_router
-from security_utils import sanitize_filename, validate_path_within_base
+from security_utils import sanitize_filename, validate_path_within_base, validate_path_is_safe
 from gdrive_integration import get_metadata_root, get_ai_organizer_root
 from universal_adaptive_learning import UniversalAdaptiveLearning
 from easy_rollback_system import ensure_rollback_db
@@ -1042,6 +1042,11 @@ async def open_file(request: OpenFileRequest):
         path = Path(request.path)
         if not path.exists():
             raise HTTPException(status_code=404, detail="File not found")
+
+        # Security: Prevent accessing system files
+        if not validate_path_is_safe(path):
+            logger.warning(f"Security blocked open request for: {path}")
+            raise HTTPException(status_code=403, detail="Access denied: File is restricted")
             
         # Use 'open' command on macOS
         subprocess.run(['open', str(path)], check=True)
@@ -1145,8 +1150,9 @@ async def get_file_content(request: Request, path: str = Query(..., description=
             raise HTTPException(status_code=404, detail="File not found")
         
         # Security: Prevent accessing system files
-        if file_path.name.startswith('.') or file_path.name.startswith('~'):
-             raise HTTPException(status_code=403, detail="Access denied to hidden/system files")
+        if not validate_path_is_safe(file_path):
+            logger.warning(f"Security blocked access to: {file_path}")
+            raise HTTPException(status_code=403, detail="Access denied: File is restricted")
 
         # Determine content type
         import mimetypes
@@ -1171,6 +1177,11 @@ async def get_file_preview_text(path: str = Query(..., description="Absolute pat
         file_path = Path(path)
         if not file_path.exists():
             raise HTTPException(status_code=404, detail="File not found")
+
+        # Security: Prevent accessing system files
+        if not validate_path_is_safe(file_path):
+            logger.warning(f"Security blocked preview for: {file_path}")
+            raise HTTPException(status_code=403, detail="Access denied: File is restricted")
 
         # Initialize ContentExtractor
         from content_extractor import ContentExtractor
@@ -1289,6 +1300,11 @@ async def open_file(request: OpenFileRequest):
         # Convert to Path object for better handling
         path_obj = Path(file_path)
         
+        # Security: Prevent accessing system files
+        if not validate_path_is_safe(path_obj):
+            logger.warning(f"Security blocked open request for: {path_obj}")
+            raise HTTPException(status_code=403, detail="Access denied: File is restricted")
+
         # Check if file exists (for local files)
         if not path_obj.exists():
             # For non-existent files, still try to open (might be a URL or special path)
