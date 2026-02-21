@@ -11,10 +11,76 @@ Functions:
 import os
 import re
 from pathlib import Path
-from typing import Union
+from typing import Union, List
 import logging
+from path_config import paths
 
 logger = logging.getLogger(__name__)
+
+
+def get_allowed_roots() -> List[Path]:
+    """
+    Get list of all allowed root directories for file access.
+
+    Returns:
+        List of Path objects representing safe directories:
+        - Documents
+        - Downloads
+        - Desktop
+        - Organizer Base (installation dir)
+        - Metadata Root
+    """
+    return [
+        paths.get_path('documents'),
+        paths.get_path('downloads'),
+        paths.get_path('desktop'),
+        paths.get_path('organizer_base'),
+        paths.get_path('metadata_root')
+    ]
+
+
+def validate_path_is_safe(path: Union[str, Path]) -> bool:
+    """
+    Validate that a path is safe to access.
+
+    A path is considered safe if:
+    1. It is not a hidden file (does not start with . or ~)
+    2. It is contained within one of the allowed root directories
+
+    Args:
+        path: Path to validate
+
+    Returns:
+        True if path is safe, False otherwise
+    """
+    try:
+        if isinstance(path, str):
+            path = Path(path)
+
+        # 1. Check for hidden files (simple check on the name)
+        if path.name.startswith('.') or path.name.startswith('~'):
+            logger.warning(f"Access denied: Hidden file '{path}'")
+            return False
+
+        # 2. Check against allowed roots
+        allowed_roots = get_allowed_roots()
+
+        # We need to resolve the path to handle .. traversal attempts
+        # However, we must be careful: resolve() on a non-existent path might behave differently
+        # depending on OS, but usually it resolves assuming current CWD for relative paths.
+        # Ideally we only validate existing files, but sometimes we validate before creation.
+        # validate_path_within_base handles resolution.
+
+        for root in allowed_roots:
+            if validate_path_within_base(path, root, warn=False):
+                return True
+
+        logger.warning(f"Access denied: Path '{path}' is not in any allowed root.")
+        return False
+
+    except Exception as e:
+        logger.error(f"Error validating path safety for '{path}': {e}")
+        return False
 
 
 def sanitize_filename(filename: str, fallback_prefix: str = "file") -> str:
