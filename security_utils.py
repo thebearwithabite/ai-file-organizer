@@ -13,6 +13,7 @@ import re
 from pathlib import Path
 from typing import Union
 import logging
+from path_config import paths
 
 logger = logging.getLogger(__name__)
 
@@ -204,3 +205,61 @@ def safe_join_path(base: Union[Path, str], *parts: str) -> Path:
         )
 
     return result_path
+
+
+def validate_path_is_safe(target_path: Union[Path, str], warn: bool = True) -> bool:
+    """
+    Verify that a path is within one of the allowed secure root directories.
+
+    This acts as a global safety check for file operations, ensuring files
+    are only accessed from designated user directories (Documents, Downloads,
+    Desktop) or the application's own managed directories.
+
+    Args:
+        target_path: Path to validate
+        warn: Whether to log a warning on validation failure (default: True)
+
+    Returns:
+        True if path is safe (within an allowed root), False otherwise
+    """
+    # Define allowed roots based on configuration
+    allowed_roots = [
+        paths.get_path('documents'),
+        paths.get_path('downloads'),
+        paths.get_path('desktop'),
+        paths.get_path('organizer_base'),
+        paths.get_path('metadata_root')
+    ]
+
+    # Also include any custom monitored paths if available
+    # (Checking environment variable as fallback, mirroring main.py logic)
+    custom_paths = os.getenv("AUTO_MONITOR_PATHS", "")
+    if custom_paths.strip():
+        for p in custom_paths.split(","):
+            if p.strip():
+                try:
+                    allowed_roots.append(Path(os.path.expanduser(p.strip())))
+                except Exception:
+                    pass
+
+    try:
+        if isinstance(target_path, str):
+            target_path = Path(target_path)
+
+        # Handle user expansion if needed (e.g. ~/.config)
+        target_path = target_path.expanduser()
+
+        # Check against each allowed root
+        for root in allowed_roots:
+            # We use warn=False here to avoid spamming logs for each check
+            if validate_path_within_base(target_path, root, warn=False):
+                return True
+
+        if warn:
+            logger.warning(f"SECURITY: Access denied to path outside allowed roots: '{target_path}'")
+
+        return False
+
+    except Exception as e:
+        logger.error(f"Error validating safe path '{target_path}': {e}")
+        return False

@@ -35,7 +35,7 @@ load_dotenv()
 from api.services import SystemService, SearchService, TriageService
 from api.rollback_service import RollbackService
 from api.veo_prompts_api import router as veo_router, clip_router
-from security_utils import sanitize_filename, validate_path_within_base
+from security_utils import sanitize_filename, validate_path_within_base, validate_path_is_safe
 from gdrive_integration import get_metadata_root, get_ai_organizer_root
 from universal_adaptive_learning import UniversalAdaptiveLearning
 from easy_rollback_system import ensure_rollback_db
@@ -1033,31 +1033,6 @@ async def scan_custom_folder(request: ScanFolderRequest):
     except HTTPException:
         raise
 
-@app.post("/api/open-file")
-async def open_file(request: OpenFileRequest):
-    """
-    Open a file in the system default application (Finder/Explorer)
-    """
-    try:
-        path = Path(request.path)
-        if not path.exists():
-            raise HTTPException(status_code=404, detail="File not found")
-            
-        # Use 'open' command on macOS
-        subprocess.run(['open', str(path)], check=True)
-        
-        return {"status": "success", "message": f"Opened {path.name}"}
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Failed to open file: {e}")
-        raise HTTPException(status_code=500, detail="Failed to open file")
-    except Exception as e:
-        logger.error(f"Error opening file: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-    except Exception as e:
-        # Security: Log detailed error internally, return generic message to user
-        logger.error(f"Failed to scan custom folder: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="An error occurred while scanning the folder. Please try again later.")
-
 @app.get("/api/triage/projects")
 async def get_known_projects():
     """
@@ -1148,6 +1123,10 @@ async def get_file_content(request: Request, path: str = Query(..., description=
         if file_path.name.startswith('.') or file_path.name.startswith('~'):
              raise HTTPException(status_code=403, detail="Access denied to hidden/system files")
 
+        # Security: Enforce allowed root directories
+        if not validate_path_is_safe(file_path):
+             raise HTTPException(status_code=403, detail="Access denied: Path is outside allowed directories")
+
         # Determine content type
         import mimetypes
         content_type, _ = mimetypes.guess_type(file_path)
@@ -1172,6 +1151,10 @@ async def get_file_preview_text(path: str = Query(..., description="Absolute pat
         if not file_path.exists():
             raise HTTPException(status_code=404, detail="File not found")
 
+        # Security: Enforce allowed root directories
+        if not validate_path_is_safe(file_path):
+             raise HTTPException(status_code=403, detail="Access denied: Path is outside allowed directories")
+
         # Initialize ContentExtractor
         from content_extractor import ContentExtractor
         extractor = ContentExtractor()
@@ -1184,6 +1167,8 @@ async def get_file_preview_text(path: str = Query(..., description="Absolute pat
             
         return {"text": content['text']}
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error extracting preview text: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to extract preview: {str(e)}")
@@ -1288,6 +1273,10 @@ async def open_file(request: OpenFileRequest):
         
         # Convert to Path object for better handling
         path_obj = Path(file_path)
+
+        # Security: Enforce allowed root directories
+        if not validate_path_is_safe(path_obj):
+             raise HTTPException(status_code=403, detail="Access denied: Path is outside allowed directories")
         
         # Check if file exists (for local files)
         if not path_obj.exists():
@@ -1328,6 +1317,8 @@ async def open_file(request: OpenFileRequest):
             status_code=500, 
             detail=f"System error opening file: {str(e)}"
         )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=500, 
