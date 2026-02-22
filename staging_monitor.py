@@ -246,17 +246,40 @@ class StagingMonitor:
         current_time = datetime.now()
         
         with sqlite3.connect(self.db_path) as conn:
+            # 1. Collect all paths to query in batch
+            all_paths = []
+            for folder_name, files in scan_results.items():
+                for file_info in files:
+                    all_paths.append(file_info["path"])
+
+            # 2. Batch fetch existing records
+            existing_records = {}
+            if all_paths:
+                chunk_size = 900 # SQLite limit safety
+                for i in range(0, len(all_paths), chunk_size):
+                    chunk = all_paths[i:i+chunk_size]
+                    placeholders = ','.join(['?'] * len(chunk))
+                    try:
+                        cursor = conn.execute(
+                            f"SELECT file_path, file_hash, first_seen, size_bytes, last_modified FROM file_tracking WHERE file_path IN ({placeholders})",
+                            chunk
+                        )
+                        for row in cursor:
+                            # Store tuple of (hash, first_seen, size, last_mod)
+                            existing_records[row[0]] = row[1:]
+                    except sqlite3.Error as e:
+                        print(f"Error fetching batch metadata: {e}")
+
+            # 3. Process files using cached metadata
+            new_files_batch = []
+            new_events_batch = []
+
             for folder_name, files in scan_results.items():
                 for file_info in files:
                     file_path = file_info["path"]
                     file_hash = file_info.get("hash")
                     
-                    # Check if file exists in tracking
-                    cursor = conn.execute(
-                        "SELECT file_hash, first_seen, size_bytes, last_modified FROM file_tracking WHERE file_path = ?",
-                        (file_path,)
-                    )
-                    existing = cursor.fetchone()
+                    existing = existing_records.get(file_path)
                     
                     if existing:
                         db_hash, db_first_seen, db_size, db_last_mod_str = existing
@@ -267,7 +290,13 @@ class StagingMonitor:
                             try:
                                 # Handle case where last_modified might be None or invalid
                                 if db_last_mod_str:
-                                    db_last_mod = datetime.fromisoformat(str(db_last_mod_str))
+                                    # Handle both string and datetime objects (if adapter used)
+                                    if isinstance(db_last_mod_str, str):
+                                        db_last_mod = datetime.fromisoformat(db_last_mod_str)
+                                    elif isinstance(db_last_mod_str, datetime):
+                                        db_last_mod = db_last_mod_str
+                                    else:
+                                        db_last_mod = datetime.min
                                 else:
                                     db_last_mod = datetime.min
                             except Exception:
@@ -301,20 +330,28 @@ class StagingMonitor:
                         if file_hash is None:
                             file_hash = self._get_file_hash(Path(file_path))
 
-                        conn.execute("""
-                            INSERT INTO file_tracking 
-                            (file_path, file_hash, first_seen, last_modified, size_bytes, folder_location)
-                            VALUES (?, ?, ?, ?, ?, ?)
-                        """, (
+                        # Add to batch for later insertion
+                        new_files_batch.append((
                             file_path, file_hash, current_time, current_time,
                             file_info["size"], folder_name
                         ))
                         
-                        # Log new file event
-                        conn.execute("""
-                            INSERT INTO staging_events (file_path, event_type, event_data)
-                            VALUES (?, 'discovered', ?)
-                        """, (file_path, json.dumps({"folder": folder_name})))
+                        new_events_batch.append((
+                            file_path, json.dumps({"folder": folder_name})
+                        ))
+
+            # 4. Batch insert new files
+            if new_files_batch:
+                conn.executemany("""
+                    INSERT INTO file_tracking
+                    (file_path, file_hash, first_seen, last_modified, size_bytes, folder_location)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                """, new_files_batch)
+
+                conn.executemany("""
+                    INSERT INTO staging_events (file_path, event_type, event_data)
+                    VALUES (?, 'discovered', ?)
+                """, new_events_batch)
     
     def get_files_ready_for_organization(self) -> List[Dict]:
         """Get files that have been in staging for 7+ days"""
