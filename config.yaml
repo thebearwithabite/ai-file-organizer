@@ -1,0 +1,23 @@
+storage:
+  root: /Volumes/GoogleDrive/My Drive
+  metadata: ~/.ai-file-organizer
+  staging: ~/.ai-file-organizer/staging
+
+monitor:
+  paths:
+    - ~/Downloads
+    - ~/Desktop
+  interval_seconds: 5
+
+gdrive:
+  enabled: true
+
+confidence:
+  mode: SMART
+
+server:
+  host: 0.0.0.0
+  port: 8000
+
+plugins:
+  enabled: []

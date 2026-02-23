@@ -11,7 +11,8 @@ import os
 import time
 import json
 import logging
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 from datetime import datetime
@@ -57,7 +58,7 @@ class SemanticTextAnalyzer:
             # 1. Try provided key
             if api_key:
                 logger.info("Using provided API key for Gemini")
-                genai.configure(api_key=api_key)
+                self.client = genai.Client(api_key=api_key)
                 self.api_initialized = True
                 return
 
@@ -65,7 +66,7 @@ class SemanticTextAnalyzer:
             env_key = os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY')
             if env_key:
                 logger.info("Using API key from environment (GEMINI_API_KEY/GOOGLE_API_KEY)")
-                genai.configure(api_key=env_key)
+                self.client = genai.Client(api_key=env_key)
                 self.api_initialized = True
                 return
 
@@ -82,7 +83,7 @@ class SemanticTextAnalyzer:
                         key = f.read().strip()
                         if key:
                             logger.info(f"Using API key from config file: {user_config_path}")
-                            genai.configure(api_key=key)
+                            self.client = genai.Client(api_key=key)
                             self.api_initialized = True
                             return
                 except Exception as e:
@@ -95,7 +96,7 @@ class SemanticTextAnalyzer:
                 with open(config_path, 'r') as f:
                     config = json.load(f)
                     if config.get('api_key'):
-                        genai.configure(api_key=config['api_key'])
+                        self.client = genai.Client(api_key=config['api_key'])
                         self.api_initialized = True
                         return
 
@@ -182,10 +183,12 @@ class SemanticTextAnalyzer:
         try:
             self._wait_for_rate_limit()
             
-            model = genai.GenerativeModel(self.model_name)
-            response = model.generate_content(
-                prompt,
-                generation_config={"response_mime_type": "application/json"}
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json"
+                )
             )
             
             result = json.loads(response.text)

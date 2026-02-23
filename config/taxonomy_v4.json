@@ -1,0 +1,230 @@
+{
+    "version": "4.0",
+    "updated": "2026-01-26",
+    "root_structure": {
+        "00_INBOX": {
+            "purpose": "Single entry point for all unsorted files",
+            "subfolders": [
+                "Manual_Review",
+                "Downloads_Triage",
+                "Quick_Capture"
+            ]
+        },
+        "01_TALENT_MANAGEMENT": {
+            "purpose": "Client work and business operations",
+            "subfolders": [
+                "Active_Clients",
+                "Archived_Clients",
+                "Financial",
+                "Legal",
+                "Admin"
+            ]
+        },
+        "02_CREATIVE_PROJECTS": {
+            "purpose": "Personal creative work",
+            "subfolders": [
+                "The_Papers_That_Dream",
+                "This_Isnt_Real",
+                "Alignment_Clinic",
+                "Other_Creative"
+            ]
+        },
+        "03_SOUND_LIBRARY": {
+            "purpose": "Reusable audio assets",
+            "subfolders": [
+                "SFX",
+                "Music_Beds",
+                "Foley",
+                "Voice_Samples",
+                "_Unsorted"
+            ]
+        },
+        "04_VISUAL_ASSETS": {
+            "purpose": "Screenshots, images, video clips",
+            "subfolders": [
+                "Screenshots",
+                "Stock_Images",
+                "Video_Clips"
+            ]
+        },
+        "05_DEVELOPMENT": {
+            "purpose": "Code projects and tools",
+            "subfolders": [
+                "AI_File_Organizer",
+                "VEO_Prompt_Machine",
+                "Notebooks",
+                "Scripts",
+                "Archives"
+            ]
+        },
+        "07_REFERENCE": {
+            "purpose": "Templates, research, documentation",
+            "subfolders": [
+                "Templates",
+                "Research",
+                "Manuals",
+                "Documentation",
+                "Tutorials"
+            ]
+        },
+        "98_OBSIDIAN_VAULT": {
+            "purpose": "Markdown notes - EXCLUDED from processing",
+            "excluded": true
+        },
+        "99_ARCHIVE": {
+            "purpose": "Cold storage for completed/inactive items",
+            "subfolders": [
+                "By_Year",
+                "By_Project",
+                "Legacy"
+            ]
+        }
+    },
+    "project_registry": {
+        "the_papers_that_dream": {
+            "path": "02_CREATIVE_PROJECTS/The_Papers_That_Dream",
+            "aliases": [
+                "ptd",
+                "papers",
+                "dream",
+                "papers that dream"
+            ],
+            "episode_prefix": "EP",
+            "subfolders": [
+                "Audio/VOX",
+                "Audio/Production_WIP",
+                "Audio/Masters",
+                "Scripts_Drafts",
+                "Visual_Assets",
+                "Promotion"
+            ]
+        },
+        "this_isnt_real": {
+            "path": "02_CREATIVE_PROJECTS/This_Isnt_Real",
+            "aliases": [
+                "tir",
+                "isnt real",
+                "this isnt real"
+            ],
+            "chapter_prefix": "CH",
+            "interlude_prefix": "INT"
+        },
+        "alignment_clinic": {
+            "path": "02_CREATIVE_PROJECTS/Alignment_Clinic",
+            "aliases": [
+                "clinic",
+                "alignment"
+            ]
+        },
+        "ai_file_organizer": {
+            "path": "05_DEVELOPMENT/AI_File_Organizer",
+            "aliases": [
+                "organizer",
+                "file organizer",
+                "antigravity"
+            ]
+        },
+        "veo_prompt_machine": {
+            "path": "05_DEVELOPMENT/VEO_Prompt_Machine",
+            "aliases": [
+                "veo",
+                "prompt machine",
+                "vpm"
+            ]
+        }
+    },
+    "client_registry": {
+        "finn_wolfhard": {
+            "path": "01_TALENT_MANAGEMENT/Active_Clients/Wolfhard_Finn",
+            "aliases": [
+                "finn",
+                "wolfhard"
+            ],
+            "subfolders": [
+                "01_Contracts",
+                "02_Finance",
+                "03_Projects",
+                "04_Communications",
+                "05_Media_Assets"
+            ]
+        },
+        "eric_wolfhard": {
+            "path": "01_TALENT_MANAGEMENT/Active_Clients/Wolfhard_Eric",
+            "aliases": [
+                "eric"
+            ]
+        },
+        "melissa_collazo": {
+            "path": "01_TALENT_MANAGEMENT/Active_Clients/Collazo_Melissa",
+            "aliases": [
+                "melissa",
+                "collazo"
+            ]
+        },
+        "bzhaun_rhoden": {
+            "path": "01_TALENT_MANAGEMENT/Active_Clients/Rhoden_Bzhaun",
+            "aliases": [
+                "bzhaun",
+                "rhoden"
+            ]
+        }
+    },
+    "routing_rules": {
+        "screenshot": {
+            "immediate_action": "rename_in_place",
+            "cooloff_days": 7,
+            "final_destination": "04_VISUAL_ASSETS/Screenshots"
+        },
+        "audio_unidentified": {
+            "destination": "03_SOUND_LIBRARY/_Unsorted"
+        },
+        "audio_project": {
+            "destination": "{project_path}/Audio"
+        },
+        "contract_client": {
+            "destination": "{client_path}/01_Contracts"
+        },
+        "contract_general": {
+            "destination": "01_TALENT_MANAGEMENT/Legal"
+        },
+        "financial_client": {
+            "destination": "{client_path}/02_Finance"
+        },
+        "financial_general": {
+            "destination": "01_TALENT_MANAGEMENT/Financial"
+        },
+        "unknown": {
+            "destination": "00_INBOX/Manual_Review"
+        }
+    },
+    "naming_conventions": {
+        "folders": "Title_Case_Underscores",
+        "episodes": "EP{##}_Title",
+        "chapters": "CH{##}_Title",
+        "interludes": "INT{##}_Title",
+        "screenshots": "{YYYY-MM-DD}_SS_{keyword1}_{keyword2}_{keyword3}",
+        "clients": "LastName_FirstName",
+        "forbidden_chars": [
+            ":",
+            "!",
+            "?",
+            "'",
+            "\""
+        ]
+    },
+    "confidence_thresholds": {
+        "auto_move": 0.65,
+        "auto_rename": 0.50,
+        "manual_review": 0.65,
+        "screenshot_immediate_rename": 0.40
+    },
+    "excluded_patterns": [
+        "*_NOAI",
+        "*_NOAI/*",
+        "*_EXCLUDE",
+        "*_EXCLUDE/*",
+        "98_OBSIDIAN_VAULT/*",
+        ".DS_Store",
+        "*.tmp"
+    ]
+}

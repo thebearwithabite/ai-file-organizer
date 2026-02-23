@@ -170,7 +170,7 @@ export default function Triage() {
   // Derive categories from taxonomy, grouped by parent_path
   const categories = useMemo(() => {
     if (!taxonomyData) return []
-    
+
     return Object.entries(taxonomyData).map(([id, cat], index) => ({
       value: id,
       label: cat.display_name,
@@ -383,10 +383,35 @@ export default function Triage() {
                     >
                       {categories.map((cat) => (
                         <option key={cat.value} value={cat.value} className="bg-gray-900">
-                          {cat.label}
+                          {cat.parent ? `${cat.parent} > ` : ''}{cat.label}
                         </option>
                       ))}
                     </select>
+
+                    {/* Destination Preview */}
+                    <div className="mt-3 p-3 bg-white/5 border border-white/10 rounded-xl">
+                      <div className="flex items-start gap-2 text-sm text-white/80 break-all">
+                        <span className="shrink-0 mt-0.5">📁 →</span>
+                        <span>
+                          {(() => {
+                            const curCatVal = selectedCategory[file.file_id] || file.classification.category
+                            const catData = taxonomyData?.[curCatVal]
+                            const curProj = projectInput[file.file_id] || ''
+                            const curEp = episodeInput[file.file_id] || ''
+
+                            if (!catData) return "Unknown Destination"
+
+                            const parts = ['Google Drive']
+                            if (catData.parent_path) parts.push(catData.parent_path)
+                            if (curProj) parts.push(curProj)
+                            if (curEp) parts.push(curEp)
+                            parts.push(catData.folder_name)
+                            parts.push(file.file_name)
+                            return parts.join(' / ')
+                          })()}
+                        </span>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Hierarchical Organization (Optional) */}
@@ -406,7 +431,7 @@ export default function Triage() {
                         className="w-full px-3 py-2 bg-white/5 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 placeholder:text-white/30"
                       />
                       <datalist id={`projects-${file.file_id}`}>
-                        {knownProjects?.projects.map((p) => (
+                        {knownProjects?.projects?.map((p: any) => (
                           <option key={p.id} value={p.name} />
                         ))}
                       </datalist>
@@ -416,11 +441,22 @@ export default function Triage() {
                       <label className="text-xs text-white/50 mb-1 block">Episode/Version</label>
                       <input
                         type="text"
+                        list={`episodes-${file.file_id}`}
                         value={episodeInput[file.file_id] || ''}
                         onChange={(e) => setEpisodeInput({ ...episodeInput, [file.file_id]: e.target.value })}
                         placeholder="e.g., Episode_02_AttentionIsland"
                         className="w-full px-3 py-2 bg-white/5 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 placeholder:text-white/30"
                       />
+                      <datalist id={`episodes-${file.file_id}`}>
+                        {(() => {
+                          const curProj = projectInput[file.file_id]
+                          if (!curProj || !knownProjects?.projects) return null
+                          const projData = knownProjects.projects.find((p: any) => p.name === curProj)
+                          return projData?.subfolders?.map((sub: string) => (
+                            <option key={sub} value={sub} />
+                          ))
+                        })()}
+                      </datalist>
                     </div>
 
                     <div className="text-xs text-white/40 italic">
