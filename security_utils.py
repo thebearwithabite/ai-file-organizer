@@ -13,6 +13,7 @@ import re
 from pathlib import Path
 from typing import Union
 import logging
+from path_config import paths
 
 logger = logging.getLogger(__name__)
 
@@ -204,3 +205,65 @@ def safe_join_path(base: Union[Path, str], *parts: str) -> Path:
         )
 
     return result_path
+
+
+def validate_path_is_safe(target_path: Union[str, Path], warn: bool = True) -> bool:
+    """
+    Verify that a path is within one of the allowed secure roots.
+
+    Allowed roots are:
+    - Documents
+    - Downloads
+    - Desktop
+    - Metadata Root (for internal ops)
+    - Organizer Base (for static assets)
+
+    Explicitly DENIED:
+    - Root (/)
+    - Home (~) (except specific subfolders above)
+    - System directories (/etc, /var, etc.)
+    - Hidden files/directories (starting with .)
+
+    Args:
+        target_path: Path to check
+        warn: Whether to log warning on failure
+
+    Returns:
+        True if path is safe, False otherwise
+    """
+    try:
+        if isinstance(target_path, str):
+            target_path = Path(target_path)
+
+        target_abs = target_path.resolve()
+
+        # 1. Check for hidden files/directories (basic check)
+        # We iterate parts to check if any parent is hidden
+        for part in target_abs.parts:
+            if part.startswith('.') and part not in ['.', '..']:
+                if warn:
+                    logger.warning(f"Access denied to hidden path: {target_abs}")
+                return False
+
+        # 2. Check against allowed roots
+        allowed_roots = [
+            paths.get_path('documents'),
+            paths.get_path('downloads'),
+            paths.get_path('desktop'),
+            paths.get_path('metadata_root'),
+            paths.get_path('organizer_base')
+        ]
+
+        for root in allowed_roots:
+            # We use our existing robust validation function
+            if validate_path_within_base(target_abs, root, warn=False):
+                return True
+
+        if warn:
+            logger.warning(f"Path '{target_path}' denied. Not within allowed roots.")
+
+        return False
+
+    except Exception as e:
+        logger.error(f"Error validating path safety: {e}")
+        return False
