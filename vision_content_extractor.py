@@ -110,7 +110,8 @@ Perfect for organizing Papers That Dream podcast content and other creative work
     def _init_gemini_client(self):
         """Initialize Gemini API client"""
         try:
-            import google.generativeai as genai
+            from google import genai
+            from google.genai import types
             
             # Get API key from environment
             api_key = os.getenv('GOOGLE_API_KEY') or os.getenv('GEMINI_API_KEY')
@@ -119,17 +120,14 @@ Perfect for organizing Papers That Dream podcast content and other creative work
                 print("   Set GOOGLE_API_KEY or GEMINI_API_KEY to enable vision analysis")
                 return
             
-            genai.configure(api_key=api_key)
-            
-            # Use Gemini 2.5 Flash for optimal speed and cost
-            self.model = genai.GenerativeModel('gemini-2.5-flash')
-            self.client = genai
+            self.client = genai.Client(api_key=api_key)
+            self.model_name = 'gemini-2.5-flash'
             
             print("✅ Gemini 2.5 Flash vision analysis initialized")
             
         except ImportError:
-            print("⚠️ Google GenerativeAI library not installed")
-            print("   Run: pip install google-generativeai")
+            print("⚠️ google-genai library not installed")
+            print("   Run: pip install google-genai")
         except Exception as e:
             print(f"⚠️ Error initializing Gemini client: {e}")
     
@@ -241,11 +239,15 @@ Perfect for organizing Papers That Dream podcast content and other creative work
                 "data": image_data
             }
             
+            from google.genai import types
             # Call Gemini API
-            response = self.model.generate_content([
-                prompt,
-                image_part
-            ])
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=[
+                    prompt,
+                    types.Part.from_bytes(data=image_part["data"], mime_type=image_part["mime_type"])
+                ]
+            )
             
             # Parse response
             analysis_text = response.text
@@ -262,13 +264,13 @@ Perfect for organizing Papers That Dream podcast content and other creative work
             video_to_analyze = self._prepare_video_for_analysis(file_path)
             
             # Upload video file (either original or sample)
-            video_file = self.client.upload_file(str(video_to_analyze))
+            video_file = self.client.files.upload(file=str(video_to_analyze))
             
             # Wait for processing
             while video_file.state.name == "PROCESSING":
                 print("📹 Processing video..." + (" (sample)" if video_to_analyze != file_path else ""))
                 time.sleep(2)
-                video_file = self.client.get_file(video_file.name)
+                video_file = self.client.files.get(name=video_file.name)
             
             if video_file.state.name == "FAILED":
                 raise Exception("Video processing failed")
@@ -288,10 +290,13 @@ Focus on details that would help with project categorization and file organizati
 """
             
             # Analyze video
-            response = self.model.generate_content([
-                video_prompt,
-                video_file
-            ])
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=[
+                    video_prompt,
+                    video_file
+                ]
+            )
             
             analysis_text = response.text
             result = self._parse_analysis_response(analysis_text, file_path, 'video')

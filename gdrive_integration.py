@@ -20,15 +20,20 @@ from typing import Optional, List, Dict, Any, Tuple
 # Load .env.local if it exists (simple manual loader, no dependencies)
 def _load_env_file(env_path: Path):
     """Load environment variables from .env file"""
-    if env_path.exists():
-        with open(env_path, 'r') as f:
-            for line in f:
-                line = line.strip()
-                if line and not line.startswith('#') and '=' in line:
-                    key, value = line.split('=', 1)
-                    # Remove quotes if present
-                    value = value.strip('"').strip("'")
-                    os.environ[key] = value
+    try:
+        if env_path.exists():
+            with open(env_path, 'r') as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith('#') and '=' in line:
+                        key, value = line.split('=', 1)
+                        # Remove quotes if present
+                        value = value.strip('"').strip("'")
+                        os.environ[key] = value
+    except PermissionError:
+        print(f"⚠️  PermissionError reading {env_path}, skipping.")
+    except Exception as e:
+        print(f"⚠️  Error reading {env_path}: {e}")
 
 # Try to load .env.local from project root
 _project_root = Path(__file__).parent

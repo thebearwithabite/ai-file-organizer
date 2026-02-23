@@ -193,10 +193,10 @@ Based on 41 agent sessions (1,274 logged artifacts), PM thread analysis, and git
 
 These are codified in `SYSTEM_MANUAL.md` and enforced through hard-won experience:
 
-1. **Metadata Locality:** All databases (SQLite, ChromaDB) must live in `~/Documents/AI_METADATA_SYSTEM`. NEVER in Google Drive or any cloud-synced directory. Use `get_metadata_root()`.
-2. **Supabase Is Truth:** Supabase state always overrides SQLite caches, JSON sidecars, and filesystem inference.
-3. **Fail-Fast on Storage:** If a safe local database path cannot be established, the system must crash immediately. No silent fallback.
-4. **Trash, Don't Delete:** All destructive operations go through `safe_file_recycling.py` with recovery logging.
+       1. **Metadata Locality:** All databases (SQLite, ChromaDB) must live in `~/Documents/AI_METADATA_SYSTEM`. NEVER in Google Drive or any cloud-synced directory. Use `get_metadata_root()`.
+       2. **Supabase Is Truth:** Supabase state always overrides SQLite caches, JSON sidecars, and filesystem inference.
+       3. **Fail-Fast on Storage:** If a safe local database path cannot be established, the system must crash immediately. No silent fallback.
+       4. **Trash, Don't Delete:** All destructive operations go through `safe_file_recycling.py` with recovery logging.
 5. **Always Log:** Every file move or rename must be logged to `EasyRollbackSystem`.
 6. **Confidence Gating:** Only auto-organize at ≥ 0.90 confidence. Everything else → Review Queue for human review.
 7. **No Legacy Paths:** Never allow live references to the old `04_METADATA_SYSTEM` path.

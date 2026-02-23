@@ -1,0 +1,280 @@
+{
+  "version": "3.0",
+  "categories": {
+    "audio_vox": {
+      "id": "audio_vox",
+      "display_name": "VOX",
+      "folder_name": "VOX",
+      "parent_path": "Projects",
+      "path_fingerprint": "Projects/VOX",
+      "locked": false,
+      "keywords": [
+        "recording",
+        "voice",
+        "dialogue",
+        "vox"
+      ],
+      "extensions": [
+        ".wav",
+        ".mp3",
+        ".aiff"
+      ],
+      "confidence": 0.85
+    },
+    "audio_sfx": {
+      "id": "audio_sfx",
+      "display_name": "SFX",
+      "folder_name": "SFX",
+      "parent_path": "Projects",
+      "path_fingerprint": "Projects/SFX",
+      "locked": false,
+      "keywords": [
+        "sfx",
+        "sound effect",
+        "foley"
+      ],
+      "extensions": [
+        ".wav",
+        ".mp3",
+        ".aiff"
+      ],
+      "confidence": 0.85
+    },
+    "audio_music": {
+      "id": "audio_music",
+      "display_name": "Music",
+      "folder_name": "Music",
+      "parent_path": "Projects",
+      "path_fingerprint": "Projects/Music",
+      "locked": false,
+      "keywords": [
+        "theme",
+        "music",
+        "score",
+        "loop"
+      ],
+      "extensions": [
+        ".wav",
+        ".mp3",
+        ".aiff"
+      ],
+      "confidence": 0.85
+    },
+    "creative_video": {
+      "id": "creative_video",
+      "display_name": "Video",
+      "folder_name": "Video",
+      "parent_path": "Projects",
+      "path_fingerprint": "Projects/Video",
+      "locked": false,
+      "keywords": [
+        "video",
+        "footage",
+        "clip",
+        "render"
+      ],
+      "extensions": [
+        ".mp4",
+        ".mov",
+        ".avi",
+        ".mkv"
+      ],
+      "confidence": 0.8
+    },
+    "tech_literature": {
+      "id": "tech_literature",
+      "display_name": "Literature",
+      "folder_name": "Literature",
+      "parent_path": "Technology",
+      "path_fingerprint": "Technology/Literature",
+      "locked": false,
+      "aliases": [
+        "Papers",
+        "Books"
+      ],
+      "keywords": [
+        "journal",
+        "paper",
+        "research",
+        "whitepaper"
+      ],
+      "extensions": [
+        ".pdf"
+      ],
+      "confidence": 0.7
+    },
+    "tech_reference": {
+      "id": "tech_reference",
+      "display_name": "Reference Materials",
+      "folder_name": "Reference Materials",
+      "parent_path": "Technology",
+      "path_fingerprint": "Technology/Reference Materials",
+      "locked": false,
+      "aliases": [
+        "Docs",
+        "Manuals"
+      ],
+      "keywords": [
+        "manual",
+        "documentation",
+        "guide"
+      ],
+      "extensions": [
+        ".md",
+        ".txt"
+      ],
+      "confidence": 0.6
+    },
+    "biz_contracts": {
+      "id": "biz_contracts",
+      "display_name": "Contracts",
+      "folder_name": "Contracts",
+      "parent_path": "Business Management",
+      "path_fingerprint": "Business Management/Contracts",
+      "locked": false,
+      "aliases": [
+        "agreement",
+        "NDA"
+      ],
+      "keywords": [
+        "contract",
+        "agreement",
+        "nda",
+        "terms"
+      ],
+      "extensions": [
+        ".pdf"
+      ],
+      "confidence": 0.9
+    },
+    "biz_financials": {
+      "id": "biz_financials",
+      "display_name": "Financials",
+      "folder_name": "Financials",
+      "parent_path": "Business Management",
+      "path_fingerprint": "Business Management/Financials",
+      "locked": false,
+      "aliases": [
+        "Accounting",
+        "Invoices"
+      ],
+      "keywords": [
+        "invoice",
+        "receipt",
+        "payment",
+        "billing",
+        "budget"
+      ],
+      "extensions": [
+        ".xlsx",
+        ".xls",
+        ".csv",
+        ".pdf"
+      ],
+      "confidence": 0.85
+    },
+    "fin_taxes": {
+      "id": "fin_taxes",
+      "display_name": "Taxes",
+      "folder_name": "Taxes",
+      "parent_path": "Financials",
+      "path_fingerprint": "Financials/Taxes",
+      "locked": false,
+      "aliases": [
+        "IRS",
+        "Tax_Returns"
+      ],
+      "keywords": [
+        "tax",
+        "1099",
+        "w2",
+        "deduction"
+      ],
+      "extensions": [
+        ".pdf"
+      ],
+      "confidence": 0.95
+    },
+    "fin_receipts": {
+      "id": "fin_receipts",
+      "display_name": "Receipts & Memberships",
+      "folder_name": "Receipts/Memberships/Etc.",
+      "parent_path": "Financials",
+      "path_fingerprint": "Financials/Receipts_Memberships",
+      "locked": false,
+      "aliases": [],
+      "keywords": [
+        "receipt",
+        "subscription",
+        "membership"
+      ],
+      "extensions": [
+        ".pdf",
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".heic",
+        ".webp"
+      ],
+      "confidence": 0.8
+    },
+    "personal_identity": {
+      "id": "personal_identity",
+      "display_name": "Identity",
+      "folder_name": "Identity",
+      "parent_path": "Personal",
+      "path_fingerprint": "Personal/Identity",
+      "locked": false,
+      "aliases": [
+        "Passport",
+        "ID"
+      ],
+      "keywords": [
+        "passport",
+        "id card",
+        "license",
+        "birth certificate"
+      ],
+      "extensions": [
+        ".pdf",
+        ".jpg"
+      ],
+      "confidence": 0.95
+    },
+    "personal_photos": {
+      "id": "personal_photos",
+      "display_name": "Photos",
+      "folder_name": "Photos",
+      "parent_path": "Personal",
+      "path_fingerprint": "Personal/Photos",
+      "locked": false,
+      "keywords": [
+        "birthday",
+        "family",
+        "vacation"
+      ],
+      "extensions": [
+        ".jpg",
+        ".png",
+        ".heic"
+      ],
+      "confidence": 0.7
+    },
+    "personal_documents": {
+      "id": "personal_documents",
+      "display_name": "Documents",
+      "folder_name": "documents",
+      "parent_path": "Personal",
+      "path_fingerprint": "Personal/documents",
+      "locked": false,
+      "aliases": [],
+      "keywords": [],
+      "extensions": [
+        ".pdf",
+        ".docx",
+        ".pages"
+      ],
+      "confidence": 0.5
+    }
+  }
+}
