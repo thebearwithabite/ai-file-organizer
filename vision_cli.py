@@ -157,7 +157,7 @@ def setup_api_key():
     print("   export GEMINI_API_KEY='your-api-key-here'")
     print()
     print("4. Install the required library:")
-    print("   pip install google-generativeai")
+    print("   pip install google-genai")
     print()
     print("💰 Pricing: ~$0.005 per minute of video, ~$0.50 per 100 images")
     print("🚀 Includes: Gemini 2.5 Flash with image + video analysis")

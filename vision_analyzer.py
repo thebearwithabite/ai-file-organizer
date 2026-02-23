@@ -25,8 +25,8 @@ import threading
 from gdrive_integration import get_ai_organizer_root, get_metadata_root
 
 try:
-    import google.generativeai as genai
-    from google.generativeai.types import HarmCategory, HarmBlockThreshold
+    from google import genai
+    from google.genai import types
     GEMINI_AVAILABLE = True
 except ImportError:
     GEMINI_AVAILABLE = False
@@ -319,11 +319,11 @@ Return a valid JSON object with this structure:
     def _initialize_api(self):
         """Initialize Gemini API client"""
         try:
-            genai.configure(api_key=self.api_key)
+            self.client = genai.Client(api_key=self.api_key)
 
             # Use Gemini 2.0 Flash for speed and cost efficiency
             # (can upgrade to gemini-2.5-pro for higher quality if needed)
-            self.model = genai.GenerativeModel('gemini-2.0-flash')
+            self.model_name = 'gemini-2.0-flash'
 
             self.api_initialized = True
             self.logger.info("Gemini API initialized successfully")
@@ -623,14 +623,29 @@ Return a valid JSON object with this structure:
                 )
             else:
                 # Gemini API call
-                response = self.model.generate_content(
-                    [prompt, image],
-                    safety_settings={
-                        HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
-                        HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
-                        HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
-                        HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-                    }
+                response = self.client.models.generate_content(
+                    model=self.model_name,
+                    contents=[prompt, image],
+                    config=types.GenerateContentConfig(
+                        safety_settings=[
+                            types.SafetySetting(
+                                category=types.HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+                                threshold=types.HarmBlockThreshold.BLOCK_NONE,
+                            ),
+                            types.SafetySetting(
+                                category=types.HarmCategory.HARM_CATEGORY_HARASSMENT,
+                                threshold=types.HarmBlockThreshold.BLOCK_NONE,
+                            ),
+                            types.SafetySetting(
+                                category=types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+                                threshold=types.HarmBlockThreshold.BLOCK_NONE,
+                            ),
+                            types.SafetySetting(
+                                category=types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+                                threshold=types.HarmBlockThreshold.BLOCK_NONE,
+                            ),
+                        ]
+                    )
                 )
 
             # Parse response
@@ -791,14 +806,29 @@ Return a valid JSON object with this structure:
                     }
                 )
             else:
-                response = self.model.generate_content(
-                    [self.SCREENSHOT_TEXT_PROMPT, image],
-                    safety_settings={
-                        HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
-                        HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
-                        HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
-                        HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-                    }
+                response = self.client.models.generate_content(
+                    model=self.model_name,
+                    contents=[self.SCREENSHOT_TEXT_PROMPT, image],
+                    config=types.GenerateContentConfig(
+                        safety_settings=[
+                            types.SafetySetting(
+                                category=types.HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+                                threshold=types.HarmBlockThreshold.BLOCK_NONE,
+                            ),
+                            types.SafetySetting(
+                                category=types.HarmCategory.HARM_CATEGORY_HARASSMENT,
+                                threshold=types.HarmBlockThreshold.BLOCK_NONE,
+                            ),
+                            types.SafetySetting(
+                                category=types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+                                threshold=types.HarmBlockThreshold.BLOCK_NONE,
+                            ),
+                            types.SafetySetting(
+                                category=types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+                                threshold=types.HarmBlockThreshold.BLOCK_NONE,
+                            ),
+                        ]
+                    )
                 )
 
             return response.text.strip()
@@ -973,11 +1003,13 @@ Return a valid JSON object with this structure:
 
             return result
 
+            return result
+
         except Exception as e:
             self.logger.error(f"Error analyzing video {video_path_obj.name}: {e}")
             return {
                 'success': False,
-                'error': str(e),
+                'error': f'TODO: complete genai migration ({str(e)})',
                 'content_type': 'video',
                 'description': '',
                 'confidence_score': 0.0
@@ -1041,7 +1073,9 @@ Return a valid JSON object with this structure:
                 self.logger.warning(f"PIL processing failed, using direct upload: {e}")
 
         # Fallback: direct file upload
-        return genai.upload_file(str(image_path))
+        if not self.use_vertex:
+            return self.client.files.upload(file=str(image_path))
+        raise NotImplementedError("Direct file upload requires Gemini Client")
 
     def _parse_image_analysis(self, analysis_text: str, image_path: Path) -> Dict[str, Any]:
         """Parse Gemini's image analysis response into structured data"""
