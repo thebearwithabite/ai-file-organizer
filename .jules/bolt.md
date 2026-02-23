@@ -25,3 +25,7 @@
 ## 2025-09-09 - [Eliminating Redundant I/O in Directory Scans]
 **Learning:** Repeatedly checking for parent directory ignore markers (e.g., `.noai` existence) for every file in a directory scan creates O(N) redundant I/O operations. Switching to a single directory-level check combined with `os.scandir` improved scan performance by ~38% (from ~5000 to ~7000 files/sec).
 **Action:** Verify directory-level ignore patterns once per directory before iterating its contents, and avoid re-checking parent markers for each file.
+
+## 2025-09-25 - [Optimizing Content Extraction with Shared DB Connection]
+**Learning:** `ContentExtractor` methods (`_is_content_cached`, `_get_cached_content`, `_cache_content`) opened/closed a new SQLite connection for every call. When used in a batch loop (like `InteractiveBatchProcessor`), this caused significant N+1 connection overhead (~0.2ms per call).
+**Action:** Implemented connection reuse by passing an optional `db_connection` argument. Always use connection pooling/reuse when invoking DB-backed services in a loop.
