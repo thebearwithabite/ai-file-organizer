@@ -11,7 +11,7 @@ Functions:
 import os
 import re
 from pathlib import Path
-from typing import Union
+from typing import Union, List
 import logging
 
 logger = logging.getLogger(__name__)
@@ -204,3 +204,65 @@ def safe_join_path(base: Union[Path, str], *parts: str) -> Path:
         )
 
     return result_path
+
+
+def validate_path_is_safe(
+    path: Union[str, Path],
+    allowed_roots: List[Union[str, Path]],
+    allow_hidden: bool = False
+) -> bool:
+    """
+    Validate that a path is safe to access (prevents LFI, argument injection).
+
+    This function performs multiple security checks:
+    1. Resolves the path to an absolute path.
+    2. Checks if the path starts with '-' (argument injection).
+    3. Checks if the path is within one of the allowed roots.
+    4. Checks for hidden files/directories (starting with '.') unless allow_hidden is True.
+
+    Args:
+        path: Path to validate.
+        allowed_roots: List of allowed root directories.
+        allow_hidden: Whether to allow hidden files (default: False).
+
+    Returns:
+        True if the path is safe, False otherwise.
+    """
+    try:
+        if isinstance(path, str):
+            path_str = path
+            path = Path(path)
+        else:
+            path_str = str(path)
+
+        # Check for argument injection (starting with -)
+        # Check both the full string (if it's just "-flag") and the filename part
+        if path_str.strip().startswith('-') or path.name.startswith('-'):
+            logger.warning(f"Path validation failed: Argument injection attempt '{path}'")
+            return False
+
+        path_abs = path.resolve()
+
+        # Check for hidden files
+        if not allow_hidden:
+            for part in path_abs.parts:
+                if part.startswith('.') and part not in ('.', '..', '/'):
+                    logger.warning(f"Path validation failed: Hidden file/directory '{part}' in '{path_abs}'")
+                    return False
+
+        # Check against allowed roots
+        is_allowed = False
+        for root in allowed_roots:
+            if validate_path_within_base(path_abs, root, warn=False):
+                is_allowed = True
+                break
+
+        if not is_allowed:
+            logger.warning(f"Path validation failed: '{path_abs}' is not within any allowed root: {allowed_roots}")
+            return False
+
+        return True
+
+    except Exception as e:
+        logger.error(f"Error validating path '{path}': {e}", exc_info=True)
+        return False

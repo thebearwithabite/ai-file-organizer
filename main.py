@@ -35,7 +35,7 @@ load_dotenv()
 from api.services import SystemService, SearchService, TriageService
 from api.rollback_service import RollbackService
 from api.veo_prompts_api import router as veo_router, clip_router
-from security_utils import sanitize_filename, validate_path_within_base
+from security_utils import sanitize_filename, validate_path_within_base, validate_path_is_safe
 from gdrive_integration import get_metadata_root, get_ai_organizer_root
 from universal_adaptive_learning import UniversalAdaptiveLearning
 from easy_rollback_system import ensure_rollback_db
@@ -64,6 +64,23 @@ class OpenFileRequest(BaseModel):
 
 class ConfidenceModeRequest(BaseModel):
     mode: str  # "NEVER", "MINIMAL", "SMART", or "ALWAYS"
+
+def get_allowed_roots() -> list[Path]:
+    """
+    Get list of allowed root directories for file access.
+    Include standard user directories and AI Organizer roots.
+    """
+    roots = [
+        Path.home() / "Downloads",
+        Path.home() / "Desktop",
+        Path.home() / "Documents",
+        get_metadata_root()
+    ]
+    try:
+        roots.append(get_ai_organizer_root())
+    except Exception:
+        pass
+    return roots
 
 # Create FastAPI application instance
 app = FastAPI(
@@ -1033,30 +1050,6 @@ async def scan_custom_folder(request: ScanFolderRequest):
     except HTTPException:
         raise
 
-@app.post("/api/open-file")
-async def open_file(request: OpenFileRequest):
-    """
-    Open a file in the system default application (Finder/Explorer)
-    """
-    try:
-        path = Path(request.path)
-        if not path.exists():
-            raise HTTPException(status_code=404, detail="File not found")
-            
-        # Use 'open' command on macOS
-        subprocess.run(['open', str(path)], check=True)
-        
-        return {"status": "success", "message": f"Opened {path.name}"}
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Failed to open file: {e}")
-        raise HTTPException(status_code=500, detail="Failed to open file")
-    except Exception as e:
-        logger.error(f"Error opening file: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-    except Exception as e:
-        # Security: Log detailed error internally, return generic message to user
-        logger.error(f"Failed to scan custom folder: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="An error occurred while scanning the folder. Please try again later.")
 
 @app.get("/api/triage/projects")
 async def get_known_projects():
@@ -1141,13 +1134,15 @@ async def get_file_content(request: Request, path: str = Query(..., description=
     """
     try:
         file_path = Path(path)
+
+        # Security: Validate path safety
+        if not validate_path_is_safe(file_path, get_allowed_roots()):
+             logger.warning(f"Access denied to unsafe path: {file_path}")
+             raise HTTPException(status_code=403, detail="Access denied: Path unsafe or outside allowed directories")
+
         if not file_path.exists():
             raise HTTPException(status_code=404, detail="File not found")
         
-        # Security: Prevent accessing system files
-        if file_path.name.startswith('.') or file_path.name.startswith('~'):
-             raise HTTPException(status_code=403, detail="Access denied to hidden/system files")
-
         # Determine content type
         import mimetypes
         content_type, _ = mimetypes.guess_type(file_path)
@@ -1169,6 +1164,12 @@ async def get_file_preview_text(path: str = Query(..., description="Absolute pat
     """
     try:
         file_path = Path(path)
+
+        # Security: Validate path safety
+        if not validate_path_is_safe(file_path, get_allowed_roots()):
+             logger.warning(f"Access denied to unsafe path: {file_path}")
+             raise HTTPException(status_code=403, detail="Access denied: Path unsafe or outside allowed directories")
+
         if not file_path.exists():
             raise HTTPException(status_code=404, detail="File not found")
 
@@ -1289,16 +1290,20 @@ async def open_file(request: OpenFileRequest):
         # Convert to Path object for better handling
         path_obj = Path(file_path)
         
+        # Security: Validate path safety
+        # We explicitly disallow opening non-files (URLs) or files outside allowed roots
+        if not validate_path_is_safe(path_obj, get_allowed_roots()):
+             logger.warning(f"Access denied to unsafe path in open-file: {file_path}")
+             raise HTTPException(status_code=403, detail="Access denied: Path unsafe or outside allowed directories")
+
         # Check if file exists (for local files)
         if not path_obj.exists():
-            # For non-existent files, still try to open (might be a URL or special path)
-            # but provide a warning in the response
-            pass
+            raise HTTPException(status_code=404, detail="File not found")
         
         # Use macOS 'open' command to open the file with default application
         # The 'open' command works with files, URLs, and applications
         result = subprocess.run(
-            ['open', file_path],
+            ['open', str(path_obj)],
             capture_output=True,
             text=True,
             timeout=10  # Prevent hanging
