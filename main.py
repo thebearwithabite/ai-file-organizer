@@ -89,6 +89,71 @@ app.add_middleware(
 # Mount static files for the web interface
 
 
+def get_allowed_roots() -> list[Path]:
+    """
+    Get the list of allowed root directories for file access.
+    Includes Downloads, Desktop, Documents, Library Root, and custom paths.
+    """
+    paths_list = []
+
+    # Custom paths from env
+    paths_str = os.getenv("AUTO_MONITOR_PATHS", "")
+    if paths_str.strip():
+        for p in paths_str.split(","):
+            if p.strip():
+                try:
+                    paths_list.append(Path(os.path.expanduser(p.strip())).resolve())
+                except Exception as e:
+                    logger.warning(f"Invalid path in AUTO_MONITOR_PATHS: {p} - {e}")
+
+    # Default system paths
+    home = Path.home()
+    default_paths = [
+        home / "Downloads",
+        home / "Desktop",
+        home / "Documents"
+    ]
+    for p in default_paths:
+        try:
+            if p.exists():
+                paths_list.append(p.resolve())
+        except Exception:
+            pass
+
+    # Library root
+    try:
+        library_root = get_ai_organizer_root()
+        if library_root and library_root.exists():
+            paths_list.append(library_root.resolve())
+    except Exception:
+        pass
+
+    # Deduplicate
+    return list(set(paths_list))
+
+def validate_path_is_safe(path: Path):
+    """
+    Validate that the given path is within one of the allowed root directories.
+    Raises HTTPException(403) if access is denied.
+    """
+    try:
+        path = path.resolve()
+    except Exception as e:
+        logger.error(f"Failed to resolve path {path}: {e}")
+        raise HTTPException(status_code=400, detail="Invalid path")
+
+    allowed_roots = get_allowed_roots()
+    is_allowed = False
+
+    for root in allowed_roots:
+        if validate_path_within_base(path, root, warn=False):
+            is_allowed = True
+            break
+
+    if not is_allowed:
+        logger.warning(f"Access denied: {path} is not in allowed roots")
+        raise HTTPException(status_code=403, detail="Access denied: File is not in an allowed directory.")
+
 # Helper for Rule #1 Enforcement
 def verify_metadata_safety():
     """
@@ -136,32 +201,8 @@ async def lifespan(app: FastAPI):
 
     # 2. Setup Background Monitoring
     try:
-        paths_str = os.getenv("AUTO_MONITOR_PATHS", "")
-        paths_list = []
-        if paths_str.strip():
-            paths_list = [
-                os.path.expanduser(p.strip())
-                for p in paths_str.split(",")
-                if p.strip()
-            ]
-        
-        default_paths = [
-            os.path.expanduser("~/Downloads"),
-            os.path.expanduser("~/Desktop"),
-            os.path.expanduser("~/Documents")
-        ]
-        
-        all_paths = set(paths_list)
-        all_paths.update(default_paths)
-        
-        try:
-            library_root = get_ai_organizer_root()
-            all_paths.add(str(library_root))
-            logger.info(f"📚 Library Root: {library_root}")
-        except Exception as e:
-            logger.warning(f"Could not determine Library Root: {e}")
-             
-        monitor_paths = list(all_paths)
+        # Use centralized allowed roots logic
+        monitor_paths = [str(p) for p in get_allowed_roots()]
         logger.info(f"🛡️  Paths: {monitor_paths}")
         
         # Initialize and start monitor
@@ -1032,27 +1073,6 @@ async def scan_custom_folder(request: ScanFolderRequest):
         return result
     except HTTPException:
         raise
-
-@app.post("/api/open-file")
-async def open_file(request: OpenFileRequest):
-    """
-    Open a file in the system default application (Finder/Explorer)
-    """
-    try:
-        path = Path(request.path)
-        if not path.exists():
-            raise HTTPException(status_code=404, detail="File not found")
-            
-        # Use 'open' command on macOS
-        subprocess.run(['open', str(path)], check=True)
-        
-        return {"status": "success", "message": f"Opened {path.name}"}
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Failed to open file: {e}")
-        raise HTTPException(status_code=500, detail="Failed to open file")
-    except Exception as e:
-        logger.error(f"Error opening file: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
     except Exception as e:
         # Security: Log detailed error internally, return generic message to user
         logger.error(f"Failed to scan custom folder: {e}", exc_info=True)
@@ -1144,7 +1164,10 @@ async def get_file_content(request: Request, path: str = Query(..., description=
         if not file_path.exists():
             raise HTTPException(status_code=404, detail="File not found")
         
-        # Security: Prevent accessing system files
+        # Security: Validate path is within allowed roots
+        validate_path_is_safe(file_path)
+
+        # Security: Prevent accessing hidden/system files (defense in depth)
         if file_path.name.startswith('.') or file_path.name.startswith('~'):
              raise HTTPException(status_code=403, detail="Access denied to hidden/system files")
 
@@ -1172,6 +1195,9 @@ async def get_file_preview_text(path: str = Query(..., description="Absolute pat
         if not file_path.exists():
             raise HTTPException(status_code=404, detail="File not found")
 
+        # Security: Validate path is within allowed roots
+        validate_path_is_safe(file_path)
+
         # Initialize ContentExtractor
         from content_extractor import ContentExtractor
         extractor = ContentExtractor()
@@ -1184,6 +1210,8 @@ async def get_file_preview_text(path: str = Query(..., description="Absolute pat
             
         return {"text": content['text']}
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error extracting preview text: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to extract preview: {str(e)}")
@@ -1289,6 +1317,10 @@ async def open_file(request: OpenFileRequest):
         # Convert to Path object for better handling
         path_obj = Path(file_path)
         
+        # Security: Validate path is within allowed roots if it's a local file
+        if path_obj.is_absolute() or path_obj.exists():
+             validate_path_is_safe(path_obj)
+
         # Check if file exists (for local files)
         if not path_obj.exists():
             # For non-existent files, still try to open (might be a URL or special path)
@@ -1318,6 +1350,8 @@ async def open_file(request: OpenFileRequest):
                 detail=f"Failed to open file: {error_message}"
             )
             
+    except HTTPException:
+        raise
     except subprocess.TimeoutExpired:
         raise HTTPException(
             status_code=500, 
