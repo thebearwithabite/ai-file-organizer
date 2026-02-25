@@ -102,22 +102,31 @@ class BulletproofDeduplicator:
                 CREATE INDEX IF NOT EXISTS idx_secure_hash ON file_hashes(secure_hash)
             ''')
     
-    def calculate_quick_hash(self, file_path: Path, file_size: Optional[int] = None) -> Optional[str]:
+    def calculate_quick_hash(self, file_path: Union[Path, str], file_size: Optional[int] = None) -> Optional[str]:
         """
         Tier 1: Lightning-fast MD5 screening (~0.1ms per file)
         Used for initial duplicate detection
         """
         try:
             # Skip symlinks and special files
-            if file_path.is_symlink():
-                return None
+            if isinstance(file_path, str):
+                if os.path.islink(file_path):
+                    return None
+                file_name = os.path.basename(file_path)
+            else:
+                if file_path.is_symlink():
+                    return None
+                file_name = file_path.name
 
             # Check file size - warn about large files
             if file_size is None:
-                file_size = file_path.stat().st_size
+                if isinstance(file_path, str):
+                    file_size = os.stat(file_path).st_size
+                else:
+                    file_size = file_path.stat().st_size
 
             if file_size > 1024 * 1024 * 100:  # 100MB
-                print(f"   ⏸️  Large file ({file_size / (1024*1024):.1f}MB): {file_path.name}")
+                print(f"   ⏸️  Large file ({file_size / (1024*1024):.1f}MB): {file_name}")
 
             with open(file_path, 'rb') as f:
                 # Read first 64KB for quick hash - catches most duplicates
@@ -127,10 +136,11 @@ class BulletproofDeduplicator:
             # Skip files we can't read (locked, network, etc.)
             return None
         except Exception as e:
-            print(f"⚠️ Quick hash error for {file_path.name}: {e}")
+            file_name = os.path.basename(str(file_path))
+            print(f"⚠️ Quick hash error for {file_name}: {e}")
             return None
     
-    def calculate_secure_hash(self, file_path: Path, db_connection: Optional[sqlite3.Connection] = None,
+    def calculate_secure_hash(self, file_path: Union[Path, str], db_connection: Optional[sqlite3.Connection] = None,
                               file_size: Optional[int] = None, last_modified: Optional[float] = None) -> Optional[str]:
         """
         Tier 2: Bulletproof SHA-256 verification (~2ms per file)
@@ -138,8 +148,14 @@ class BulletproofDeduplicator:
         """
         try:
             # Skip symlinks and special files
-            if file_path.is_symlink():
-                return None
+            if isinstance(file_path, str):
+                if os.path.islink(file_path):
+                    return None
+                file_name = os.path.basename(file_path)
+            else:
+                if file_path.is_symlink():
+                    return None
+                file_name = file_path.name
 
             sha256_hash = hashlib.sha256()
             with open(file_path, 'rb') as f:
@@ -151,9 +167,15 @@ class BulletproofDeduplicator:
             
             # Use provided stats or fetch them
             if file_size is None:
-                file_size = file_path.stat().st_size
+                if isinstance(file_path, str):
+                    file_size = os.stat(file_path).st_size
+                else:
+                    file_size = file_path.stat().st_size
             if last_modified is None:
-                last_modified = file_path.stat().st_mtime
+                if isinstance(file_path, str):
+                    last_modified = os.stat(file_path).st_mtime
+                else:
+                    last_modified = file_path.stat().st_mtime
 
             # Persist to database
             try:
@@ -180,14 +202,15 @@ class BulletproofDeduplicator:
                         ))
             except Exception as db_err:
                 # Don't fail if DB write fails, just log it
-                print(f"⚠️ Failed to persist hash for {file_path.name}: {db_err}")
+                print(f"⚠️ Failed to persist hash for {file_name}: {db_err}")
                 
             return secure_hash
         except (PermissionError, OSError) as e:
             # Skip files we can't read (locked, network, etc.)
             return None
         except Exception as e:
-            print(f"⚠️ Secure hash error for {file_path.name}: {e}")
+            file_name = os.path.basename(str(file_path))
+            print(f"⚠️ Secure hash error for {file_name}: {e}")
             return None
 
     def check_if_hash_exists_in_gdrive(self, secure_hash: str) -> Optional[str]:
@@ -392,7 +415,8 @@ class BulletproofDeduplicator:
                     size_groups[size] = []
 
                 # Only convert to Path when storing
-                file_path = Path(entry.path)
+                # OPTIMIZATION: Store as string to avoid Path creation overhead in hot loop
+                file_path = entry.path
                 size_groups[size].append(file_path)
 
                 # Cache stat for later use in this scan session
@@ -506,18 +530,22 @@ class BulletproofDeduplicator:
             file_scores = []
             for file_info in duplicate_group:
                 file_path = file_info['path']
-                safety_score = self.calculate_safety_score(file_path, duplicate_group, last_modified=file_info.get('mtime'))
+
+                # Convert to Path object only here (cold path - confirmed duplicates only)
+                file_path_obj = Path(file_path) if isinstance(file_path, str) else file_path
+
+                safety_score = self.calculate_safety_score(file_path_obj, duplicate_group, last_modified=file_info.get('mtime'))
                 
                 # Get more file info for the group
                 file_info_full = {
-                    'path': str(file_path),
-                    'name': file_path.name,
+                    'path': str(file_path_obj),
+                    'name': file_path_obj.name,
                     'size': file_info['size'],
                     'mtime': datetime.fromtimestamp(file_info['mtime']).isoformat() if hasattr(file_info, 'mtime') else time.strftime('%Y-%m-%dT%H:%M:%S', time.localtime(file_info.get('mtime', time.time()))),
                     'safety_score': safety_score
                 }
-                file_scores.append((file_path, safety_score, file_info['size'], file_info_full))
-                print(f"   📄 {file_path.name} (safety: {safety_score:.2f})")
+                file_scores.append((file_path_obj, safety_score, file_info['size'], file_info_full))
+                print(f"   📄 {file_path_obj.name} (safety: {safety_score:.2f})")
             
             # Sort by safety score (highest = safest to delete)
             file_scores.sort(key=lambda x: x[1], reverse=True)
@@ -609,7 +637,7 @@ class BulletproofDeduplicator:
                     if self.is_database_or_learned_data(entry):
                         continue
 
-                    file_path = Path(entry.path)
+                    file_path = entry.path # Optimization: Use string
                     secure_hash = self.calculate_secure_hash(file_path, db_connection=conn,
                                                            file_size=stat.st_size, last_modified=stat.st_mtime)
                     if secure_hash:
@@ -647,7 +675,7 @@ class BulletproofDeduplicator:
                     if results["local_files_scanned"] % 50 == 0:
                         print(f"      Progress: {results['local_files_scanned']} local files scanned")
 
-                    file_path = Path(entry_path_str)
+                    file_path = entry_path_str # Optimization: Use string
 
                     # Calculate hash and check if exists in Google Drive
                     secure_hash = self.calculate_secure_hash(file_path, db_connection=conn,
@@ -668,7 +696,7 @@ class BulletproofDeduplicator:
                             print(f"      Size:   {file_size / (1024*1024):.1f} MB")
 
                             if execute:
-                                file_path.unlink()
+                                Path(file_path).unlink()
                                 results["deleted_files"] += 1
                                 print(f"      ✅ Deleted local copy")
                             else:
