@@ -89,6 +89,63 @@ app.add_middleware(
 # Mount static files for the web interface
 
 
+# Helper to determine allowed root directories for safe access
+def get_allowed_roots() -> list[Path]:
+    """
+    Get list of allowed root directories for file access.
+    This includes user documents, downloads, desktop, and the AI Organizer root.
+    """
+    allowed = []
+
+    # 1. Standard user directories
+    try:
+        home = Path.home()
+        allowed.extend([
+            home / "Downloads",
+            home / "Desktop",
+            home / "Documents"
+        ])
+    except Exception:
+        pass
+
+    # 2. AI Organizer Root
+    try:
+        allowed.append(get_ai_organizer_root())
+    except Exception:
+        pass
+
+    # 3. Custom paths from environment
+    paths_str = os.getenv("AUTO_MONITOR_PATHS", "")
+    if paths_str.strip():
+        for p in paths_str.split(","):
+            if p.strip():
+                try:
+                    path = Path(os.path.expanduser(p.strip())).resolve()
+                    allowed.append(path)
+                except Exception:
+                    pass
+
+    return [p for p in allowed if p.exists()]
+
+def validate_path_is_safe(path: Path) -> bool:
+    """
+    Check if a path is within one of the allowed root directories.
+    Prevents access to system files or unauthorized directories.
+    """
+    try:
+        abs_path = path.resolve()
+
+        # Check against all allowed roots
+        for root in get_allowed_roots():
+            if validate_path_within_base(abs_path, root, warn=False):
+                return True
+
+        logger.warning(f"Access denied: Path '{abs_path}' is not within allowed roots.")
+        return False
+    except Exception as e:
+        logger.error(f"Path validation error: {e}")
+        return False
+
 # Helper for Rule #1 Enforcement
 def verify_metadata_safety():
     """
@@ -1033,30 +1090,7 @@ async def scan_custom_folder(request: ScanFolderRequest):
     except HTTPException:
         raise
 
-@app.post("/api/open-file")
-async def open_file(request: OpenFileRequest):
-    """
-    Open a file in the system default application (Finder/Explorer)
-    """
-    try:
-        path = Path(request.path)
-        if not path.exists():
-            raise HTTPException(status_code=404, detail="File not found")
-            
-        # Use 'open' command on macOS
-        subprocess.run(['open', str(path)], check=True)
-        
-        return {"status": "success", "message": f"Opened {path.name}"}
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Failed to open file: {e}")
-        raise HTTPException(status_code=500, detail="Failed to open file")
-    except Exception as e:
-        logger.error(f"Error opening file: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-    except Exception as e:
-        # Security: Log detailed error internally, return generic message to user
-        logger.error(f"Failed to scan custom folder: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="An error occurred while scanning the folder. Please try again later.")
+# Deprecated: Duplicate definition removed.
 
 @app.get("/api/triage/projects")
 async def get_known_projects():
@@ -1148,6 +1182,10 @@ async def get_file_content(request: Request, path: str = Query(..., description=
         if file_path.name.startswith('.') or file_path.name.startswith('~'):
              raise HTTPException(status_code=403, detail="Access denied to hidden/system files")
 
+        # Security: Validate path is within allowed roots
+        if not validate_path_is_safe(file_path):
+             raise HTTPException(status_code=403, detail="Access denied: File is outside allowed directories")
+
         # Determine content type
         import mimetypes
         content_type, _ = mimetypes.guess_type(file_path)
@@ -1172,6 +1210,10 @@ async def get_file_preview_text(path: str = Query(..., description="Absolute pat
         if not file_path.exists():
             raise HTTPException(status_code=404, detail="File not found")
 
+        # Security: Validate path is within allowed roots
+        if not validate_path_is_safe(file_path):
+             raise HTTPException(status_code=403, detail="Access denied: File is outside allowed directories")
+
         # Initialize ContentExtractor
         from content_extractor import ContentExtractor
         extractor = ContentExtractor()
@@ -1184,6 +1226,8 @@ async def get_file_preview_text(path: str = Query(..., description="Absolute pat
             
         return {"text": content['text']}
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error extracting preview text: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to extract preview: {str(e)}")
@@ -1285,16 +1329,27 @@ async def open_file(request: OpenFileRequest):
         # Validate that the file path is provided
         if not file_path:
             raise HTTPException(status_code=400, detail="File path cannot be empty")
+
+        # Security: Prevent argument injection
+        if file_path.startswith("-"):
+            logger.warning(f"Security: Blocked potential argument injection in open_file: {file_path}")
+            raise HTTPException(status_code=400, detail="Invalid file path")
         
         # Convert to Path object for better handling
         path_obj = Path(file_path)
         
-        # Check if file exists (for local files)
-        if not path_obj.exists():
-            # For non-existent files, still try to open (might be a URL or special path)
-            # but provide a warning in the response
-            pass
-        
+        # Security: Validate path is within allowed roots
+        # We check existence first, then safety
+        if path_obj.exists():
+             if not validate_path_is_safe(path_obj):
+                 raise HTTPException(status_code=403, detail="Access denied: File is outside allowed directories")
+        else:
+             # If it doesn't exist, it might be a URL.
+             # For now, we block non-existent local paths to prevent invoking arbitrary commands on other things.
+             # Only allow http/https URLs if really needed, but let's be strict.
+             if not (file_path.startswith("http://") or file_path.startswith("https://")):
+                  raise HTTPException(status_code=404, detail="File not found")
+
         # Use macOS 'open' command to open the file with default application
         # The 'open' command works with files, URLs, and applications
         result = subprocess.run(
@@ -1318,6 +1373,8 @@ async def open_file(request: OpenFileRequest):
                 detail=f"Failed to open file: {error_message}"
             )
             
+    except HTTPException:
+        raise
     except subprocess.TimeoutExpired:
         raise HTTPException(
             status_code=500, 
