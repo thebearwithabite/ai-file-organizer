@@ -242,79 +242,102 @@ class StagingMonitor:
         return None
     
     def update_tracking_database(self, scan_results: Dict[str, List[Dict]]):
-        """Update database with current scan results"""
+        """Update database with current scan results (Batch Optimized)"""
         current_time = datetime.now()
         
+        # Flatten scan results into a single list of (folder_name, file_info) tuples
+        all_scanned_files = []
+        for folder_name, files in scan_results.items():
+            for file_info in files:
+                all_scanned_files.append((folder_name, file_info))
+
+        if not all_scanned_files:
+            return
+
         with sqlite3.connect(self.db_path) as conn:
-            for folder_name, files in scan_results.items():
-                for file_info in files:
-                    file_path = file_info["path"]
-                    file_hash = file_info.get("hash")
-                    
-                    # Check if file exists in tracking
-                    cursor = conn.execute(
-                        "SELECT file_hash, first_seen, size_bytes, last_modified FROM file_tracking WHERE file_path = ?",
-                        (file_path,)
-                    )
-                    existing = cursor.fetchone()
-                    
-                    if existing:
-                        db_hash, db_first_seen, db_size, db_last_mod_str = existing
+            # 1. Batch Fetch Existing Records
+            # SQLite limit for variables in IN clause is usually 999. We need to chunk.
+            file_paths = [f[1]["path"] for f in all_scanned_files]
+            existing_records = {} # Map file_path -> (hash, first_seen, size, last_modified)
 
-                        # Determine if we need to calculate hash
-                        if file_hash is None:
-                            # Parse DB timestamp (assuming ISO format)
-                            try:
-                                # Handle case where last_modified might be None or invalid
-                                if db_last_mod_str:
-                                    db_last_mod = datetime.fromisoformat(str(db_last_mod_str))
-                                else:
-                                    db_last_mod = datetime.min
-                            except Exception:
-                                db_last_mod = datetime.min
+            chunk_size = 500
+            for i in range(0, len(file_paths), chunk_size):
+                chunk = file_paths[i:i + chunk_size]
+                placeholders = ','.join(['?'] * len(chunk))
+                cursor = conn.execute(
+                    f"SELECT file_path, file_hash, first_seen, size_bytes, last_modified FROM file_tracking WHERE file_path IN ({placeholders})",
+                    chunk
+                )
+                for row in cursor.fetchall():
+                    existing_records[row[0]] = (row[1], row[2], row[3], row[4])
 
-                            # Lazy Hashing Logic:
-                            # If file on disk has NOT been modified since we last checked it (db_last_mod),
-                            # AND the size is identical, we assume the content is unchanged.
-                            # We use < because db_last_mod is the time we WROTE the record, so content MUST be older.
-                            if file_info["modified"] < db_last_mod and file_info["size"] == db_size:
-                                file_hash = db_hash # Optimized: reuse existing hash
+            # 2. Process Files in Memory
+            to_insert = []
+            to_update = []
+            events_to_log = []
+
+            for folder_name, file_info in all_scanned_files:
+                file_path = file_info["path"]
+                file_hash = file_info.get("hash")
+
+                if file_path in existing_records:
+                    # Existing file logic
+                    db_hash, db_first_seen, db_size, db_last_mod_str = existing_records[file_path]
+
+                    # Lazy hashing logic check
+                    if file_hash is None:
+                        try:
+                            if db_last_mod_str:
+                                db_last_mod = datetime.fromisoformat(str(db_last_mod_str))
                             else:
-                                file_hash = self._get_file_hash(Path(file_path))
+                                db_last_mod = datetime.min
+                        except Exception:
+                            db_last_mod = datetime.min
 
-                        # File exists - check if modified
-                        if db_hash != file_hash:
-                            # File modified - update tracking
-                            conn.execute("""
-                                UPDATE file_tracking 
-                                SET file_hash = ?, last_modified = ?, size_bytes = ?
-                                WHERE file_path = ?
-                            """, (file_hash, current_time, file_info["size"], file_path))
-                            
-                            # Log modification event
-                            conn.execute("""
-                                INSERT INTO staging_events (file_path, event_type, event_data)
-                                VALUES (?, 'modified', ?)
-                            """, (file_path, json.dumps({"new_size": file_info["size"]})))
-                    else:
-                        # New file - add to tracking
-                        if file_hash is None:
+                        # Note: file_info["modified"] is the filesystem mtime
+                        # db_last_mod is when we last updated the DB record
+                        # If filesystem mtime < DB update time AND size matches, assume unchanged
+                        if file_info["modified"] < db_last_mod and file_info["size"] == db_size:
+                            file_hash = db_hash # Reuse existing hash
+                        else:
                             file_hash = self._get_file_hash(Path(file_path))
 
-                        conn.execute("""
-                            INSERT INTO file_tracking 
-                            (file_path, file_hash, first_seen, last_modified, size_bytes, folder_location)
-                            VALUES (?, ?, ?, ?, ?, ?)
-                        """, (
-                            file_path, file_hash, current_time, current_time,
-                            file_info["size"], folder_name
-                        ))
-                        
-                        # Log new file event
-                        conn.execute("""
-                            INSERT INTO staging_events (file_path, event_type, event_data)
-                            VALUES (?, 'discovered', ?)
-                        """, (file_path, json.dumps({"folder": folder_name})))
+                    if db_hash != file_hash:
+                        # Modified
+                        to_update.append((file_hash, current_time, file_info["size"], file_path))
+                        events_to_log.append((file_path, 'modified', json.dumps({"new_size": file_info["size"]})))
+
+                else:
+                    # New file logic
+                    if file_hash is None:
+                        file_hash = self._get_file_hash(Path(file_path))
+
+                    to_insert.append((
+                        file_path, file_hash, current_time, current_time,
+                        file_info["size"], folder_name
+                    ))
+                    events_to_log.append((file_path, 'discovered', json.dumps({"folder": folder_name})))
+
+            # 3. Batch Execute Writes
+            if to_update:
+                conn.executemany("""
+                    UPDATE file_tracking
+                    SET file_hash = ?, last_modified = ?, size_bytes = ?
+                    WHERE file_path = ?
+                """, to_update)
+
+            if to_insert:
+                conn.executemany("""
+                    INSERT INTO file_tracking
+                    (file_path, file_hash, first_seen, last_modified, size_bytes, folder_location)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                """, to_insert)
+
+            if events_to_log:
+                conn.executemany("""
+                    INSERT INTO staging_events (file_path, event_type, event_data)
+                    VALUES (?, ?, ?)
+                """, events_to_log)
     
     def get_files_ready_for_organization(self) -> List[Dict]:
         """Get files that have been in staging for 7+ days"""
