@@ -89,6 +89,57 @@ app.add_middleware(
 # Mount static files for the web interface
 
 
+# Helper for Security Validation
+def get_allowed_roots() -> list[Path]:
+    """
+    Get list of allowed root directories for file access.
+    Consolidates trusted directories logic.
+    """
+    roots = [
+        Path.home() / "Downloads",
+        Path.home() / "Desktop",
+        Path.home() / "Documents",
+    ]
+    try:
+        roots.append(get_ai_organizer_root())
+    except Exception:
+        pass
+    return roots
+
+def validate_path_is_safe(path: Path) -> bool:
+    """
+    Validate that a path is safe to access.
+
+    Checks:
+    1. Path must be within allowed roots (Downloads, Desktop, Documents, AI Organizer Root)
+    2. Path must not contain hidden components (start with .)
+    3. Filename must not start with - (argument injection)
+    """
+    # 1. Check allowed roots
+    allowed = False
+    allowed_roots = get_allowed_roots()
+    for root in allowed_roots:
+        if validate_path_within_base(path, root, warn=False):
+            allowed = True
+            break
+
+    if not allowed:
+        logger.warning(f"Access denied: Path '{path}' is not in allowed roots: {allowed_roots}")
+        return False
+
+    # 2. Check hidden files/directories (recursively)
+    for part in path.parts:
+        if part.startswith(".") and part not in [".", ".."]:
+             logger.warning(f"Access denied: Hidden path component '{part}' in '{path}'")
+             return False
+
+    # 3. Check for argument injection
+    if path.name.startswith("-"):
+        logger.warning(f"Access denied: Potential argument injection in '{path.name}'")
+        return False
+
+    return True
+
 # Helper for Rule #1 Enforcement
 def verify_metadata_safety():
     """
@@ -1040,23 +1091,31 @@ async def open_file(request: OpenFileRequest):
     """
     try:
         path = Path(request.path)
+
+        # Security: Validate path is safe
+        if not validate_path_is_safe(path):
+             raise HTTPException(status_code=403, detail="Access denied to this location")
+
         if not path.exists():
             raise HTTPException(status_code=404, detail="File not found")
             
+        # Security: Re-validate name hasn't changed (TOCTOU check not really possible without FD, but good practice)
+        if path.name.startswith("-"):
+             raise HTTPException(status_code=400, detail="Invalid filename")
+
         # Use 'open' command on macOS
-        subprocess.run(['open', str(path)], check=True)
+        # Security: We've validated path is safe and doesn't start with -, preventing argument injection
+        subprocess.run(['open', str(path.resolve())], check=True)
         
         return {"status": "success", "message": f"Opened {path.name}"}
     except subprocess.CalledProcessError as e:
         logger.error(f"Failed to open file: {e}")
         raise HTTPException(status_code=500, detail="Failed to open file")
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error opening file: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-    except Exception as e:
-        # Security: Log detailed error internally, return generic message to user
-        logger.error(f"Failed to scan custom folder: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="An error occurred while scanning the folder. Please try again later.")
 
 @app.get("/api/triage/projects")
 async def get_known_projects():
@@ -1141,13 +1200,14 @@ async def get_file_content(request: Request, path: str = Query(..., description=
     """
     try:
         file_path = Path(path)
+
+        # Security: Validate path is safe
+        if not validate_path_is_safe(file_path):
+             raise HTTPException(status_code=403, detail="Access denied to this location")
+
         if not file_path.exists():
             raise HTTPException(status_code=404, detail="File not found")
         
-        # Security: Prevent accessing system files
-        if file_path.name.startswith('.') or file_path.name.startswith('~'):
-             raise HTTPException(status_code=403, detail="Access denied to hidden/system files")
-
         # Determine content type
         import mimetypes
         content_type, _ = mimetypes.guess_type(file_path)
@@ -1169,6 +1229,11 @@ async def get_file_preview_text(path: str = Query(..., description="Absolute pat
     """
     try:
         file_path = Path(path)
+
+        # Security: Validate path is safe
+        if not validate_path_is_safe(file_path):
+             raise HTTPException(status_code=403, detail="Access denied to this location")
+
         if not file_path.exists():
             raise HTTPException(status_code=404, detail="File not found")
 
@@ -1184,6 +1249,8 @@ async def get_file_preview_text(path: str = Query(..., description="Absolute pat
             
         return {"text": content['text']}
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error extracting preview text: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to extract preview: {str(e)}")
@@ -1267,72 +1334,6 @@ async def classify_file(request: ClassificationRequest):
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Classification failed: {str(e)}")
-
-@app.post("/api/open-file")
-async def open_file(request: OpenFileRequest):
-    """
-    Open a file using the operating system's default application
-    
-    Args:
-        request: OpenFileRequest containing the file path to open
-        
-    Returns:
-        JSON response with operation status
-    """
-    try:
-        file_path = request.path.strip()
-        
-        # Validate that the file path is provided
-        if not file_path:
-            raise HTTPException(status_code=400, detail="File path cannot be empty")
-        
-        # Convert to Path object for better handling
-        path_obj = Path(file_path)
-        
-        # Check if file exists (for local files)
-        if not path_obj.exists():
-            # For non-existent files, still try to open (might be a URL or special path)
-            # but provide a warning in the response
-            pass
-        
-        # Use macOS 'open' command to open the file with default application
-        # The 'open' command works with files, URLs, and applications
-        result = subprocess.run(
-            ['open', file_path],
-            capture_output=True,
-            text=True,
-            timeout=10  # Prevent hanging
-        )
-        
-        if result.returncode == 0:
-            return {
-                "success": True,
-                "message": f"Successfully opened file: {os.path.basename(file_path)}",
-                "path": file_path
-            }
-        else:
-            # Get error details from stderr
-            error_message = result.stderr.strip() if result.stderr else "Unknown error"
-            raise HTTPException(
-                status_code=500, 
-                detail=f"Failed to open file: {error_message}"
-            )
-            
-    except subprocess.TimeoutExpired:
-        raise HTTPException(
-            status_code=500, 
-            detail="File opening timed out - the file might be too large or the application unresponsive"
-        )
-    except subprocess.SubprocessError as e:
-        raise HTTPException(
-            status_code=500, 
-            detail=f"System error opening file: {str(e)}"
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, 
-            detail=f"Unexpected error opening file: {str(e)}"
-        )
 
 # Rollback API endpoints
 @app.get("/api/rollback/operations")
