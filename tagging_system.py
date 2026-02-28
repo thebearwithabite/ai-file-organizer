@@ -15,6 +15,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any, Tuple, Set
 from dataclasses import dataclass
 from collections import Counter, defaultdict
+from contextlib import contextmanager
 import hashlib
 
 project_dir = Path(__file__).parent
@@ -252,6 +253,19 @@ class ComprehensiveTaggingSystem:
             
             conn.commit()
     
+
+    @contextmanager
+    def _get_connection(self, provided_conn: Optional[sqlite3.Connection] = None):
+        """Get a database connection, reusing provided one if available"""
+        if provided_conn:
+            yield provided_conn
+        else:
+            conn = sqlite3.connect(self.db_path)
+            try:
+                yield conn
+            finally:
+                conn.close()
+
     def extract_tags_from_content(self, content: str, file_path: Path) -> Tuple[List[str], Dict[str, float], Dict[str, str]]:
         """Extract tags from file content using pattern matching"""
         
@@ -440,11 +454,11 @@ class ComprehensiveTaggingSystem:
         
         return tagged_file
     
-    def save_tagged_file(self, tagged_file: TaggedFile) -> bool:
+    def save_tagged_file(self, tagged_file: TaggedFile, db_connection: Optional[sqlite3.Connection] = None) -> bool:
         """Save tagged file to database"""
         
         try:
-            with sqlite3.connect(self.db_path) as conn:
+            with self._get_connection(db_connection) as conn:
                 conn.execute("""
                     INSERT OR REPLACE INTO file_tags
                     (file_path, file_name, file_extension, file_hash, auto_tags, user_tags,
@@ -462,11 +476,13 @@ class ComprehensiveTaggingSystem:
                     tagged_file.last_tagged.isoformat(),
                     datetime.now().isoformat()
                 ))
+
+                # Update tag relationships and statistics within the SAME connection block
+                self._update_tag_relationships(tagged_file, db_connection=conn)
+                self._update_tag_statistics(tagged_file, db_connection=conn)
+
+                # Commit all changes at the end
                 conn.commit()
-            
-            # Update tag relationships and statistics
-            self._update_tag_relationships(tagged_file)
-            self._update_tag_statistics(tagged_file)
             
             return True
             
@@ -474,12 +490,12 @@ class ComprehensiveTaggingSystem:
             print(f"❌ Error saving tagged file: {e}")
             return False
     
-    def _update_tag_relationships(self, tagged_file: TaggedFile):
+    def _update_tag_relationships(self, tagged_file: TaggedFile, db_connection: Optional[sqlite3.Connection] = None):
         """Update co-occurrence relationships between tags"""
         
         all_tags = tagged_file.auto_tags + tagged_file.user_tags
         
-        with sqlite3.connect(self.db_path) as conn:
+        with self._get_connection(db_connection) as conn:
             # Update co-occurrence counts for all tag pairs
             for i, tag1 in enumerate(all_tags):
                 for tag2 in all_tags[i+1:]:
@@ -501,12 +517,12 @@ class ComprehensiveTaggingSystem:
             
             conn.commit()
     
-    def _update_tag_statistics(self, tagged_file: TaggedFile):
+    def _update_tag_statistics(self, tagged_file: TaggedFile, db_connection: Optional[sqlite3.Connection] = None):
         """Update usage statistics for tags"""
         
         all_tags = tagged_file.auto_tags + tagged_file.user_tags
         
-        with sqlite3.connect(self.db_path) as conn:
+        with self._get_connection(db_connection) as conn:
             for tag in all_tags:
                 confidence = tagged_file.confidence_scores.get(tag, 0.5)
                 
