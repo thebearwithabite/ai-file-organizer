@@ -1,0 +1,3 @@
+## 2023-10-27 - Icon-only buttons and keyboard focus styles
+**Learning:** Found an app-wide pattern where interactive elements lack `focus-visible` states and icon-only buttons often miss `aria-label`/`title` pairs. This degrades keyboard navigation experience and screen reader accessibility.
+**Action:** When adding new interactive elements (especially buttons), ensure they always have visible focus states (e.g., `focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2`). Icon-only buttons must always include both `aria-label` for screen readers and `title` for mouse hover tooltips.
