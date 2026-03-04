@@ -902,21 +902,20 @@ class LocalMetadataStore:
             with self._get_cursor() as cursor:
                 stats = {}
                 
-                # File counts
-                cursor.execute("SELECT COUNT(*) FROM files")
-                stats['total_files'] = cursor.fetchone()[0]
-                
-                cursor.execute("SELECT COUNT(*) FROM files WHERE is_cached = TRUE")
-                stats['cached_files'] = cursor.fetchone()[0]
-                
-                # Storage stats
-                cursor.execute("SELECT SUM(size_bytes) FROM files")
-                result = cursor.fetchone()[0]
-                stats['total_size_bytes'] = result or 0
-                
-                cursor.execute("SELECT SUM(size_bytes) FROM files WHERE is_cached = TRUE")
-                result = cursor.fetchone()[0]
-                stats['cached_size_bytes'] = result or 0
+                # ⚡ Bolt Optimization: Combined 4 sequential queries into 1
+                cursor.execute("""
+                    SELECT
+                        COUNT(*),
+                        COALESCE(SUM(CASE WHEN is_cached = 1 THEN 1 ELSE 0 END), 0),
+                        COALESCE(SUM(size_bytes), 0),
+                        COALESCE(SUM(CASE WHEN is_cached = 1 THEN size_bytes ELSE 0 END), 0)
+                    FROM files
+                """)
+                row = cursor.fetchone()
+                stats['total_files'] = row[0]
+                stats['cached_files'] = row[1]
+                stats['total_size_bytes'] = row[2]
+                stats['cached_size_bytes'] = row[3]
                 
                 # Classification stats
                 cursor.execute("SELECT category, COUNT(*) FROM classifications GROUP BY category")
@@ -948,17 +947,18 @@ class LocalMetadataStore:
         
         try:
             with self._get_cursor() as cursor:
-                # File counts
-                cursor.execute("SELECT COUNT(*) FROM files")
-                total_files = cursor.fetchone()[0]
-                
-                # Total size
-                cursor.execute("SELECT COALESCE(SUM(size_bytes), 0) FROM files")
-                total_size_bytes = cursor.fetchone()[0]
-                
-                # Cache statistics  
-                cursor.execute("SELECT COUNT(*) FROM files WHERE is_cached = 1")
-                cached_files = cursor.fetchone()[0]
+                # ⚡ Bolt Optimization: Combined 3 sequential queries into 1
+                cursor.execute("""
+                    SELECT
+                        COUNT(*),
+                        COALESCE(SUM(size_bytes), 0),
+                        COALESCE(SUM(CASE WHEN is_cached = 1 THEN 1 ELSE 0 END), 0)
+                    FROM files
+                """)
+                row = cursor.fetchone()
+                total_files = row[0]
+                total_size_bytes = row[1]
+                cached_files = row[2]
                 
                 # Classification statistics
                 cursor.execute("SELECT COUNT(*) FROM classifications")
