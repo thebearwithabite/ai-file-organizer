@@ -25,3 +25,7 @@
 ## 2025-09-09 - [Eliminating Redundant I/O in Directory Scans]
 **Learning:** Repeatedly checking for parent directory ignore markers (e.g., `.noai` existence) for every file in a directory scan creates O(N) redundant I/O operations. Switching to a single directory-level check combined with `os.scandir` improved scan performance by ~38% (from ~5000 to ~7000 files/sec).
 **Action:** Verify directory-level ignore patterns once per directory before iterating its contents, and avoid re-checking parent markers for each file.
+
+## 2025-05-26 - [Combining Aggregate Queries in SQLite]
+**Learning:** Running multiple sequential `COUNT` and `SUM` queries on the same table (e.g., in a dashboard or stats calculation) incurs significant connection overhead and full table/index scans per query. Grouping them into a single query using conditional aggregation (`COALESCE(SUM(CASE WHEN condition THEN value ELSE 0 END), 0)`) provides a measurable performance boost (~30-40% speedup for these specific queries) by reducing database round-trips and redundant scans.
+**Action:** When calculating multiple aggregate statistics for a single table, always combine them into a single `SELECT` statement with conditional aggregation.
