@@ -1,11 +1,19 @@
+import { useLocation } from 'react-router-dom'
 import { Bell, User } from 'lucide-react'
+import { navItems } from '../../lib/navigation'
 
 export default function Header() {
+  const location = useLocation()
+
+  // Find current page label, default to Dashboard
+  const currentItem = navItems.find(item => item.to === location.pathname)
+  const pageTitle = currentItem?.label || 'Dashboard'
+
   return (
     <header className="h-16 bg-white/[0.05] backdrop-blur-xl border-b border-white/10 flex items-center justify-between px-6">
-      {/* Breadcrumbs (add later with route context) */}
+      {/* Breadcrumbs */}
       <div className="text-sm text-white/60">
-        Home / Dashboard
+        Home / <span className="text-white font-medium">{pageTitle}</span>
       </div>
 
       {/* Right side actions */}
