@@ -948,17 +948,15 @@ class LocalMetadataStore:
         
         try:
             with self._get_cursor() as cursor:
-                # File counts
-                cursor.execute("SELECT COUNT(*) FROM files")
-                total_files = cursor.fetchone()[0]
-                
-                # Total size
-                cursor.execute("SELECT COALESCE(SUM(size_bytes), 0) FROM files")
-                total_size_bytes = cursor.fetchone()[0]
-                
-                # Cache statistics  
-                cursor.execute("SELECT COUNT(*) FROM files WHERE is_cached = 1")
-                cached_files = cursor.fetchone()[0]
+                # Optimized single query for file statistics to prevent N+1 aggregation overhead
+                cursor.execute("""
+                    SELECT
+                        COUNT(*),
+                        COALESCE(SUM(size_bytes), 0),
+                        COALESCE(SUM(CASE WHEN is_cached = 1 THEN 1 ELSE 0 END), 0)
+                    FROM files
+                """)
+                total_files, total_size_bytes, cached_files = cursor.fetchone()
                 
                 # Classification statistics
                 cursor.execute("SELECT COUNT(*) FROM classifications")

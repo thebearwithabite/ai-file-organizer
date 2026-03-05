@@ -618,17 +618,16 @@ async def get_database_stats():
                 conn = sqlite3.connect(str(rollback_db))
                 cursor = conn.cursor()
 
-                # Total operations
-                cursor.execute("SELECT COUNT(*) FROM file_operations")
-                stats["total_operations"] = cursor.fetchone()[0]
+                # Optimized single query to prevent N+1 aggregation overhead
+                cursor.execute("""
+                    SELECT
+                        COUNT(*),
+                        COALESCE(SUM(CASE WHEN timestamp >= ? THEN 1 ELSE 0 END), 0),
+                        COALESCE(SUM(CASE WHEN DATE(timestamp) = ? THEN 1 ELSE 0 END), 0)
+                    FROM file_operations
+                """, (seven_days_ago, today))
 
-                # Operations in last 7 days
-                cursor.execute("SELECT COUNT(*) FROM file_operations WHERE timestamp >= ?", (seven_days_ago,))
-                stats["recent_operations"] = cursor.fetchone()[0]
-
-                # Operations today
-                cursor.execute("SELECT COUNT(*) FROM file_operations WHERE DATE(timestamp) = ?", (today,))
-                stats["today_operations"] = cursor.fetchone()[0]
+                stats["total_operations"], stats["recent_operations"], stats["today_operations"] = cursor.fetchone()
 
                 # Database size
                 stats["rollback_db_size_mb"] = round(rollback_db.stat().st_size / (1024 * 1024), 2)
@@ -662,13 +661,15 @@ async def get_database_stats():
                 conn = sqlite3.connect(str(learning_db))
                 cursor = conn.cursor()
 
-                # Total learning events
-                cursor.execute("SELECT COUNT(*) FROM learning_events")
-                stats["total_learning_events_db"] = cursor.fetchone()[0]
+                # Optimized single query to prevent N+1 aggregation overhead
+                cursor.execute("""
+                    SELECT
+                        COUNT(*),
+                        COALESCE(SUM(CASE WHEN timestamp >= ? THEN 1 ELSE 0 END), 0)
+                    FROM learning_events
+                """, (seven_days_ago,))
 
-                # Learning events in last 7 days
-                cursor.execute("SELECT COUNT(*) FROM learning_events WHERE timestamp >= ?", (seven_days_ago,))
-                stats["recent_learning_events"] = cursor.fetchone()[0]
+                stats["total_learning_events_db"], stats["recent_learning_events"] = cursor.fetchone()
 
                 # Database size
                 stats["learning_db_size_mb"] = round(learning_db.stat().st_size / (1024 * 1024), 2)
