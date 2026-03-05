@@ -1437,8 +1437,15 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
             for config in self.watch_directories.values():
                 path = config['path']
                 if path.exists() and path.name.lower() in ['downloads', 'desktop']:
-                    count += len([f for f in path.iterdir() if f.is_file()])
-        except:
+                    # OPTIMIZATION: Use os.scandir generator for lower memory and faster counting
+                    # Replaces list comprehension [f for f in path.iterdir()] which builds full list in memory
+                    try:
+                        with os.scandir(path) as it:
+                            count += sum(1 for entry in it if entry.is_file())
+                    except OSError:
+                        # Handle potential permission errors or directory removal during race condition
+                        pass
+        except Exception:
             pass
         return count
 
