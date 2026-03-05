@@ -89,6 +89,40 @@ app.add_middleware(
 # Mount static files for the web interface
 
 
+# --- Security Path Validation Helpers ---
+def get_allowed_roots():
+    """Returns a list of Path objects for all allowed base directories."""
+    # Applications typically limit file access to the user's home directory
+    # or the application's root directory.
+    return [
+        Path.home(),
+        get_ai_organizer_root()
+    ]
+
+def validate_path_is_safe(file_path: Path) -> bool:
+    """
+    Validates if a given path is safe to access to prevent Local File Inclusion (LFI)
+    and Path Traversal attacks. Ensures the resolved absolute path is within one of the
+    allowed root directories.
+    Also prevents argument injection (e.g., passing "-rf" to system commands).
+    """
+    if file_path.name.startswith('-'):
+        logger.warning(f"Security: Blocked argument injection attempt in path: {file_path}")
+        return False
+
+    try:
+        resolved_path = file_path.resolve(strict=False)
+    except Exception as e:
+        logger.warning(f"Security: Failed to resolve path {file_path}: {e}")
+        return False
+
+    for root in get_allowed_roots():
+        if validate_path_within_base(resolved_path, root, warn=False):
+            return True
+
+    logger.warning(f"Security: Path traversal attempt blocked for path: {file_path}")
+    return False
+
 # Helper for Rule #1 Enforcement
 def verify_metadata_safety():
     """
@@ -1033,31 +1067,6 @@ async def scan_custom_folder(request: ScanFolderRequest):
     except HTTPException:
         raise
 
-@app.post("/api/open-file")
-async def open_file(request: OpenFileRequest):
-    """
-    Open a file in the system default application (Finder/Explorer)
-    """
-    try:
-        path = Path(request.path)
-        if not path.exists():
-            raise HTTPException(status_code=404, detail="File not found")
-            
-        # Use 'open' command on macOS
-        subprocess.run(['open', str(path)], check=True)
-        
-        return {"status": "success", "message": f"Opened {path.name}"}
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Failed to open file: {e}")
-        raise HTTPException(status_code=500, detail="Failed to open file")
-    except Exception as e:
-        logger.error(f"Error opening file: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-    except Exception as e:
-        # Security: Log detailed error internally, return generic message to user
-        logger.error(f"Failed to scan custom folder: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="An error occurred while scanning the folder. Please try again later.")
-
 @app.get("/api/triage/projects")
 async def get_known_projects():
     """
@@ -1144,9 +1153,12 @@ async def get_file_content(request: Request, path: str = Query(..., description=
         if not file_path.exists():
             raise HTTPException(status_code=404, detail="File not found")
         
-        # Security: Prevent accessing system files
+        # Security: Prevent accessing system files or traversing out of bounds
         if file_path.name.startswith('.') or file_path.name.startswith('~'):
              raise HTTPException(status_code=403, detail="Access denied to hidden/system files")
+
+        if not validate_path_is_safe(file_path):
+             raise HTTPException(status_code=403, detail="Access denied: Path is outside allowed directories or contains illegal characters")
 
         # Determine content type
         import mimetypes
@@ -1171,6 +1183,9 @@ async def get_file_preview_text(path: str = Query(..., description="Absolute pat
         file_path = Path(path)
         if not file_path.exists():
             raise HTTPException(status_code=404, detail="File not found")
+
+        if not validate_path_is_safe(file_path):
+             raise HTTPException(status_code=403, detail="Access denied: Path is outside allowed directories or contains illegal characters")
 
         # Initialize ContentExtractor
         from content_extractor import ContentExtractor
@@ -1286,19 +1301,34 @@ async def open_file(request: OpenFileRequest):
         if not file_path:
             raise HTTPException(status_code=400, detail="File path cannot be empty")
         
-        # Convert to Path object for better handling
-        path_obj = Path(file_path)
-        
-        # Check if file exists (for local files)
-        if not path_obj.exists():
-            # For non-existent files, still try to open (might be a URL or special path)
-            # but provide a warning in the response
-            pass
+        # For URLs (http, https, ftp, smb, etc.), excluding file:// protocols
+        if re.match(r'^(http|https|ftp|smb)://', file_path, re.IGNORECASE):
+            safe_target = file_path
+        else:
+            # If it looks like a URL but isn't strictly allowed (e.g., file://), strip it to treat as local path or block it
+            if file_path.lower().startswith('file://'):
+                file_path = file_path[7:] # strip file:// for local validation
+
+            # Convert to Path object for local file validation
+            path_obj = Path(file_path)
+
+            # Use our strict path validation, which blocks argument injection and out-of-bounds paths
+            if not validate_path_is_safe(path_obj):
+                 raise HTTPException(status_code=403, detail="Access denied: Path is outside allowed directories or contains illegal characters")
+
+            # Ensure we use the absolute resolved path to prevent any ambiguity
+            safe_target = str(path_obj.resolve())
+
+            # Check if file exists (for local files)
+            if not path_obj.exists():
+                # For non-existent files, still try to open (might be a special path)
+                # but provide a warning in the response
+                pass
         
         # Use macOS 'open' command to open the file with default application
         # The 'open' command works with files, URLs, and applications
         result = subprocess.run(
-            ['open', file_path],
+            ['open', safe_target],
             capture_output=True,
             text=True,
             timeout=10  # Prevent hanging
