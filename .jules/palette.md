@@ -1,0 +1,3 @@
+## 2024-03-06 - Accessible Icon Buttons in MediaPreview
+**Learning:** Icon-only buttons (like Play/Pause, Mute/Unmute) without `aria-label` or `title` attributes are completely opaque to screen reader users and users relying on tooltips. Additionally, the SVG icons themselves (e.g., Lucide icons) can be redundantly announced if `aria-hidden="true"` is not explicitly set when wrapped in an accessible button.
+**Action:** Always add dynamic `aria-label` and `title` attributes that update with state (e.g., "Play video" -> "Pause video") to icon-only interactive elements. Add `focus-visible:ring` utilities to ensure valid keyboard focus indicators. Finally, explicitly apply `aria-hidden="true"` to decorative or redundant icon components inside buttons.
