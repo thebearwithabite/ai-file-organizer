@@ -125,9 +125,11 @@ export default function MediaPreview({ filePath, fileType }: MediaPreviewProps) 
             <div className="p-3 flex items-center gap-3 bg-white/5 backdrop-blur-sm">
                 <button
                     onClick={togglePlay}
-                    className="p-2 hover:bg-white/10 rounded-full transition-colors text-white"
+                    className="p-2 hover:bg-white/10 rounded-full transition-colors text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    aria-label={isPlaying ? "Pause video" : "Play video"}
+                    title={isPlaying ? "Pause" : "Play"}
                 >
-                    {isPlaying ? <Pause size={20} /> : <Play size={20} />}
+                    {isPlaying ? <Pause size={20} aria-hidden="true" /> : <Play size={20} aria-hidden="true" />}
                 </button>
 
                 <div className="flex-1 h-1 bg-white/10 rounded-full overflow-hidden">
@@ -139,9 +141,11 @@ export default function MediaPreview({ filePath, fileType }: MediaPreviewProps) 
 
                 <button
                     onClick={toggleMute}
-                    className="p-2 hover:bg-white/10 rounded-full transition-colors text-white/70"
+                    className="p-2 hover:bg-white/10 rounded-full transition-colors text-white/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    aria-label={isMuted ? "Unmute audio" : "Mute audio"}
+                    title={isMuted ? "Unmute" : "Mute"}
                 >
-                    {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                    {isMuted ? <VolumeX size={18} aria-hidden="true" /> : <Volume2 size={18} aria-hidden="true" />}
                 </button>
             </div>
         </div>
