@@ -16,6 +16,7 @@ from typing import Dict, List, Optional, Any, Tuple, Set
 from dataclasses import dataclass
 from collections import Counter, defaultdict
 import hashlib
+from contextlib import contextmanager
 
 project_dir = Path(__file__).parent
 sys.path.insert(0, str(project_dir))
@@ -190,6 +191,20 @@ class ComprehensiveTaggingSystem:
             'did', 'will', 'would', 'could', 'should', 'may', 'might', 'must', 'can', 'shall'
         }
     
+    @contextmanager
+    def _get_connection(self, db_connection=None):
+        """Context manager to reuse an existing database connection or create a new one.
+        This prevents N+1 connection overhead during batch processing operations.
+        """
+        if db_connection is not None:
+            yield db_connection
+        else:
+            conn = sqlite3.connect(self.db_path)
+            try:
+                yield conn
+            finally:
+                conn.close()
+
     def _init_tagging_db(self):
         """Initialize SQLite database for tagging system"""
         with sqlite3.connect(self.db_path) as conn:
@@ -440,11 +455,11 @@ class ComprehensiveTaggingSystem:
         
         return tagged_file
     
-    def save_tagged_file(self, tagged_file: TaggedFile) -> bool:
+    def save_tagged_file(self, tagged_file: TaggedFile, db_connection: Optional[sqlite3.Connection] = None) -> bool:
         """Save tagged file to database"""
         
         try:
-            with sqlite3.connect(self.db_path) as conn:
+            with self._get_connection(db_connection) as conn:
                 conn.execute("""
                     INSERT OR REPLACE INTO file_tags
                     (file_path, file_name, file_extension, file_hash, auto_tags, user_tags,
@@ -462,11 +477,13 @@ class ComprehensiveTaggingSystem:
                     tagged_file.last_tagged.isoformat(),
                     datetime.now().isoformat()
                 ))
-                conn.commit()
             
-            # Update tag relationships and statistics
-            self._update_tag_relationships(tagged_file)
-            self._update_tag_statistics(tagged_file)
+                # Update tag relationships and statistics
+                self._update_tag_relationships(tagged_file, db_connection=conn)
+                self._update_tag_statistics(tagged_file, db_connection=conn)
+
+                if db_connection is None:
+                    conn.commit()
             
             return True
             
@@ -474,12 +491,12 @@ class ComprehensiveTaggingSystem:
             print(f"❌ Error saving tagged file: {e}")
             return False
     
-    def _update_tag_relationships(self, tagged_file: TaggedFile):
+    def _update_tag_relationships(self, tagged_file: TaggedFile, db_connection: Optional[sqlite3.Connection] = None):
         """Update co-occurrence relationships between tags"""
         
         all_tags = tagged_file.auto_tags + tagged_file.user_tags
         
-        with sqlite3.connect(self.db_path) as conn:
+        with self._get_connection(db_connection) as conn:
             # Update co-occurrence counts for all tag pairs
             for i, tag1 in enumerate(all_tags):
                 for tag2 in all_tags[i+1:]:
@@ -499,14 +516,15 @@ class ComprehensiveTaggingSystem:
                                ?)
                     """, (tag1, tag2, tag1, tag2, tag1, tag2, datetime.now().isoformat()))
             
-            conn.commit()
+            if db_connection is None:
+                conn.commit()
     
-    def _update_tag_statistics(self, tagged_file: TaggedFile):
+    def _update_tag_statistics(self, tagged_file: TaggedFile, db_connection: Optional[sqlite3.Connection] = None):
         """Update usage statistics for tags"""
         
         all_tags = tagged_file.auto_tags + tagged_file.user_tags
         
-        with sqlite3.connect(self.db_path) as conn:
+        with self._get_connection(db_connection) as conn:
             for tag in all_tags:
                 confidence = tagged_file.confidence_scores.get(tag, 0.5)
                 
@@ -526,7 +544,8 @@ class ComprehensiveTaggingSystem:
                      tag, datetime.now().isoformat(),
                      datetime.now().isoformat()))
             
-            conn.commit()
+            if db_connection is None:
+                conn.commit()
     
     def _get_tag_category(self, tag: str) -> str:
         """Determine category of a tag based on prefix or content"""
