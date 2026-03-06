@@ -29,3 +29,7 @@
 ## 2025-09-09 - [Grouping SQLite Aggregation Queries]
 **Learning:** Sequential `COUNT` and `SUM` queries on the same table (e.g., in stats generation) cause N+1 full table/index scans, wasting significant I/O. Grouping these into a single query using `COALESCE(SUM(CASE WHEN condition THEN value ELSE 0 END), 0)` reduced query times for large tables by almost 2x by requiring only a single table scan.
 **Action:** When gathering multiple metrics (total count, conditional counts, sums) from the same table, always combine them into a single `SELECT` statement with conditional aggregation.
+
+## 2025-09-10 - [Connection Reuse Transaction Boundary Bug]
+**Learning:** When using a `_get_connection` context manager to reuse SQLite connections across multiple helper functions, calling `conn.commit()` unconditionally in the outer function, but before the helper functions, leads to silent data loss. The helper functions, which use the shared connection, bypass their own commits. When the context manager exits and closes the connection, the uncommitted inserts from the helpers are rolled back by SQLite.
+**Action:** When implementing SQLite connection reuse (e.g., via `_get_connection` context managers), ensure `conn.commit()` is only called at the very end of the top-level database operation and only if the connection was created locally (i.e., `db_connection is None`) to avoid silent data loss bugs.
