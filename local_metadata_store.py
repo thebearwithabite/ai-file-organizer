@@ -902,21 +902,23 @@ class LocalMetadataStore:
             with self._get_cursor() as cursor:
                 stats = {}
                 
-                # File counts
-                cursor.execute("SELECT COUNT(*) FROM files")
-                stats['total_files'] = cursor.fetchone()[0]
+                # OPTIMIZATION: Combine sequential COUNT and SUM queries into a single query
+                # using conditional aggregation to prevent N+1 full table/index scans.
+                cursor.execute("""
+                    SELECT
+                        COUNT(*),
+                        COALESCE(SUM(CASE WHEN is_cached = 1 THEN 1 ELSE 0 END), 0),
+                        COALESCE(SUM(size_bytes), 0),
+                        COALESCE(SUM(CASE WHEN is_cached = 1 THEN size_bytes ELSE 0 END), 0)
+                    FROM files
+                """)
                 
-                cursor.execute("SELECT COUNT(*) FROM files WHERE is_cached = TRUE")
-                stats['cached_files'] = cursor.fetchone()[0]
+                total_files, cached_files, total_size_bytes, cached_size_bytes = cursor.fetchone()
                 
-                # Storage stats
-                cursor.execute("SELECT SUM(size_bytes) FROM files")
-                result = cursor.fetchone()[0]
-                stats['total_size_bytes'] = result or 0
-                
-                cursor.execute("SELECT SUM(size_bytes) FROM files WHERE is_cached = TRUE")
-                result = cursor.fetchone()[0]
-                stats['cached_size_bytes'] = result or 0
+                stats['total_files'] = total_files
+                stats['cached_files'] = cached_files
+                stats['total_size_bytes'] = total_size_bytes
+                stats['cached_size_bytes'] = cached_size_bytes
                 
                 # Classification stats
                 cursor.execute("SELECT category, COUNT(*) FROM classifications GROUP BY category")
