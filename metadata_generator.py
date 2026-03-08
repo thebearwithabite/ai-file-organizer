@@ -465,11 +465,34 @@ class MetadataGenerator:
     def save_file_metadata(self, metadata: Dict[str, Any]) -> bool:
         """Save file metadata to database"""
         
+        # Valid columns from database schema to prevent SQL injection
+        valid_columns = {
+            'id', 'file_path', 'file_name', 'file_extension', 'file_size', 'file_type',
+            'created_date', 'modified_date', 'indexed_date', 'ai_category', 'ai_subcategory',
+            'confidence_score', 'classification_method', 'content_preview', 'content_length',
+            'word_count', 'page_count', 'people_mentioned', 'organizations', 'dates_mentioned',
+            'project_codes', 'auto_tags', 'user_tags', 'original_location', 'organized_location',
+            'enhanced_filename', 'organization_status', 'gdrive_upload', 'gdrive_folder',
+            'gdrive_file_id', 'gdrive_category', 'gdrive_confidence', 'upload_timestamp',
+            'space_freed_mb', 'duration_seconds', 'audio_bitrate', 'video_resolution',
+            'processing_mode', 'questions_asked', 'user_corrections', 'last_updated'
+        }
+
         try:
             with sqlite3.connect(self.db_path) as conn:
-                # Convert to database format
-                columns = list(metadata.keys())
-                values = list(metadata.values())
+                # Convert to database format with strict column validation
+                columns = []
+                values = []
+
+                for k, v in metadata.items():
+                    if k in valid_columns:
+                        columns.append(k)
+                        values.append(v)
+
+                if not columns:
+                    print("Error: No valid columns provided for metadata")
+                    return False
+
                 placeholders = ', '.join(['?' for _ in values])
                 column_names = ', '.join(columns)
                 
