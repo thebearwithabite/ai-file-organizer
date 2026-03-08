@@ -6,18 +6,18 @@ export default function SystemStateStrip() {
     const [status, setStatus] = useState<SystemStatus | null>(null)
     const [error, setError] = useState(false)
 
-    const fetchStatus = async () => {
-        try {
-            const data = await api.getSystemStatus()
-            setStatus(data)
-            setError(false)
-        } catch (err) {
-            console.error('Failed to fetch system status:', err)
-            setError(true)
-        }
-    }
-
     useEffect(() => {
+        const fetchStatus = async () => {
+            try {
+                const data = await api.getSystemStatus()
+                setStatus(data)
+                setError(false)
+            } catch (err) {
+                console.error('Failed to fetch system status:', err)
+                setError(true)
+            }
+        }
+
         fetchStatus()
         const interval = setInterval(fetchStatus, 30000)
         return () => clearInterval(interval)
