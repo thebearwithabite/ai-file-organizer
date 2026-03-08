@@ -43,7 +43,9 @@ export default function JsonSidecarViewer({ filePath }: JsonSidecarViewerProps) 
         <div className="mt-4 border border-white/10 rounded-xl overflow-hidden bg-white/5">
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="w-full px-4 py-3 flex items-center justify-between hover:bg-white/5 transition-colors"
+                className="w-full px-4 py-3 flex items-center justify-between hover:bg-white/5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                aria-expanded={isOpen}
+                aria-controls="sidecar-metadata-panel"
             >
                 <div className="flex items-center gap-2 text-sm font-medium text-white/80">
                     <FileJson size={16} className="text-yellow-400" />
@@ -54,7 +56,7 @@ export default function JsonSidecarViewer({ filePath }: JsonSidecarViewerProps) 
             </button>
 
             {isOpen && data && (
-                <div className="p-4 bg-black/20 border-t border-white/10 font-mono text-xs text-white/70 overflow-x-auto">
+                <div id="sidecar-metadata-panel" className="p-4 bg-black/20 border-t border-white/10 font-mono text-xs text-white/70 overflow-x-auto">
                     <pre>{JSON.stringify(data, null, 2)}</pre>
                 </div>
             )}
