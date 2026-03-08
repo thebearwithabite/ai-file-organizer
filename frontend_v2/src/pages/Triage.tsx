@@ -32,20 +32,20 @@ export default function Triage() {
   const [projectInput, setProjectInput] = useState<Record<string, string>>({})
   const [episodeInput, setEpisodeInput] = useState<Record<string, string>>({})
   const [customFolderPath, setCustomFolderPath] = useState('')
-  const [recentFolders, setRecentFolders] = useState<string[]>([])
   const [currentScanMode, setCurrentScanMode] = useState<'downloads' | 'custom'>('downloads')
 
   // Load recent folders from localStorage on mount
-  useEffect(() => {
+  const [recentFolders, setRecentFolders] = useState<string[]>(() => {
     const saved = localStorage.getItem('recentTriageFolders')
     if (saved) {
       try {
-        setRecentFolders(JSON.parse(saved))
+        return JSON.parse(saved)
       } catch {
-        setRecentFolders([])
+        return []
       }
     }
-  }, [])
+    return []
+  })
 
   // Save recent folders to localStorage whenever they change
   const addRecentFolder = (folderPath: string) => {
