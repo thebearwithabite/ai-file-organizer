@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useId } from 'react'
 import { FileJson, ChevronDown, ChevronRight } from 'lucide-react'
 
 interface JsonSidecarViewerProps {
@@ -10,6 +10,8 @@ export default function JsonSidecarViewer({ filePath }: JsonSidecarViewerProps) 
     const [isOpen, setIsOpen] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
     const [exists, setExists] = useState(false)
+    const buttonId = useId()
+    const contentId = useId()
 
     // Sidecar path is usually original path + .json
     const sidecarPath = `${filePath}.json`
@@ -42,19 +44,31 @@ export default function JsonSidecarViewer({ filePath }: JsonSidecarViewerProps) 
     return (
         <div className="mt-4 border border-white/10 rounded-xl overflow-hidden bg-white/5">
             <button
+                id={buttonId}
                 onClick={() => setIsOpen(!isOpen)}
-                className="w-full px-4 py-3 flex items-center justify-between hover:bg-white/5 transition-colors"
+                aria-expanded={isOpen}
+                aria-controls={contentId}
+                className="w-full px-4 py-3 flex items-center justify-between hover:bg-white/5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset"
             >
                 <div className="flex items-center gap-2 text-sm font-medium text-white/80">
-                    <FileJson size={16} className="text-yellow-400" />
+                    <FileJson size={16} className="text-yellow-400" aria-hidden="true" />
                     <span>Sidecar Metadata</span>
-                    {isLoading && <span className="text-xs text-white/40 ml-2">(Loading...)</span>}
+                    {isLoading && <span className="text-xs text-white/40 ml-2" aria-live="polite">(Loading...)</span>}
                 </div>
-                {isOpen ? <ChevronDown size={16} className="text-white/40" /> : <ChevronRight size={16} className="text-white/40" />}
+                {isOpen ? (
+                    <ChevronDown size={16} className="text-white/40" aria-hidden="true" />
+                ) : (
+                    <ChevronRight size={16} className="text-white/40" aria-hidden="true" />
+                )}
             </button>
 
             {isOpen && data && (
-                <div className="p-4 bg-black/20 border-t border-white/10 font-mono text-xs text-white/70 overflow-x-auto">
+                <div
+                    id={contentId}
+                    role="region"
+                    aria-labelledby={buttonId}
+                    className="p-4 bg-black/20 border-t border-white/10 font-mono text-xs text-white/70 overflow-x-auto"
+                >
                     <pre>{JSON.stringify(data, null, 2)}</pre>
                 </div>
             )}
