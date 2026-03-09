@@ -29,3 +29,7 @@
 ## 2025-09-09 - [Grouping SQLite Aggregation Queries]
 **Learning:** Sequential `COUNT` and `SUM` queries on the same table (e.g., in stats generation) cause N+1 full table/index scans, wasting significant I/O. Grouping these into a single query using `COALESCE(SUM(CASE WHEN condition THEN value ELSE 0 END), 0)` reduced query times for large tables by almost 2x by requiring only a single table scan.
 **Action:** When gathering multiple metrics (total count, conditional counts, sums) from the same table, always combine them into a single `SELECT` statement with conditional aggregation.
+
+## 2025-05-27 - [Optimizing Aggregate SQLite Queries]
+**Learning:** Grouping multiple sequential `COUNT` and `SUM` aggregate queries into a single query using conditional aggregation (e.g., `COALESCE(SUM(CASE WHEN condition THEN value ELSE 0 END), 0)`) prevents N+1 full table/index scans.
+**Action:** When calculating multiple database statistics from the same table, combine them into a single `SELECT` statement rather than running them sequentially.
