@@ -9,3 +9,10 @@
 2. Verify path containment within allowed boundaries using `is_relative_to` (or `security_utils.validate_path_within_base`).
 3. For endpoints invoking system commands with user-provided paths, ensure paths are absolute to prevent them from being parsed as options (flags starting with `-`), or explicitly block paths where `.name.startswith('-')`.
 4. Special care must be given to URL support to prevent bypasses like `file:///etc/passwd` when filtering `http`/`https`.
+## 2024-03-10 - SQL Injection via Dictionary Keys in Dynamic Inserts
+
+**Vulnerability:** The `MetadataGenerator.save_file_metadata()` method dynamically constructed `INSERT OR REPLACE` SQL queries by directly joining dictionary keys (`', '.join(columns)` where `columns = list(metadata.keys())`). This allowed an attacker to execute arbitrary SQL commands by passing a maliciously crafted key (e.g., `{"malicious_column) VALUES (1); DROP TABLE...": "value"}`).
+
+**Learning:** When using Python f-strings to build dynamic SQL queries (like inserting varying metadata fields), standard `?` parameterization only protects the *values*, not the *column names*. If the column names are derived from unsanitized input (like keys of an external dictionary), the system remains vulnerable to SQL injection.
+
+**Prevention:** Always validate and filter dynamic column names against an explicit schema allowlist. By fetching the valid columns from the database (e.g., via `PRAGMA table_info`) and filtering the incoming dictionary keys to only include those that match the known schema, we can completely eliminate the risk of SQL injection through dynamic field mapping.
