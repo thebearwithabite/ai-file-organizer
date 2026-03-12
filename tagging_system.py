@@ -15,6 +15,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any, Tuple, Set
 from dataclasses import dataclass
 from collections import Counter, defaultdict
+from contextlib import contextmanager
 import hashlib
 
 project_dir = Path(__file__).parent
@@ -252,6 +253,19 @@ class ComprehensiveTaggingSystem:
             
             conn.commit()
     
+    @contextmanager
+    def _get_connection(self):
+        """Context manager for reusing SQLite connection"""
+        conn = sqlite3.connect(self.db_path)
+        try:
+            yield conn
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
     def extract_tags_from_content(self, content: str, file_path: Path) -> Tuple[List[str], Dict[str, float], Dict[str, str]]:
         """Extract tags from file content using pattern matching"""
         
@@ -440,33 +454,38 @@ class ComprehensiveTaggingSystem:
         
         return tagged_file
     
-    def save_tagged_file(self, tagged_file: TaggedFile) -> bool:
-        """Save tagged file to database"""
+    def save_tagged_file(self, tagged_file: TaggedFile, db_connection=None) -> bool:
+        """Save tagged file to database using connection sharing"""
         
-        try:
-            with sqlite3.connect(self.db_path) as conn:
-                conn.execute("""
-                    INSERT OR REPLACE INTO file_tags
-                    (file_path, file_name, file_extension, file_hash, auto_tags, user_tags,
-                     confidence_scores, tag_sources, last_tagged, created_date)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (
-                    str(tagged_file.file_path),
-                    tagged_file.file_path.name,
-                    tagged_file.file_path.suffix.lower(),
-                    tagged_file.file_hash,
-                    json.dumps(tagged_file.auto_tags),
-                    json.dumps(tagged_file.user_tags),
-                    json.dumps(tagged_file.confidence_scores),
-                    json.dumps(tagged_file.tag_sources),
-                    tagged_file.last_tagged.isoformat(),
-                    datetime.now().isoformat()
-                ))
-                conn.commit()
+        def _save(conn):
+            conn.execute("""
+                INSERT OR REPLACE INTO file_tags
+                (file_path, file_name, file_extension, file_hash, auto_tags, user_tags,
+                 confidence_scores, tag_sources, last_tagged, created_date)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                str(tagged_file.file_path),
+                tagged_file.file_path.name,
+                tagged_file.file_path.suffix.lower(),
+                tagged_file.file_hash,
+                json.dumps(tagged_file.auto_tags),
+                json.dumps(tagged_file.user_tags),
+                json.dumps(tagged_file.confidence_scores),
+                json.dumps(tagged_file.tag_sources),
+                tagged_file.last_tagged.isoformat(),
+                datetime.now().isoformat()
+            ))
+
+            # Update tag relationships and statistics within same transaction
+            self._update_tag_relationships(tagged_file, conn)
+            self._update_tag_statistics(tagged_file, conn)
             
-            # Update tag relationships and statistics
-            self._update_tag_relationships(tagged_file)
-            self._update_tag_statistics(tagged_file)
+        try:
+            if db_connection is not None:
+                _save(db_connection)
+            else:
+                with self._get_connection() as conn:
+                    _save(conn)
             
             return True
             
@@ -474,59 +493,62 @@ class ComprehensiveTaggingSystem:
             print(f"❌ Error saving tagged file: {e}")
             return False
     
-    def _update_tag_relationships(self, tagged_file: TaggedFile):
-        """Update co-occurrence relationships between tags"""
+    def _update_tag_relationships(self, tagged_file: TaggedFile, conn: sqlite3.Connection):
+        """Update co-occurrence relationships between tags using batch processing"""
         
         all_tags = tagged_file.auto_tags + tagged_file.user_tags
+        now_iso = datetime.now().isoformat()
         
-        with sqlite3.connect(self.db_path) as conn:
-            # Update co-occurrence counts for all tag pairs
-            for i, tag1 in enumerate(all_tags):
-                for tag2 in all_tags[i+1:]:
-                    # Ensure consistent ordering
-                    if tag1 > tag2:
-                        tag1, tag2 = tag2, tag1
-                    
-                    # Update or insert relationship
-                    conn.execute("""
-                        INSERT OR REPLACE INTO tag_relationships
-                        (tag1, tag2, co_occurrence_count, relationship_strength, last_updated)
-                        VALUES (?, ?, 
-                               COALESCE((SELECT co_occurrence_count FROM tag_relationships 
-                                       WHERE tag1=? AND tag2=?), 0) + 1,
-                               COALESCE((SELECT relationship_strength FROM tag_relationships 
-                                       WHERE tag1=? AND tag2=?), 0) + 0.1,
-                               ?)
-                    """, (tag1, tag2, tag1, tag2, tag1, tag2, datetime.now().isoformat()))
-            
-            conn.commit()
+        batch_data = []
+        for i, tag1 in enumerate(all_tags):
+            for tag2 in all_tags[i+1:]:
+                # Ensure consistent ordering
+                if tag1 > tag2:
+                    tag1, tag2 = tag2, tag1
+
+                batch_data.append((tag1, tag2, tag1, tag2, tag1, tag2, now_iso))
+
+        if batch_data:
+            conn.executemany("""
+                INSERT OR REPLACE INTO tag_relationships
+                (tag1, tag2, co_occurrence_count, relationship_strength, last_updated)
+                VALUES (?, ?,
+                       COALESCE((SELECT co_occurrence_count FROM tag_relationships
+                               WHERE tag1=? AND tag2=?), 0) + 1,
+                       COALESCE((SELECT relationship_strength FROM tag_relationships
+                               WHERE tag1=? AND tag2=?), 0) + 0.1,
+                       ?)
+            """, batch_data)
     
-    def _update_tag_statistics(self, tagged_file: TaggedFile):
-        """Update usage statistics for tags"""
+    def _update_tag_statistics(self, tagged_file: TaggedFile, conn: sqlite3.Connection):
+        """Update usage statistics for tags using batch processing"""
         
         all_tags = tagged_file.auto_tags + tagged_file.user_tags
+        now_iso = datetime.now().isoformat()
         
-        with sqlite3.connect(self.db_path) as conn:
-            for tag in all_tags:
-                confidence = tagged_file.confidence_scores.get(tag, 0.5)
-                
-                conn.execute("""
-                    INSERT OR REPLACE INTO tag_statistics
-                    (tag, usage_count, file_count, category, average_confidence, first_seen, last_seen)
-                    VALUES (?, 
-                           COALESCE((SELECT usage_count FROM tag_statistics WHERE tag=?), 0) + 1,
-                           COALESCE((SELECT file_count FROM tag_statistics WHERE tag=?), 0) + 1,
-                           ?,
-                           (COALESCE((SELECT average_confidence FROM tag_statistics WHERE tag=?), 0) + ?) / 2,
-                           COALESCE((SELECT first_seen FROM tag_statistics WHERE tag=?), ?),
-                           ?)
-                """, (tag, tag, tag, 
-                     self._get_tag_category(tag), 
-                     tag, confidence, 
-                     tag, datetime.now().isoformat(),
-                     datetime.now().isoformat()))
+        batch_data = []
+        for tag in all_tags:
+            confidence = tagged_file.confidence_scores.get(tag, 0.5)
+            batch_data.append((
+                tag, tag, tag,
+                self._get_tag_category(tag),
+                tag, confidence,
+                tag, now_iso,
+                now_iso
+            ))
             
-            conn.commit()
+        if batch_data:
+            conn.executemany("""
+                INSERT OR REPLACE INTO tag_statistics
+                (tag, usage_count, file_count, category, average_confidence, first_seen, last_seen)
+                VALUES (?,
+                       COALESCE((SELECT usage_count FROM tag_statistics WHERE tag=?), 0) + 1,
+                       COALESCE((SELECT file_count FROM tag_statistics WHERE tag=?), 0) + 1,
+                       ?,
+                       (COALESCE((SELECT average_confidence FROM tag_statistics WHERE tag=?), 0) + ?) / 2,
+                       COALESCE((SELECT first_seen FROM tag_statistics WHERE tag=?), ?),
+                       ?)
+            """, batch_data)
     
     def _get_tag_category(self, tag: str) -> str:
         """Determine category of a tag based on prefix or content"""
@@ -752,7 +774,8 @@ def test_tagging_system():
     test_dirs = [
         Path("/Users/user/Github/ai-file-organizer"),
         Path.home() / "Downloads",
-        Path.home() / "Desktop"
+        Path.home() / "Desktop",
+        Path("test_dir")
     ]
     
     test_files = []
