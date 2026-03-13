@@ -311,8 +311,9 @@ Focus on details that would help with project categorization and file organizati
         try:
             # Get video duration
             import subprocess
+            # Use absolute path to prevent argument injection if filename starts with '-'
             cmd = ['ffprobe', '-v', 'quiet', '-show_entries', 'format=duration', 
-                   '-of', 'csv=p=0', str(file_path)]
+                   '-of', 'csv=p=0', str(file_path.absolute())]
             result = subprocess.run(cmd, capture_output=True, text=True)
             
             if result.returncode != 0:
@@ -353,11 +354,11 @@ Focus on details that would help with project categorization and file organizati
             )
             
             cmd = [
-                'ffmpeg', '-i', str(file_path), 
+                'ffmpeg', '-i', str(file_path.absolute()),
                 '-filter_complex', filter_complex,
                 '-map', '[outv]', '-map', '[outa]',
                 '-y',  # Overwrite output
-                str(sample_path)
+                str(sample_path.absolute())
             ]
             
             # Run ffmpeg
