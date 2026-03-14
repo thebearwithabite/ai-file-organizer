@@ -36,7 +36,7 @@ const LoadingIndicator: React.FC = () => {
             <h2 className="text-2xl font-black mt-8 text-white italic tracking-tighter">
                 Generating Your Shot Book
             </h2>
-            <p className="mt-2 text-white/50 text-center transition-opacity duration-500 font-medium">
+            <p aria-live="polite" aria-atomic="true" className="mt-2 text-white/50 text-center transition-opacity duration-500 font-medium">
                 {loadingMessages[messageIndex]}
             </p>
         </div>
