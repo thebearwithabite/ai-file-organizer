@@ -29,3 +29,7 @@
 ## 2025-09-09 - [Grouping SQLite Aggregation Queries]
 **Learning:** Sequential `COUNT` and `SUM` queries on the same table (e.g., in stats generation) cause N+1 full table/index scans, wasting significant I/O. Grouping these into a single query using `COALESCE(SUM(CASE WHEN condition THEN value ELSE 0 END), 0)` reduced query times for large tables by almost 2x by requiring only a single table scan.
 **Action:** When gathering multiple metrics (total count, conditional counts, sums) from the same table, always combine them into a single `SELECT` statement with conditional aggregation.
+
+## 2025-05-27 - [Bulk SQLite Inserts and Connection Reuse for Tagging]
+**Learning:** Sequential `.execute` calls for `INSERT OR REPLACE` inside nested loops over large arrays (like tags) coupled with opening independent DB connections per method creates a severe N+1 problem. Benchmarks showed replacing it with a single shared connection and `executemany` arrays resulted in an ~2x speedup on typical batch tagging workloads.
+**Action:** Always batch related SQL records using `.executemany()` and pass an optional `db_connection` downstream to nested operations instead of establishing a new database connection every time.
