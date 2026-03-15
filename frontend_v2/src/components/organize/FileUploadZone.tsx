@@ -50,28 +50,31 @@ export default function FileUploadZone({ onClassificationComplete }: FileUploadZ
       <input {...getInputProps()} />
 
       {isPending ? (
-        <>
-          <div className="text-5xl mb-4 animate-pulse">⏳</div>
+        <div aria-live="polite" aria-atomic="true">
+          <div className="text-5xl mb-4 animate-pulse" aria-hidden="true">⏳</div>
           <p className="text-xl text-white/80 mb-2">Analyzing file...</p>
           <p className="text-sm text-white/40">AI is classifying your file</p>
-        </>
+        </div>
       ) : isDragActive ? (
-        <>
-          <FileUp size={48} className="mx-auto mb-4 text-primary" />
+        <div aria-live="polite" aria-atomic="true">
+          <FileUp size={48} className="mx-auto mb-4 text-primary" aria-hidden="true" />
           <p className="text-xl text-primary font-semibold">Drop file here</p>
-        </>
+        </div>
       ) : (
-        <>
-          <Upload size={48} className="mx-auto mb-4 text-white/40" />
+        <div aria-live="polite" aria-atomic="true">
+          <Upload size={48} className="mx-auto mb-4 text-white/40" aria-hidden="true" />
           <p className="text-xl text-white mb-2 font-semibold">Drag & drop a file here</p>
           <p className="text-sm text-white/60 mb-4">or</p>
-          <button className="px-6 py-3 bg-primary hover:bg-primary-hover rounded-lg font-medium transition-colors">
+          <button
+            type="button"
+            className="px-6 py-3 bg-primary hover:bg-primary-hover rounded-lg font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
+          >
             Browse Files
           </button>
           <p className="text-xs text-white/40 mt-4">
             Supports: PDF, DOCX, Images, Audio, Video, and more
           </p>
-        </>
+        </div>
       )}
     </div>
   )
