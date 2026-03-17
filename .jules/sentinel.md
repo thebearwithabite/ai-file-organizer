@@ -9,3 +9,13 @@
 2. Verify path containment within allowed boundaries using `is_relative_to` (or `security_utils.validate_path_within_base`).
 3. For endpoints invoking system commands with user-provided paths, ensure paths are absolute to prevent them from being parsed as options (flags starting with `-`), or explicitly block paths where `.name.startswith('-')`.
 4. Special care must be given to URL support to prevent bypasses like `file:///etc/passwd` when filtering `http`/`https`.
+
+## 2024-05-30 - Argument Injection Vulnerability in Video Processing Tools
+
+**Vulnerability:** The `vision_content_extractor.py` module passed unvalidated string file paths directly to `subprocess.run` calls for `ffprobe` and `ffmpeg` when preparing video samples. If an attacker controlled the filename, they could name a file starting with `-` (e.g., `-someflag`), leading to argument injection where the command-line tool interprets the filename as an option.
+
+**Learning:** When invoking external command-line tools (like `ffmpeg` or `ffprobe`) using `subprocess.run` with user-controlled file paths, using `str(file_path)` is insufficient to prevent argument injection. If a path string happens to be a relative filename like `-v`, it can alter the tool's behavior, potentially leading to unauthorized operations or command execution depending on the tool's supported flags.
+
+**Prevention:**
+1. Always convert `pathlib.Path` objects to absolute strings using `str(path.absolute())` before passing them as arguments to `subprocess.run`.
+2. Absolute paths always begin with a directory separator (`/` on Unix) or a drive letter (`C:\` on Windows), guaranteeing the command-line tool parses them as file paths rather than flags or options.
