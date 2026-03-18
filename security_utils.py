@@ -94,7 +94,8 @@ def sanitize_filename(filename: str, fallback_prefix: str = "file") -> str:
 
 
 def validate_path_within_base(target_path: Union[Path, str],
-                              base_path: Union[Path, str]) -> bool:
+                              base_path: Union[Path, str],
+                              warn: bool = True) -> bool:
     """
     Verify that target_path is within base_path to prevent path traversal.
 
@@ -105,26 +106,10 @@ def validate_path_within_base(target_path: Union[Path, str],
     Args:
         target_path: Path to validate (can be relative or absolute)
         base_path: Base directory that must contain target_path
+        warn: Whether to log a warning on validation failure (default: True)
 
     Returns:
         True if target_path is within base_path, False otherwise
-
-    Examples:
-        >>> base = Path("/home/user/uploads")
-        >>> validate_path_within_base(Path("/home/user/uploads/file.txt"), base)
-        True
-        >>> validate_path_within_base(Path("file.txt"), base)  # Relative is OK
-        True
-        >>> validate_path_within_base(Path("/etc/passwd"), base)
-        False
-        >>> validate_path_within_base(Path("../../../etc/passwd"), base)
-        False
-
-    Security Notes:
-        - Uses Path.resolve() to resolve symlinks and '..' sequences
-        - Handles both absolute and relative paths safely
-        - Returns False on any error (fail-secure)
-        - Logs validation failures for security auditing
     """
     try:
         # Convert strings to Path objects
@@ -150,7 +135,7 @@ def validate_path_within_base(target_path: Union[Path, str],
             except ValueError:
                 is_valid = False
 
-        if not is_valid:
+        if not is_valid and warn:
             logger.warning(
                 f"Path validation failed: '{target_path}' is outside '{base_path}' "
                 f"(resolved: '{target_abs}' vs '{base_abs}')"

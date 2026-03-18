@@ -89,8 +89,8 @@ class StagingMonitor:
             "notification_time": "23:00",
             "excluded_extensions": [".tmp", ".cache", ".DS_Store"],
             "excluded_folders": ["node_modules", ".git", "__pycache__"],
-            "auto_organize_confidence": 0.8,
-            "suggestion_confidence": 0.6
+            "auto_organize_confidence": 0.65,
+            "suggestion_confidence": 0.50
         }
         
         if self.config_path.exists():
@@ -122,34 +122,125 @@ class StagingMonitor:
         for folder_name, folder_path in [("desktop", self.desktop_path), ("downloads", self.downloads_path)]:
             if not folder_path.exists():
                 continue
-                
-            for file_path in folder_path.iterdir():
-                if not file_path.is_file():
-                    continue
-                    
-                # Skip excluded files
-                if file_path.suffix.lower() in self.config["excluded_extensions"]:
-                    continue
-                    
-                if any(excluded in file_path.name for excluded in self.config["excluded_folders"]):
-                    continue
-                
-                try:
-                    stat = file_path.stat()
-                    file_info = {
-                        "path": str(file_path),
-                        "name": file_path.name,
-                        "size": stat.st_size,
-                        "modified": datetime.fromtimestamp(stat.st_mtime),
-                        "created": datetime.fromtimestamp(stat.st_ctime),
-                        "hash": self._get_file_hash(file_path)
-                    }
-                    results[folder_name].append(file_info)
-                except Exception as e:
-                    print(f"Error scanning {file_path}: {e}")
+
+            try:
+                # Use os.scandir for performance (avoids extra stat calls)
+                with os.scandir(folder_path) as it:
+                    for entry in it:
+                        try:
+                            if not entry.is_file():
+                                continue
+
+                            # Skip excluded files
+                            # Check extension
+                            _, ext = os.path.splitext(entry.name)
+                            if ext.lower() in self.config["excluded_extensions"]:
+                                continue
+
+                            # Check excluded folders/patterns in name
+                            if any(excluded in entry.name for excluded in self.config["excluded_folders"]):
+                                continue
+
+                            stat = entry.stat()
+                            file_info = {
+                                "path": entry.path,
+                                "name": entry.name,
+                                "size": stat.st_size,
+                                "modified": datetime.fromtimestamp(stat.st_mtime),
+                                "created": datetime.fromtimestamp(stat.st_ctime),
+                                "hash": None  # Lazy hashing: computed only if needed in update_tracking_database
+                            }
+                            results[folder_name].append(file_info)
+                        except Exception as e:
+                            print(f"Error scanning entry {entry.name}: {e}")
+            except OSError as e:
+                print(f"Error scanning folder {folder_path}: {e}")
         
         return results
     
+    def record_observation(self, file_path: Path, folder_location: str = "custom", db_connection: Optional[sqlite3.Connection] = None) -> bool:
+        """
+        Instantly record an observation of a file for age tracking.
+        Returns True if newly discovered.
+        """
+        if not file_path.exists() or not file_path.is_file():
+            return False
+
+        current_time = datetime.now()
+        # file_hash calculation deferred to _perform_record_observation if needed
+
+        try:
+            if db_connection:
+                return self._perform_record_observation(db_connection, file_path, folder_location, current_time)
+            else:
+                with sqlite3.connect(self.db_path) as conn:
+                    return self._perform_record_observation(conn, file_path, folder_location, current_time)
+        except Exception as e:
+            print(f"Error recording observation for {file_path}: {e}")
+            return False
+
+    def _perform_record_observation(self, conn: sqlite3.Connection, file_path: Path, folder_location: str, current_time: datetime, file_hash: Optional[str] = None) -> bool:
+        """Internal logic for record_observation to support connection reuse"""
+        # Check if exists
+        cursor = conn.execute(
+            "SELECT file_hash, first_seen, status FROM file_tracking WHERE file_path = ?",
+            (str(file_path),)
+        )
+        existing = cursor.fetchone()
+
+        if existing:
+            # Update status to active if it was removed/organized but reappeared
+            if existing[2] != 'active':
+                conn.execute(
+                    "UPDATE file_tracking SET status = 'active', last_modified = ? WHERE file_path = ?",
+                    (current_time, str(file_path))
+                )
+            return False
+        else:
+            # New discovery - NOW calculate hash if not provided
+            if file_hash is None:
+                file_hash = self._get_file_hash(file_path)
+
+            conn.execute("""
+                INSERT INTO file_tracking
+                (file_path, file_hash, first_seen, last_modified, size_bytes, folder_location)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (
+                str(file_path), file_hash, current_time, current_time,
+                file_path.stat().st_size, folder_location
+            ))
+
+            conn.execute("""
+                INSERT INTO staging_events (file_path, event_type, event_data)
+                VALUES (?, 'discovered', ?)
+            """, (str(file_path), json.dumps({"folder": folder_location, "instant": True})))
+
+            return True
+
+    def get_file_age_days(self, file_path: str, db_connection: Optional[sqlite3.Connection] = None) -> Optional[int]:
+        """Get the number of days a file has been known to the system"""
+        try:
+            if db_connection:
+                return self._perform_get_file_age(db_connection, file_path)
+            else:
+                with sqlite3.connect(self.db_path) as conn:
+                    return self._perform_get_file_age(conn, file_path)
+        except Exception as e:
+            print(f"Error getting file age: {e}")
+        return None
+
+    def _perform_get_file_age(self, conn: sqlite3.Connection, file_path: str) -> Optional[int]:
+        """Internal logic for get_file_age_days to support connection reuse"""
+        cursor = conn.execute(
+            "SELECT first_seen FROM file_tracking WHERE file_path = ?",
+            (str(file_path),)
+        )
+        result = cursor.fetchone()
+        if result:
+            first_seen = datetime.fromisoformat(result[0])
+            return (datetime.now() - first_seen).days
+        return None
+
     def update_tracking_database(self, scan_results: Dict[str, List[Dict]]):
         """Update database with current scan results"""
         current_time = datetime.now()
@@ -158,18 +249,41 @@ class StagingMonitor:
             for folder_name, files in scan_results.items():
                 for file_info in files:
                     file_path = file_info["path"]
-                    file_hash = file_info["hash"]
+                    file_hash = file_info.get("hash")
                     
                     # Check if file exists in tracking
                     cursor = conn.execute(
-                        "SELECT file_hash, first_seen FROM file_tracking WHERE file_path = ?",
+                        "SELECT file_hash, first_seen, size_bytes, last_modified FROM file_tracking WHERE file_path = ?",
                         (file_path,)
                     )
                     existing = cursor.fetchone()
                     
                     if existing:
+                        db_hash, db_first_seen, db_size, db_last_mod_str = existing
+
+                        # Determine if we need to calculate hash
+                        if file_hash is None:
+                            # Parse DB timestamp (assuming ISO format)
+                            try:
+                                # Handle case where last_modified might be None or invalid
+                                if db_last_mod_str:
+                                    db_last_mod = datetime.fromisoformat(str(db_last_mod_str))
+                                else:
+                                    db_last_mod = datetime.min
+                            except Exception:
+                                db_last_mod = datetime.min
+
+                            # Lazy Hashing Logic:
+                            # If file on disk has NOT been modified since we last checked it (db_last_mod),
+                            # AND the size is identical, we assume the content is unchanged.
+                            # We use < because db_last_mod is the time we WROTE the record, so content MUST be older.
+                            if file_info["modified"] < db_last_mod and file_info["size"] == db_size:
+                                file_hash = db_hash # Optimized: reuse existing hash
+                            else:
+                                file_hash = self._get_file_hash(Path(file_path))
+
                         # File exists - check if modified
-                        if existing[0] != file_hash:
+                        if db_hash != file_hash:
                             # File modified - update tracking
                             conn.execute("""
                                 UPDATE file_tracking 
@@ -184,6 +298,9 @@ class StagingMonitor:
                             """, (file_path, json.dumps({"new_size": file_info["size"]})))
                     else:
                         # New file - add to tracking
+                        if file_hash is None:
+                            file_hash = self._get_file_hash(Path(file_path))
+
                         conn.execute("""
                             INSERT INTO file_tracking 
                             (file_path, file_hash, first_seen, last_modified, size_bytes, folder_location)

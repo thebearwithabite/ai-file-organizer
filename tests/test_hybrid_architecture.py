@@ -34,6 +34,11 @@ import logging
 # Test framework
 import json
 
+# Add project root to path
+project_root = Path(__file__).parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
 # Import our components
 try:
     from google_drive_auth import GoogleDriveAuth
@@ -218,30 +223,31 @@ class HybridArchitectureTest:
             test_file_path.write_text("Test content for metadata store")
             
             # Add file metadata
-            success = self.metadata_store.add_file_metadata(
-                file_id="test_file_001",
-                local_path=str(test_file_path),
-                drive_path="drive:///test_file_001",
-                file_size=len("Test content for metadata store"),
-                content_type="text/plain",
-                tags=["test", "metadata"],
-                category="test"
-            )
+            success = self.metadata_store.add_file({
+                "file_id": "test_file_001",
+                "file_name": "test_file.txt",
+                "file_path": str(test_file_path),
+                "google_drive_id": "test_file_001",
+                "size_bytes": len("Test content for metadata store"),
+                "mime_type": "text/plain",
+                "tags": ["test", "metadata"],
+                "category": "test"
+            })
             
             self.log_test_result(
                 "Metadata Store - Add File",
-                success,
+                success is not None,
                 "Successfully added test file metadata"
             )
             
             # Retrieve metadata
-            metadata = self.metadata_store.get_file_metadata("test_file_001")
+            metadata = self.metadata_store.get_file("test_file_001")
             
             self.log_test_result(
                 "Metadata Store - Retrieve File",
                 metadata is not None,
                 f"Retrieved metadata for test file",
-                {'metadata': metadata.__dict__ if metadata else None}
+                {'metadata': metadata if metadata else None}
             )
             
             # Get statistics

@@ -1,1 +1,74 @@
-.env
+# ============================================
+# Python
+# ============================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.pkl
+*.db
+*.db-shm
+*.db-wal
+
+# ============================================
+# Virtual Environments
+# ============================================
+.venv/
+venv/
+env/
+
+# ============================================
+# IDE & Editors
+# ============================================
+.idea/
+.vscode/
+.claude/settings.local.json
+
+# ============================================
+# Secrets & Credentials
+# ============================================
+gdrive_token.pickle
+gdrive_credentials.json
+gdrive_credentials_BACKUP.json
+.ai_organizer_config/
+*config*.json
+.env.local
+
+# ============================================
+# Project-Specific Exclusions
+# ============================================
+audacity_gdrive_uploader.py
+scrub_personal_info.py
+validate_pii_scrubbing.py
+test_audacity_upload_setup.py
+audacity_upload_report_*.json
+2025-11-23-start-message-to-claude.txt
+
+# ============================================
+# Logs & Temporary Files
+# ============================================
+*.log
+content_cache/
+temp_benchmark_data/
+test_veo_output/
+test_uploads/
+docs/veopromptmachine-*.json
+compile_log.txt
+server.lock
+
+# ============================================
+# Archives & Builds
+# ============================================
+*.zip
+*.applescript
+audio_organizer_source/
+Antigravity-Agent-Logs/
+
+# ============================================
+# macOS
+# ============================================
+.DS_Store
+
+# ============================================
+# Development Archive
+# ============================================
+dev-archive/

@@ -36,8 +36,9 @@ from background_monitor import EnhancedBackgroundMonitor
 from universal_adaptive_learning import UniversalAdaptiveLearning
 from confidence_system import ADHDFriendlyConfidenceSystem, ConfidenceLevel
 from bulletproof_deduplication import BulletproofDeduplicator
-from gdrive_integration import get_ai_organizer_root, get_metadata_root
+from gdrive_integration import get_ai_organizer_root, get_metadata_root, GoogleDriveIntegration
 from easy_rollback_system import EasyRollbackSystem
+from staging_monitor import StagingMonitor
 
 class AdaptiveFileHandler(FileSystemEventHandler):
     """File system event handler with learning capabilities"""
@@ -122,6 +123,7 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
         self.confidence_system = ADHDFriendlyConfidenceSystem(str(self.base_dir))
         self.deduplicator = BulletproofDeduplicator(str(self.base_dir))
         self.rollback_system = EasyRollbackSystem()
+        self.staging_monitor = StagingMonitor(str(self.base_dir))
         
         # File system watchers
         self.observers = {}
@@ -160,6 +162,17 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
             "rules_created": 0,
             "user_corrections_learned": 0
         })
+
+        # Initialize Google Drive Integration with error handling
+        try:
+            self.gdrive = GoogleDriveIntegration()
+        except Exception as e:
+            self.logger.warning(f"Google Drive Integration not available: {e}")
+            self.gdrive = None
+
+        # Track last execution times
+        self.last_emergency_check_time = None
+        self.last_pattern_discovery_time = None
         
         # Tracking timestamps
         self._last_pattern_discovery_time = None
@@ -171,9 +184,9 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
     def taxonomy_service(self):
         if not self._taxonomy_service:
             try:
-                from taxonomy_service import TaxonomyService
+                from taxonomy_service import get_taxonomy_service
                 from gdrive_integration import get_metadata_root
-                self._taxonomy_service = TaxonomyService(get_metadata_root() / "config")
+                self._taxonomy_service = get_taxonomy_service(get_metadata_root() / "config")
             except Exception as e:
                 self.logger.error(f"Failed to load TaxonomyService: {e}")
         return self._taxonomy_service
@@ -413,9 +426,27 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
                         except queue.Empty:
                             break
                 
-                # Process collected events
-                for event in events_to_process:
-                    self._learn_from_file_event(event)
+                if events_to_process:
+                    # OPTIMIZATION: Reuse database connection for batch processing
+                    # We open connections to both rules DB and processed files DB to prevent N+1 overhead
+                    try:
+                        with sqlite3.connect(self.rules_db_path) as rules_conn, \
+                             sqlite3.connect(self.db_path) as processed_conn, \
+                             sqlite3.connect(self.staging_monitor.db_path) as staging_conn:
+
+                            # Process collected events
+                            for event in events_to_process:
+                                self._learn_from_file_event(
+                                    event,
+                                    db_connection=rules_conn,
+                                    processed_db_connection=processed_conn,
+                                    staging_db_connection=staging_conn
+                                )
+                    except Exception as db_err:
+                        self.logger.error(f"Database error in event loop: {db_err}")
+                        # Fallback to individual processing if batch fails
+                        for event in events_to_process:
+                            self._learn_from_file_event(event)
                 
                 time.sleep(10)  # Check every 10 seconds
                 
@@ -423,7 +454,10 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
                 self.logger.error(f"Error processing file events: {e}")
                 time.sleep(30)
 
-    def _learn_from_file_event(self, event: Dict[str, Any]):
+    def _learn_from_file_event(self, event: Dict[str, Any],
+                              db_connection: Optional[sqlite3.Connection] = None,
+                              processed_db_connection: Optional[sqlite3.Connection] = None,
+                              staging_db_connection: Optional[sqlite3.Connection] = None):
         """Learn from a file system event"""
         
         event_type = event['type']
@@ -433,12 +467,13 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
             self._learn_from_file_move(
                 event['src_path'], 
                 event['dest_path'], 
-                event['timestamp']
+                event['timestamp'],
+                db_connection=db_connection
             )
         
         elif event_type == 'created':
             # New file created - check for auto-organization opportunity
-            self._handle_new_file(event['path'], event['timestamp'])
+            self._handle_new_file(event['path'], event['timestamp'], staging_db_connection=staging_db_connection)
             
         elif event_type == 'folder_created':
             # New folder created - learn new project structure?
@@ -446,9 +481,13 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
         
         elif event_type == 'modified':
             # File modified - check if it needs re-indexing
-            self._handle_file_modification(event['path'], event['timestamp'])
+            self._handle_file_modification(
+                event['path'],
+                event['timestamp'],
+                processed_db_connection=processed_db_connection
+            )
 
-    def _learn_from_file_move(self, src_path: str, dest_path: str, timestamp: datetime):
+    def _learn_from_file_move(self, src_path: str, dest_path: str, timestamp: datetime, db_connection: Optional[sqlite3.Connection] = None):
         """Learn from user manually moving a file"""
         
         try:
@@ -491,7 +530,8 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
                 file_path=src_path,
                 source_location=str(src_file.parent),
                 target_location=str(dest_file.parent),
-                context_data=json.dumps(context)
+                context_data=json.dumps(context),
+                db_connection=db_connection
             )
             
             self.stats["user_corrections_learned"] += 1
@@ -545,9 +585,11 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
         except Exception as e:
             self.logger.error(f"Error handling new folder {folder_path}: {e}")
 
-    def _handle_new_file(self, file_path: str, timestamp: datetime):
-        """Handle newly created file with adaptive intelligence"""
-        
+    def _handle_new_file(self, file_path: str, timestamp: datetime, staging_db_connection: Optional[sqlite3.Connection] = None, check_parent_marker: bool = True):
+        """
+        Handle newly created file with adaptive intelligence.
+        Delegates to _handle_new_file_with_cooldown for 7-day safety rule.
+        """
         try:
             file_obj = Path(file_path)
             
@@ -555,22 +597,68 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
                 return
             
             # Check if file should be processed
-            if not self._should_process_file(file_obj):
+            if not self._should_process_file(file_obj, check_parent_marker=check_parent_marker):
                 return
+
+            # Delegate to 7-day cooldown logic
+            self._handle_new_file_with_cooldown(file_obj, staging_db_connection=staging_db_connection)
             
-            # Get prediction from learning system
+        except Exception as e:
+            self.logger.error(f"Error handling new file {file_path}: {e}")
+
+    def _handle_new_file_with_cooldown(self, path: Path, staging_db_connection: Optional[sqlite3.Connection] = None) -> bool:
+        """
+        Handle new file with 7-day cooldown safety rule.
+
+        SAFETY RULES (v3.2+):
+        1. Detect & log new files instantly
+        2. Record event (path, category prediction, confidence, timestamp)
+        3. Wait 7 days of inactivity before auto-organizing
+        4. Only auto-move if confidence ≥ 0.85
+        5. All moves go through log_file_op() for rollback safety
+
+        Args:
+            path: Path to new/detected file
+
+        Returns:
+            bool: True if file was organized, False if deferred or failed
+        """
+        try:
+            if not path.exists():
+                return False
+
+            # Get file age (in days)
+            age_days = (datetime.now() - datetime.fromtimestamp(path.stat().st_mtime)).days
+
+            # Build context for prediction (needed for observation logging)
             context = {
-                "file_size": file_obj.stat().st_size,
-                "creation_time": timestamp.isoformat(),
-                "source_directory": str(file_obj.parent),
-                "content_keywords": self._extract_quick_keywords(file_obj)
+                "file_size": path.stat().st_size,
+                "creation_time": datetime.now().isoformat(),
+                "source_directory": str(path.parent),
+                "content_keywords": self._extract_quick_keywords(path)
             }
             
-            prediction = self.learning_system.predict_user_action(file_path, context)
+            # Get prediction regardless of age (to log observation)
+            prediction = self.learning_system.predict_user_action(str(path), context)
             
-            # Make confidence-based decision
+            # CASE 1: File is too new (< 7 days)
+            if age_days < 7:
+                self.logger.info(f"⏳ Deferring move for {path.name} ({age_days}d old)")
+
+                # Record as observation only (not verified)
+                # We use record_classification which sets event_type='ai_observation'
+                self.learning_system.record_classification(
+                    file_path=str(path),
+                    predicted_category=prediction.get("predicted_action", {}).get("target_category", "unknown"),
+                    confidence=prediction.get("confidence", 0.0),
+                    features=context,
+                    media_type="file" # generic media type
+                )
+                return False
+
+            # CASE 2: File is mature (>= 7 days) - Proceed with auto-organization
             decision = self.confidence_system.make_confidence_decision(
-                file_path=file_path,
+                file_path=str(path),
                 predicted_action=prediction.get("predicted_action", {}),
                 system_confidence=prediction.get("confidence", 0.0),
                 context=context
@@ -578,19 +666,31 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
             
             # Execute decision
             action_taken = False
-            if not decision.requires_user_input and decision.predicted_action:
-                action_taken = self._execute_automatic_action(file_obj, decision, context)
+
+            # --- V3.1 ENHANCEMENT: 7-DAY STAGING COOLDOWN ---
+            # Instead of executing automatically, check if it's ready
+            is_organized = self._handle_new_file_with_cooldown(file_obj, staging_db_connection=staging_db_connection)
+
+            if is_organized:
+                action_taken = True
+            elif not decision.requires_user_input and decision.predicted_action:
+                # If it's not ready but we have a prediction, just log it
+                # super()._process_single_file(file_obj) # Already processed below
+                pass
             elif decision.requires_user_input:
-                self._queue_for_user_interaction(file_obj, decision, context)
-                # Even if queued, we should index it so it's searchable
-                super()._process_single_file(file_obj)
+                self._queue_for_user_interaction(path, decision, context)
+                # Still process for indexing
+                super()._process_single_file(path)
             
             # If no action taken (and not queued), index it in place
             if not action_taken and not decision.requires_user_input:
-                super()._process_single_file(file_obj)
-            
+                super()._process_single_file(path)
+
+            return action_taken
+
         except Exception as e:
-            self.logger.error(f"Error handling new file {file_path}: {e}")
+            self.logger.error(f"Error in cooldown handler for {path}: {e}")
+            return False
 
     def _process_single_file(self, file_path: Path, auto_organize: bool = False) -> bool:
         """
@@ -602,7 +702,55 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
         self._handle_new_file(str(file_path), datetime.now())
         return True
 
-    def _handle_file_modification(self, file_path: str, timestamp: datetime):
+    def _scan_directory(self, dir_info: Dict[str, Any], priority: str) -> Dict[str, int]:
+        """
+        Override: Scan directory and process files periodically.
+        This is critical for the 7-day cooldown: files that were deferred
+        must be re-checked later.
+        """
+        path = dir_info["path"]
+        results = {"files_found": 0, "files_processed": 0, "files_skipped": 0, "errors": 0}
+
+        if not path.exists():
+            return results
+
+        try:
+            self.logger.debug(f"Scanning directory for deferred files: {path}")
+
+            # OPTIMIZATION: Check directory-level ignore markers ONCE
+            if (path / ".noai").exists() or any(p.endswith('_NOAI') for p in path.parts):
+                self.logger.debug(f"Skipping ignored directory: {path}")
+                return results
+
+            # OPTIMIZATION: Use shared connection for batch scanning
+            with sqlite3.connect(self.staging_monitor.db_path) as staging_conn:
+                # OPTIMIZATION: Use os.scandir instead of path.iterdir()
+                with os.scandir(path) as it:
+                    for entry in it:
+                        if entry.is_file():
+                            results["files_found"] += 1
+                            # Process file (will check age again)
+                            try:
+                                # We use _handle_new_file directly to go through the cooldown logic
+                                # Pass check_parent_marker=False since we checked the directory above
+                                self._handle_new_file(
+                                    entry.path,
+                                    datetime.now(),
+                                    staging_db_connection=staging_conn,
+                                    check_parent_marker=False
+                                )
+                                results["files_processed"] += 1
+                            except Exception as e:
+                                self.logger.error(f"Error processing {entry.name}: {e}")
+                                results["errors"] += 1
+
+        except Exception as e:
+            self.logger.error(f"Error scanning {path}: {e}")
+            results["errors"] += 1
+
+        return results
+
+    def _handle_file_modification(self, file_path: str, timestamp: datetime, processed_db_connection: Optional[sqlite3.Connection] = None):
         """Handle file modification - check for re-indexing"""
         
         try:
@@ -612,8 +760,11 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
                 return
             
             # Check if file needs re-indexing
-            if self._needs_reindexing(file_obj):
+            if self._needs_reindexing(file_obj, db_connection=processed_db_connection):
                 self.logger.info(f"Re-indexing modified file: {file_obj.name}")
+                # Treat modification as a "new event" for cooldown purposes?
+                # The spec says: "Wait 7 days of inactivity (no modifications in last 7 days)"
+                # So yes, we should run it through the handler.
                 self._process_single_file(file_obj)
             
         except Exception as e:
@@ -653,14 +804,22 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
                 confidence=decision.system_confidence
             )
             
-            # Move the file
-            new_file_path = target_path / file_obj.name
+            # Use intelligent suggested filename if available, otherwise original
+            classification_result = context.get('classification_result', {})
+            suggested_name = classification_result.get('suggested_filename')
+            if suggested_name and suggested_name != file_obj.name:
+                # Use the AI-suggested filename
+                new_file_path = target_path / suggested_name
+                logger.info(f"Using suggested filename: {suggested_name}")
+            else:
+                # Fall back to original name
+                new_file_path = target_path / file_obj.name
             
             # Handle name conflicts
             if new_file_path.exists():
                 counter = 1
-                base_name = file_obj.stem
-                extension = file_obj.suffix
+                base_name = new_file_path.stem
+                extension = new_file_path.suffix
                 while new_file_path.exists():
                     new_name = f"{base_name}_{counter}{extension}"
                     new_file_path = target_path / new_name
@@ -720,6 +879,7 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
         # Let exceptions propagate to the main loop for proper backoff handling
         self.logger.info("Starting pattern discovery cycle...")
         self._last_pattern_discovery_time = datetime.now()
+        self.last_pattern_discovery_time = self._last_pattern_discovery_time
 
         # Get recent learning events
         recent_events = [
@@ -755,6 +915,7 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
         # Let exceptions propagate to the main loop for proper backoff handling
         self.logger.debug("Checking for emergency conditions...")
         self._last_emergency_check_time = datetime.now()
+        self.last_emergency_check_time = self._last_emergency_check_time
 
         emergencies = self._detect_emergencies()
 
@@ -887,11 +1048,11 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
             self.logger.error(f"❌ Bi-weekly deduplication failed: {e}")
             self._record_maintenance_run("biweekly_deduplication", False, str(e))
 
-    def _record_maintenance_run(self, task_name: str, success: bool, details: str):
+    def _record_maintenance_run(self, task_name: str, success: bool, details: str, db_connection: Optional[sqlite3.Connection] = None):
         """Record maintenance task run in database"""
         try:
-            with sqlite3.connect(self.rules_db_path) as conn:
-                conn.execute("""
+            if db_connection:
+                db_connection.execute("""
                     INSERT OR REPLACE INTO maintenance_history 
                     (task_id, task_name, last_run, success, details)
                     VALUES (?, ?, ?, ?, ?)
@@ -902,7 +1063,20 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
                     success,
                     details
                 ))
-                conn.commit()
+            else:
+                with sqlite3.connect(self.rules_db_path) as conn:
+                    conn.execute("""
+                        INSERT OR REPLACE INTO maintenance_history
+                        (task_id, task_name, last_run, success, details)
+                        VALUES (?, ?, ?, ?, ?)
+                    """, (
+                        task_name, # Use task_name as ID for simplicity
+                        task_name,
+                        datetime.now().isoformat(),
+                        success,
+                        details
+                    ))
+                    conn.commit()
         except Exception as e:
             self.logger.error(f"Error recording maintenance run for {task_name}: {e}")
 
@@ -1074,12 +1248,13 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
         keywords = [word for word in words if word not in stop_words]
         return keywords[:5]  # Return top 5 keywords
 
-    def _record_user_behavior(self, action_type: str, file_path: str, source_location: str, target_location: str, context_data: str):
+    def _record_user_behavior(self, action_type: str, file_path: str, source_location: str, target_location: str, context_data: str, db_connection: Optional[sqlite3.Connection] = None):
         """Record user behavior in database"""
         
         try:
-            with sqlite3.connect(self.rules_db_path) as conn:
-                conn.execute("""
+            if db_connection:
+                # Use provided connection
+                db_connection.execute("""
                     INSERT INTO user_behavior 
                     (timestamp, action_type, file_path, source_location, target_location, context_data)
                     VALUES (?, ?, ?, ?, ?, ?)
@@ -1091,17 +1266,33 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
                     target_location,
                     context_data
                 ))
-                conn.commit()
+                # Note: We do NOT commit here if using shared connection, let the caller commit
+            else:
+                # Create new connection
+                with sqlite3.connect(self.rules_db_path) as conn:
+                    conn.execute("""
+                        INSERT INTO user_behavior
+                        (timestamp, action_type, file_path, source_location, target_location, context_data)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    """, (
+                        datetime.now().isoformat(),
+                        action_type,
+                        file_path,
+                        source_location,
+                        target_location,
+                        context_data
+                    ))
+                    conn.commit()
                 
         except Exception as e:
             self.logger.error(f"Error recording user behavior: {e}")
 
-    def _record_emergency_event(self, emergency: Dict[str, Any]):
+    def _record_emergency_event(self, emergency: Dict[str, Any], db_connection: Optional[sqlite3.Connection] = None):
         """Record emergency event in database"""
         
         try:
-            with sqlite3.connect(self.rules_db_path) as conn:
-                conn.execute("""
+            if db_connection:
+                db_connection.execute("""
                     INSERT INTO emergency_events 
                     (timestamp, emergency_type, severity_level, details, action_taken)
                     VALUES (?, ?, ?, ?, ?)
@@ -1112,7 +1303,20 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
                     emergency['details'],
                     emergency.get('recommended_action', 'none')
                 ))
-                conn.commit()
+            else:
+                with sqlite3.connect(self.rules_db_path) as conn:
+                    conn.execute("""
+                        INSERT INTO emergency_events
+                        (timestamp, emergency_type, severity_level, details, action_taken)
+                        VALUES (?, ?, ?, ?, ?)
+                    """, (
+                        datetime.now().isoformat(),
+                        emergency['type'],
+                        emergency['severity'],
+                        emergency['details'],
+                        emergency.get('recommended_action', 'none')
+                    ))
+                    conn.commit()
                 
         except Exception as e:
             self.logger.error(f"Error recording emergency event: {e}")
@@ -1124,13 +1328,102 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
 
     def _discover_behavioral_patterns(self, events) -> List[Dict[str, Any]]:
         """Discover behavioral patterns from learning events"""
-        # TODO: Implement sophisticated pattern discovery
-        return []
+        from collections import Counter
+
+        # 1. Discover Extension -> Target Directory patterns
+        extension_patterns = Counter()
+        extension_targets = {}
+
+        manual_moves = [e for e in events if e.event_type == 'manual_move']
+
+        for event in manual_moves:
+            ctx = event.context
+            ext = ctx.get('file_extension', 'unknown')
+            target = ctx.get('target_directory', 'unknown')
+
+            key = (ext, target)
+            extension_patterns[key] += 1
+
+        new_patterns = []
+        for (ext, target), count in extension_patterns.items():
+            # If a specific extension has been moved to a specific target 3+ times
+            if count >= 3:
+                new_patterns.append({
+                    "pattern_type": "extension_routing",
+                    "trigger_conditions": {"file_extension": ext},
+                    "predicted_action": {"target_location": target},
+                    "frequency": count,
+                    "confidence": 0.7 + (min(count, 10) * 0.02) # Boost confidence with frequency
+                })
+
+        # 2. Discover Keyword -> Target Directory patterns
+        keyword_patterns = Counter()
+
+        for event in manual_moves:
+            ctx = event.context
+            keywords = ctx.get('content_keywords', [])
+            target = ctx.get('target_directory', 'unknown')
+
+            for word in keywords:
+                key = (word, target)
+                keyword_patterns[key] += 1
+
+        for (word, target), count in keyword_patterns.items():
+            if count >= 3:
+                new_patterns.append({
+                    "pattern_type": "keyword_routing",
+                    "trigger_conditions": {"keyword": word},
+                    "predicted_action": {"target_location": target},
+                    "frequency": count,
+                    "confidence": 0.75 + (min(count, 10) * 0.02)
+                })
+
+        return new_patterns
 
     def _generate_adaptive_rules(self) -> List[Dict[str, Any]]:
         """Generate new adaptive rules from learned patterns"""
-        # TODO: Implement rule generation
-        return []
+        # Promotion logic: Discover -> Pattern -> Rule
+        recent_events = [
+            event for event in self.learning_system.learning_events
+            if (datetime.now() - event.timestamp).days <= 30
+        ]
+
+        patterns = self._discover_behavioral_patterns(recent_events)
+        promoted_rules = []
+
+        for pattern in patterns:
+            # Rule Promotion Requirements:
+            # 1. Frequency >= 5 OR Confidence >= 0.85
+            if pattern['frequency'] >= 5 or pattern['confidence'] >= 0.85:
+                rule_id = f"rule_{hashlib.md5(str(pattern).encode()).hexdigest()[:8]}"
+
+                # Check if rule already exists in DB
+                try:
+                    with sqlite3.connect(self.rules_db_path) as conn:
+                        cursor = conn.execute("SELECT rule_id FROM adaptive_rules WHERE rule_id = ?", (rule_id,))
+                        if cursor.fetchone():
+                            continue
+
+                        # Insert new rule
+                        conn.execute("""
+                            INSERT INTO adaptive_rules
+                            (rule_id, rule_type, trigger_conditions, action_definition, confidence_score, created_date)
+                            VALUES (?, ?, ?, ?, ?, ?)
+                        """, (
+                            rule_id,
+                            pattern['pattern_type'],
+                            json.dumps(pattern['trigger_conditions']),
+                            json.dumps(pattern['predicted_action']),
+                            pattern['confidence'],
+                            datetime.now().isoformat()
+                        ))
+                        conn.commit()
+                        promoted_rules.append(pattern)
+                        self.logger.info(f"🏆 Promoted pattern to active rule: {pattern['pattern_type']} -> {pattern['predicted_action']['target_location']}")
+                except Exception as e:
+                    self.logger.error(f"Error promoting rule {rule_id}: {e}")
+
+        return promoted_rules
 
     def _count_recent_duplicates(self) -> int:
         """Count recent duplicate files"""
@@ -1149,14 +1442,14 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
             pass
         return count
 
-    def _needs_reindexing(self, file_obj: Path) -> bool:
+    def _needs_reindexing(self, file_obj: Path, db_connection: Optional[sqlite3.Connection] = None) -> bool:
         """Check if file needs re-indexing"""
         # Simple check - could be more sophisticated
         try:
             current_hash = self._get_file_hash(file_obj)
             
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.execute(
+            if db_connection:
+                cursor = db_connection.execute(
                     "SELECT file_hash FROM processed_files WHERE file_path = ?",
                     (str(file_obj),)
                 )
@@ -1164,6 +1457,16 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
                 
                 if result and result[0] != current_hash:
                     return True
+            else:
+                with sqlite3.connect(self.db_path) as conn:
+                    cursor = conn.execute(
+                        "SELECT file_hash FROM processed_files WHERE file_path = ?",
+                        (str(file_obj),)
+                    )
+                    result = cursor.fetchone()
+
+                    if result and result[0] != current_hash:
+                        return True
             
         except:
             pass
@@ -1216,56 +1519,65 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
 
         self.logger.info("Adaptive monitoring stopped")
 
-    def _handle_new_file_with_cooldown(self, path: Path) -> bool:
+    def _handle_new_file_with_cooldown(self, path: Path, staging_db_connection: Optional[sqlite3.Connection] = None) -> bool:
         """
         Handle new file with 7-day cooldown safety rule
 
-        NOTE: This is a placeholder for Sprint 3.3 implementation.
-        See docs/Adaptive_Monitor_Spec.md "Safety Rules" section.
+        Monitors files in Desktop/Downloads and only auto-organizes after
+        they have been stationary for 7 days.
+        """
+        try:
+            # 1. Capture observation immediately
+            # This ensures we have a 'first_seen' timestamp even if it's a new file
+            is_new = self.staging_monitor.record_observation(path, db_connection=staging_db_connection)
 
-        SAFETY RULES (v3.2+):
-        1. Detect & log new files instantly
-        2. Record event (path, category prediction, confidence, timestamp)
-        3. Wait 7 days of inactivity before auto-organizing
-        4. Only auto-move if confidence ≥ 0.85
-        5. All moves go through log_file_op() for rollback safety
+            # 2. Extract confidence-based logic
+            # (In a real system, we'd reuse the decision from _handle_new_file,
+            # but we need to check if it's MATURE enough now)
 
-        Args:
-            path: Path to new/detected file
+            age_days = self.staging_monitor.get_file_age_days(str(path), db_connection=staging_db_connection)
 
-        Returns:
-            bool: True if file was organized, False if deferred
-
-        Example implementation:
-            ```python
-            # Record observation immediately
-            self.learning_system.record_observation(path)
-
-            # Check file age
-            age_days = (datetime.now() - path.stat().st_mtime).days
-            if age_days < 7:
-                self.logger.info(f"⏳ Deferring move for {path.name} ({age_days}d old)")
+            if age_days is None:
                 return False
 
-            # Check if should auto-move
-            result = self.unified_classifier.classify(str(path))
-            if result['confidence'] >= 0.85:
-                # Move file with rollback protection
-                self.rollback_system.log_file_op(
-                    operation='move',
-                    source=str(path),
-                    destination=destination_path,
-                    metadata={'confidence': result['confidence']}
-                )
-                shutil.move(str(path), destination_path)
-                return True
+            if age_days < self.staging_monitor.config.get("staging_days", 7):
+                if is_new:
+                    self.logger.info(f"🆕 Discovered {path.name}. Entering 7-day staging.")
+                return False
+
+            # 3. If mature (>= 7 days), check for high confidence move
+            # We re-run the classification just in case context changed
+            context = {
+                "file_size": path.stat().st_size,
+                "creation_time": datetime.fromtimestamp(path.stat().st_ctime).isoformat(),
+                "age_days": age_days
+            }
+
+            prediction = self.learning_system.predict_user_action(str(path), context)
+            decision = self.confidence_system.make_confidence_decision(
+                file_path=str(path),
+                predicted_action=prediction.get("predicted_action", {}),
+                system_confidence=prediction.get("confidence", 0.0),
+                context=context
+            )
+
+            # Use high confidence threshold for auto-move (V3 requirement: 0.85)
+            # The confidence_system might have its own thresholds, but we enforce 0.85 here
+            if not decision.requires_user_input and decision.system_confidence >= 0.85:
+                self.logger.info(f"⏳ Cooldown complete for {path.name} ({age_days}d). High confidence ({decision.system_confidence:.2f}). Organizing...")
+                moved = self._execute_automatic_action(path, decision, context)
+                if moved:
+                    self.staging_monitor.mark_file_organized(str(path), decision.predicted_action.get("target_location"))
+                return moved
+            elif age_days >= 14:
+                # If extremely old but low confidence, maybe queue for user?
+                self.logger.debug(f"File {path.name} is {age_days}d old but confidence is only {decision.system_confidence:.2f}")
 
             return False
-            ```
-        """
-        # TODO: Implement 7-day cooldown logic in Sprint 3.3
-        pass
 
+        except Exception as e:
+            self.logger.error(f"Error in cooldown handler for {path}: {e}")
+            return False
 # Testing and CLI interface
 def main():
     """Command line interface for adaptive background monitor"""

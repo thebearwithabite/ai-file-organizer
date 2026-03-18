@@ -20,6 +20,7 @@ from typing import Dict, List, Optional, Tuple, Any
 from collections import defaultdict
 import time
 import logging
+import threading
 
 from gdrive_integration import get_ai_organizer_root, get_metadata_root
 
@@ -37,14 +38,14 @@ try:
     VERTEX_AVAILABLE = True
 except ImportError:
     VERTEX_AVAILABLE = False
-    print("Warning: vertexai or google-auth not available. Service account auth will be limited.")
+    # print("Warning: vertexai or google-auth not available. Service account auth will be limited.")
 
 try:
     from PIL import Image
     PIL_AVAILABLE = True
 except ImportError:
     PIL_AVAILABLE = False
-    print("Warning: PIL/Pillow not available. Image preprocessing will be limited.")
+    # print("Warning: PIL/Pillow not available. Image preprocessing will be limited.")
 
 
 class VisionAnalyzer:
@@ -142,13 +143,9 @@ Return a valid JSON object with this structure:
         self.model = None
         self.api_initialized = False
         self.use_vertex = False
+        self._init_lock = threading.Lock()
 
-        if self.service_account_path and VERTEX_AVAILABLE:
-            self._initialize_vertex_api()
-        elif self.api_key and GEMINI_AVAILABLE:
-            self._initialize_api()
-        else:
-            self.logger.warning("Neither Service Account nor Gemini API Key found. Vision analysis will be unavailable.")
+        # Lazy initialization - actual API setup moved to _ensure_initialized()
 
         # Cache directory
         self.cache_dir = get_metadata_root() /  "vision_cache"
@@ -169,6 +166,16 @@ Return a valid JSON object with this structure:
         except ImportError:
             self.logger.warning("IdentityService not found. Identity recognition will be disabled.")
             self.identity_service = None
+
+        # Adaptive Learning Integration
+        self.learning_enabled = True
+        self.learning_system = None
+        try:
+            from universal_adaptive_learning import UniversalAdaptiveLearning
+            self.learning_system = UniversalAdaptiveLearning()
+        except ImportError:
+            self.logger.warning("AdaptiveLearningSystem not found. Visual learning will be disabled.")
+            self.learning_enabled = False
 
         # Category mapping for visual content
         self.category_keywords = {
@@ -218,6 +225,10 @@ Return a valid JSON object with this structure:
         self.remote_model = "qwen2.5vl:7b" # Verified in user's ollama list
         self._load_remote_config()
 
+        # Learning System Integration
+        self.learning_enabled = False
+        self.learning_system = None
+
     def _load_remote_config(self):
         """Load remote powerhouse settings from hybrid_config.json"""
         try:
@@ -226,11 +237,15 @@ Return a valid JSON object with this structure:
                 with open(config_path, 'r') as f:
                     config = json.load(f)
                     remote = config.get("remote_powerhouse", {})
-                    if remote.get("enabled") and remote.get("ip"):
-                        self.remote_enabled = True
-                        self.remote_ip = remote["ip"]
-                        self.remote_ollama_port = remote.get("services", {}).get("ollama", {}).get("port", 11434)
-                        self.logger.info(f"🚀 Remote Powerhouse detected at {self.remote_ip}")
+                    if remote.get("enabled"):
+                        svc = remote.get("services", {}).get("ollama", {})
+                        svc_ip = svc.get("ip") or remote.get("ip")
+                        if svc_ip:
+                            self.remote_enabled = True
+                            self.remote_ip = svc_ip
+                            self.remote_ollama_port = svc.get("port", 11434)
+                            self.logger.info(f"🚀 Remote Ollama detected at {self.remote_ip}:{self.remote_ollama_port}")
+
         except Exception as e:
             self.logger.warning(f"Failed to load remote powerhouse config: {e}")
 
@@ -261,7 +276,7 @@ Return a valid JSON object with this structure:
                 with open(config_file, 'r') as f:
                     api_key = f.read().strip()
                     if api_key:
-                        self.logger.info("Loaded Gemini API key from config file")
+                        self.logger.info(f"🔑 Gemini Trace: Loaded key from {config_file}")
                         return api_key
             except Exception as e:
                 self.logger.warning(f"Could not read API key from config file: {e}")
@@ -269,7 +284,12 @@ Return a valid JSON object with this structure:
         # Fall back to environment variable
         api_key = os.getenv('GEMINI_API_KEY')
         if api_key:
-            self.logger.info("Loaded Gemini API key from environment")
+            self.logger.info("🔑 Gemini Trace: Loaded key from environment (GEMINI_API_KEY)")
+            return api_key
+
+        api_key = os.getenv('GOOGLE_API_KEY')
+        if api_key:
+            self.logger.info("🔑 Gemini Trace: Loaded key from environment (GOOGLE_API_KEY)")
             return api_key
 
         return None
@@ -309,8 +329,20 @@ Return a valid JSON object with this structure:
             self.logger.info("Gemini API initialized successfully")
 
         except Exception as e:
-            self.logger.error(f"Failed to initialize Gemini API: {e}")
             self.api_initialized = False
+
+    def _ensure_initialized(self):
+        """Ensure API and learning system are initialized (Lazy)"""
+        with self._init_lock:
+            if self.api_initialized:
+                return
+
+            if self.service_account_path and VERTEX_AVAILABLE:
+                self._initialize_vertex_api()
+            elif self.api_key and GEMINI_AVAILABLE:
+                self._initialize_api()
+            else:
+                self.logger.warning("Neither Service Account nor Gemini API Key found. Vision analysis will be unavailable.")
 
     def _load_vision_patterns(self) -> Dict[str, Any]:
         """Load historical vision analysis patterns"""
@@ -528,6 +560,8 @@ Return a valid JSON object with this structure:
             else:
                 self.logger.warning("Remote analysis failed or unavailable, falling back to local Gemini/Vertex.")
 
+        # Ensure initialized (Lazy)
+        self._ensure_initialized()
         # Check if API is available
         if not self.api_initialized:
             return self._fallback_image_analysis(image_path_obj)
@@ -636,9 +670,12 @@ Return a valid JSON object with this structure:
         try:
             self.logger.info(f"🛰️ Dispatching image analysis to remote 5090 ({self.remote_ip})")
             
-            # Encode image for Ollama
+            # Encode image for Ollama - read raw bytes and base64 encode
             with open(image_path, "rb") as f:
-                img_data = base64.b64encode(f.read()).decode("utf-8")
+                raw_bytes = f.read()
+                img_data = base64.b64encode(raw_bytes).decode("utf-8")
+
+            self.logger.debug(f"Image size: {len(raw_bytes)} bytes, base64 length: {len(img_data)}")
 
             # Prepare prompt
             identity_context = ""
@@ -667,15 +704,26 @@ Return a valid JSON object with this structure:
                 "format": "json"
             }
 
+            self.logger.debug(f"Sending to {url} with model={self.remote_model}")
             response = requests.post(url, json=payload, timeout=60)
+
+            # Log response details for debugging
+            if response.status_code != 200:
+                self.logger.error(f"Ollama returned {response.status_code}: {response.text[:500]}")
+
             response.raise_for_status()
             
             response_data = response.json()
             analysis_text = response_data.get("response", "")
             
+            if not analysis_text:
+                self.logger.warning(f"Ollama returned empty response: {response_data}")
+                return {"success": False, "error": "Empty response from Ollama"}
+
             # Parse result using existing parsing logic
             result = self._parse_image_analysis(analysis_text, image_path)
             result['source'] = f"Remote Powerhouse ({self.remote_model})"
+            result['success'] = True
             
             # Record observation for learning system
             if self.learning_enabled and self.learning_system:
@@ -689,6 +737,11 @@ Return a valid JSON object with this structure:
 
             return result
 
+        except requests.exceptions.HTTPError as e:
+            self.logger.error(f"Remote analysis HTTP error: {e}")
+            if hasattr(e, 'response') and e.response is not None:
+                self.logger.error(f"Response body: {e.response.text[:500]}")
+            return {"success": False, "error": str(e)}
         except Exception as e:
             self.logger.error(f"Remote analysis failed: {e}")
             return {"success": False, "error": str(e)}
@@ -704,6 +757,9 @@ Return a valid JSON object with this structure:
             Extracted text content
         """
         image_path_obj = Path(image_path)
+
+        # Ensure initialized (Lazy)
+        self._ensure_initialized()
 
         if not image_path_obj.exists() or not self.api_initialized:
             return ""
@@ -787,6 +843,9 @@ Return a valid JSON object with this structure:
         cached_result = self._load_from_cache(cache_key)
         if cached_result:
             return cached_result
+
+        # Ensure initialized (Lazy)
+        self._ensure_initialized()
 
         # Check if API is available
         if not self.api_initialized:
@@ -955,6 +1014,18 @@ Return a valid JSON object with this structure:
             # Use PIL to validate and potentially resize large images
             try:
                 img = Image.open(image_path)
+
+                # Convert RGBA to RGB (Gemini doesn't handle alpha channel well)
+                if img.mode == 'RGBA':
+                    # Create white background and composite the image onto it
+                    background = Image.new('RGB', img.size, (255, 255, 255))
+                    background.paste(img, mask=img.split()[3])  # 3 is the alpha channel
+                    img = background
+                    self.logger.info(f"Converted RGBA to RGB for {image_path.name}")
+                elif img.mode not in ('RGB', 'L'):
+                    # Convert other modes (P, LA, etc.) to RGB
+                    img = img.convert('RGB')
+                    self.logger.info(f"Converted {img.mode} to RGB for {image_path.name}")
 
                 # Resize if too large (Gemini has size limits)
                 max_dimension = 3072  # Gemini's max dimension

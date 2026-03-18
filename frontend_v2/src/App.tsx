@@ -1,14 +1,17 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { lazy } from 'react'
 import Layout from './components/layout/Layout'
-import Dashboard from './pages/Dashboard'
-import Organize from './pages/Organize'
-import Triage from './pages/Triage'
-import Search from './pages/Search'
-import VeoStudio from './pages/VeoStudio'
-import Analysis from './pages/Analysis'
-import RollbackCenter from './pages/RollbackCenter'
-import Settings from './pages/Settings'
-import Duplicates from './pages/Duplicates'
+
+// Lazy load page components for better performance
+const Dashboard = lazy(() => import('./pages/Dashboard'))
+const Organize = lazy(() => import('./pages/Organize'))
+const Triage = lazy(() => import('./pages/Triage'))
+const Search = lazy(() => import('./pages/Search'))
+const VeoStudio = lazy(() => import('./pages/VeoStudio'))
+const Analysis = lazy(() => import('./pages/Analysis'))
+const RollbackCenter = lazy(() => import('./pages/RollbackCenter'))
+const Settings = lazy(() => import('./pages/Settings'))
+const Duplicates = lazy(() => import('./pages/Duplicates'))
 
 export default function App() {
   return (
