@@ -29,7 +29,3 @@
 ## 2025-09-09 - [Grouping SQLite Aggregation Queries]
 **Learning:** Sequential `COUNT` and `SUM` queries on the same table (e.g., in stats generation) cause N+1 full table/index scans, wasting significant I/O. Grouping these into a single query using `COALESCE(SUM(CASE WHEN condition THEN value ELSE 0 END), 0)` reduced query times for large tables by almost 2x by requiring only a single table scan.
 **Action:** When gathering multiple metrics (total count, conditional counts, sums) from the same table, always combine them into a single `SELECT` statement with conditional aggregation.
-
-## 2025-09-10 - [Batch Executemany over Iterative Queries]
-**Learning:** In `ComprehensiveTaggingSystem`, iterating over tags with `conn.execute()` inside loops produced `O(N^2)` queries, slowing down single-file saves by orders of magnitude for large numbers of tags. Batching them with `conn.executemany()` and pushing the parameters as a bulk array drops insertion time significantly since it reduces SQLite API context switching.
-**Action:** Convert iterative insertions or updates in loops directly into parameter lists, and always use `executemany()` with a pooled connection context.
