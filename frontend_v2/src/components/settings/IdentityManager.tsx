@@ -188,14 +188,16 @@ export default function IdentityManager() {
                                     <button
                                         onClick={() => handleOpenDialog(identity)}
                                         className="p-1.5 text-white/40 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                                        aria-label={`Edit identity ${identity.name}`}
                                     >
-                                        <Edit2 size={14} />
+                                        <Edit2 size={14} aria-hidden="true" />
                                     </button>
                                     <button
                                         onClick={() => handleDelete(identity.id)}
                                         className="p-1.5 text-white/40 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
+                                        aria-label={`Delete identity ${identity.name}`}
                                     >
-                                        <Trash2 size={14} />
+                                        <Trash2 size={14} aria-hidden="true" />
                                     </button>
                                 </div>
                             </div>
@@ -240,8 +242,9 @@ export default function IdentityManager() {
                             <button
                                 onClick={() => setIsDialogOpen(false)}
                                 className="p-2 text-white/40 hover:text-white transition-colors"
+                                aria-label="Close dialog"
                             >
-                                <X size={20} />
+                                <X size={20} aria-hidden="true" />
                             </button>
                         </div>
 
