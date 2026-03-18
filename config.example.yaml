@@ -1,0 +1,48 @@
+# ==============================================================================
+# AI File Organizer - Configuration Template
+# ==============================================================================
+# Copy this file to config.yaml and customize for your system.
+# All paths support ~ expansion and environment variables.
+# See docs/configuration.md for detailed options.
+# ==============================================================================
+
+# AI File Organizer Configuration
+# Copy this file to config.yaml and customize
+
+# Where your organized files live
+storage:
+  # Primary storage root (local path or Google Drive mount)
+  root: ~/Documents/AI-Organized
+  # Metadata/database storage (must be local, never cloud-synced)
+  metadata: ~/.ai-file-organizer
+  # Staging area for new files (7-day observation)
+  staging: ~/.ai-file-organizer/staging
+
+# Folders to watch for new files
+monitor:
+  paths:
+    - ~/Downloads
+    - ~/Desktop
+  interval_seconds: 5
+
+# Google Drive integration (optional)
+gdrive:
+  enabled: false
+  # mount_path: auto-detected if not set
+  # fallback_paths: []
+
+# Classification confidence
+confidence:
+  # NEVER = always ask, MINIMAL = quick decisions,
+  # SMART = confirm uncertain, ALWAYS = full auto
+  mode: SMART
+
+# Server
+server:
+  host: 0.0.0.0
+  port: 8000
+
+# Plugins (optional extensions)
+plugins:
+  # List of plugin module paths to load
+  enabled: []

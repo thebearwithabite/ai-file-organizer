@@ -8,7 +8,8 @@ import {
   Eye,
   RotateCcw,
   Settings,
-  Copy
+  Copy,
+  ShieldAlert
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
 
@@ -20,6 +21,7 @@ const navItems = [
   { to: '/veo', icon: Film, label: 'VEO Studio' },
   { to: '/analysis', icon: Eye, label: 'Analysis' },
   { to: '/duplicates', icon: Copy, label: 'Duplicates' },
+  { to: '/forensic-vault', icon: ShieldAlert, label: 'Forensic Vault', highlight: true },
   { to: '/rollback', icon: RotateCcw, label: 'Rollback Center', highlight: true },
   { to: '/settings', icon: Settings, label: 'Settings' },
 ]

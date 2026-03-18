@@ -147,12 +147,13 @@ class EnhancedBackgroundMonitor:
         """Process a single file - to be overridden"""
         return False
 
-    def _should_process_file(self, file_path: Path) -> bool:
+    def _should_process_file(self, file_path: Path, check_parent_marker: bool = True) -> bool:
         """
         Determine if a file should be processed.
         
         Args:
             file_path: Path to the file
+            check_parent_marker: If True, checks parent directories for _NOAI/.noai
             
         Returns:
             bool: True if file should be processed, False otherwise
@@ -173,11 +174,17 @@ class EnhancedBackgroundMonitor:
         # 1. Skip paths containing folder with "_NOAI" suffix (e.g. "Private_NOAI")
         # 2. Skip paths if a ".noai" marker file exists in the folder
         
-        for part in file_path.parts:
-            if part.endswith('_NOAI'):
+        if check_parent_marker:
+            for part in file_path.parts:
+                if part.endswith('_NOAI'):
+                    return False
+
+            if (file_path.parent / ".noai").exists():
                 return False
-                
-        if (file_path.parent / ".noai").exists():
-            return False
+        else:
+            # OPTIMIZATION: If parent checks were already done,
+            # only check if the file name itself ends with _NOAI
+            if file_path.name.endswith('_NOAI'):
+                return False
             
         return True

@@ -13,11 +13,17 @@ import sqlite3
 import os
 import re
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Set
+from typing import Dict, List, Optional, Tuple, Set, Iterator, Union
 import time
 import json
 from datetime import datetime
 from gdrive_integration import get_metadata_root
+
+# Ensure we're running with Python 3
+if sys.version_info[0] < 3:
+    print("❌ ERROR: This script requires Python 3.")
+    print("Try running with: python3 bulletproof_deduplication.py")
+    sys.exit(1)
 
 class BulletproofDeduplicator:
     """
@@ -38,13 +44,14 @@ class BulletproofDeduplicator:
         self.init_database()
         
         # Bulletproof duplicate patterns
+        # Pre-compile regex for performance
         self.safe_duplicate_patterns = [
-            r'.*\s\(\d+\)\..*',          # "filename (1).ext"
-            r'.*\scopy\..*',             # "filename copy.ext" 
-            r'Generated Image.*\.jpeg',   # ChatGPT generated images
-            r'.*_\d{8}_\d{6}\..*',       # Timestamped duplicates
-            r'Screenshot.*\.png',         # Screenshot duplicates
-            r'Copy of.*',                 # "Copy of filename.ext"
+            re.compile(r'.*\s\(\d+\)\..*'),          # "filename (1).ext"
+            re.compile(r'.*\scopy\..*'),             # "filename copy.ext"
+            re.compile(r'Generated Image.*\.jpeg'),   # ChatGPT generated images
+            re.compile(r'.*_\d{8}_\d{6}\..*'),       # Timestamped duplicates
+            re.compile(r'Screenshot.*\.png'),         # Screenshot duplicates
+            re.compile(r'Copy of.*'),                 # "Copy of filename.ext"
         ]
         
         # Protected paths - never delete from these
@@ -53,24 +60,20 @@ class BulletproofDeduplicator:
             '/.git', '/.svn', '/node_modules'
         }
 
-        # PROTECTED DATABASE PATTERNS - ABSOLUTELY NEVER DELETE OR MODIFY
-        # These patterns protect all learned data, embeddings, and metadata
-        self.protected_database_patterns = [
-            r'.*vector_db.*',
-            r'.*chroma.*',
-            r'.*_METADATA_SYSTEM.*',
-            r'.*_SYSTEM/.*\.db$',
-            r'.*\.pkl$',           # Pickle learning data
-            r'.*adaptive_learning.*',
-            r'.*deduplication.*\.db$',
-            # r'.*04_METADATA_SYSTEM.*',  # [REMOVED] Legacy path - replaced by AI_METADATA_SYSTEM
-            r'.*learning_data.*',
-            r'.*classification_logs.*',
-            r'.*embeddings.*',
-            r'.*\.db$',            # All SQLite databases
-            r'.*\.sqlite.*',       # All SQLite variants
-            r'.*index.*\.pkl$',    # Index files
-            r'.*metadata.*',       # Any metadata folders/files
+        # PROTECTED EXTENSIONS - ABSOLUTELY NEVER DELETE OR MODIFY
+        # O(1) lookup for critical file types
+        self.protected_extensions = (
+            '.db', '.sqlite', '.sqlite3', '.pkl', '.pickle'
+        )
+
+        # PROTECTED KEYWORDS - ABSOLUTELY NEVER DELETE OR MODIFY
+        # Substring checks for protected directories and files
+        # Covers all previous regex patterns but ~100x faster
+        self.protected_keywords = [
+            'vector_db', 'chroma', '_metadata_system', 'metadata_system',
+            'adaptive_learning', 'learning_data', 'classification_logs',
+            'embeddings', 'metadata', 'learning', 'adaptive', 'index',
+            '_system', '.sqlite'
         ]
     
     def init_database(self):
@@ -99,7 +102,7 @@ class BulletproofDeduplicator:
                 CREATE INDEX IF NOT EXISTS idx_secure_hash ON file_hashes(secure_hash)
             ''')
     
-    def calculate_quick_hash(self, file_path: Path) -> Optional[str]:
+    def calculate_quick_hash(self, file_path: Path, file_size: Optional[int] = None) -> Optional[str]:
         """
         Tier 1: Lightning-fast MD5 screening (~0.1ms per file)
         Used for initial duplicate detection
@@ -110,7 +113,9 @@ class BulletproofDeduplicator:
                 return None
 
             # Check file size - warn about large files
-            file_size = file_path.stat().st_size
+            if file_size is None:
+                file_size = file_path.stat().st_size
+
             if file_size > 1024 * 1024 * 100:  # 100MB
                 print(f"   ⏸️  Large file ({file_size / (1024*1024):.1f}MB): {file_path.name}")
 
@@ -125,7 +130,8 @@ class BulletproofDeduplicator:
             print(f"⚠️ Quick hash error for {file_path.name}: {e}")
             return None
     
-    def calculate_secure_hash(self, file_path: Path) -> Optional[str]:
+    def calculate_secure_hash(self, file_path: Path, db_connection: Optional[sqlite3.Connection] = None,
+                              file_size: Optional[int] = None, last_modified: Optional[float] = None) -> Optional[str]:
         """
         Tier 2: Bulletproof SHA-256 verification (~2ms per file)
         Used for cryptographic certainty before deletion
@@ -137,23 +143,41 @@ class BulletproofDeduplicator:
 
             sha256_hash = hashlib.sha256()
             with open(file_path, 'rb') as f:
-                # Read file in chunks (64KB) for better performance than 4KB
-                for chunk in iter(lambda: f.read(65536), b""):
+                # Read file in chunks (1MB) for better performance than 64KB
+                for chunk in iter(lambda: f.read(1048576), b""):
                     sha256_hash.update(chunk)
             
             secure_hash = sha256_hash.hexdigest()
             
+            # Use provided stats or fetch them
+            if file_size is None:
+                file_size = file_path.stat().st_size
+            if last_modified is None:
+                last_modified = file_path.stat().st_mtime
+
             # Persist to database
             try:
-                with sqlite3.connect(self.db_path) as conn:
-                    conn.execute("""
+                if db_connection:
+                    # Use provided connection (faster for batch operations)
+                    db_connection.execute("""
                         INSERT OR REPLACE INTO file_hashes 
                         (file_path, secure_hash, file_size, last_modified)
                         VALUES (?, ?, ?, ?)
                     """, (
                         str(file_path), secure_hash, 
-                        file_path.stat().st_size, file_path.stat().st_mtime
+                        file_size, last_modified
                     ))
+                else:
+                    # Create new connection (slower)
+                    with sqlite3.connect(self.db_path) as conn:
+                        conn.execute("""
+                            INSERT OR REPLACE INTO file_hashes
+                            (file_path, secure_hash, file_size, last_modified)
+                            VALUES (?, ?, ?, ?)
+                        """, (
+                            str(file_path), secure_hash,
+                            file_size, last_modified
+                        ))
             except Exception as db_err:
                 # Don't fail if DB write fails, just log it
                 print(f"⚠️ Failed to persist hash for {file_path.name}: {db_err}")
@@ -197,38 +221,68 @@ class BulletproofDeduplicator:
             print(f"⚠️ Error checking hash existence: {e}")
             return None
 
-    def is_database_or_learned_data(self, file_path: Path) -> bool:
+    def is_database_or_learned_data(self, file_path: Union[Path, str, os.DirEntry]) -> bool:
         """
         Check if file is a database or contains learned data
         ABSOLUTE PROTECTION - never consider these for deletion or modification
+
+        Optimized for performance:
+        1. Suffix check (O(1))
+        2. Substring check (Fast C implementation)
+        3. No regex or path splitting
 
         Returns:
             True if file is database/learned data (PROTECTED)
             False if file is safe to scan
         """
-        path_str = str(file_path).lower()
+        if isinstance(file_path, os.DirEntry):
+            path_str = file_path.path.lower()
+        else:
+            path_str = str(file_path).lower()
 
-        # Check against protected database patterns
-        for pattern in self.protected_database_patterns:
-            if re.search(pattern, path_str, re.IGNORECASE):
-                return True
-
-        # Check file extensions (absolute protection)
-        if file_path.suffix.lower() in ['.db', '.sqlite', '.sqlite3', '.pkl', '.pickle']:
+        # 1. Check file extensions (absolute protection) - Fastest check
+        if path_str.endswith(self.protected_extensions):
             return True
 
-        # Check directory names (any parent directory with these names)
-        protected_dir_names = [
-            'vector_db', 'chroma', 'metadata_system', 'learning',
-            'adaptive', 'embeddings', 'index', '_system', 'classification_logs'
-        ]
-        for part in file_path.parts:
-            if any(protected in part.lower() for protected in protected_dir_names):
+        # 2. Check protected keywords (covers directories and filenames)
+        # This replaces both regex patterns and directory splitting loops
+        for keyword in self.protected_keywords:
+            if keyword in path_str:
                 return True
 
         return False
 
-    def calculate_safety_score(self, file_path: Path, duplicate_group: List[Dict]) -> float:
+    def _fast_scan(self, directory: Path) -> Iterator[Tuple[Union[Path, os.DirEntry], os.stat_result]]:
+        """
+        Recursively scan directory using os.scandir for better performance.
+        Yields (DirEntry, stat_result) tuples.
+        """
+        try:
+            # os.scandir is faster than os.walk because it yields DirEntry objects
+            # with cached stat information on most OSes
+            with os.scandir(directory) as it:
+                for entry in it:
+                    if entry.name.startswith('.'):
+                        continue
+
+                    if entry.is_dir(follow_symlinks=False):
+                        if entry.name.endswith('.imovielibrary') or entry.name.endswith('.photoslibrary'):
+                            continue
+                        # Recurse
+                        yield from self._fast_scan(entry.path)
+
+                    elif entry.is_file(follow_symlinks=False):
+                        try:
+                            # entry.stat() is cached from scandir result
+                            stat = entry.stat()
+                            yield (entry, stat)
+                        except OSError as e:
+                            print(f"   ⚠️ Error accessing {entry.name}: {e}")
+
+        except OSError as e:
+            print(f"   ⚠️ Error scanning directory {directory}: {e}")
+
+    def calculate_safety_score(self, file_path: Path, duplicate_group: List[Dict], last_modified: Optional[float] = None) -> float:
         """
         Calculate safety score (0.0-1.0) for file deletion
         Higher score = safer to delete
@@ -241,7 +295,10 @@ class BulletproofDeduplicator:
         
         # File age factor (older = safer to delete)
         try:
-            age_days = (time.time() - file_path.stat().st_mtime) / (24 * 3600)
+            if last_modified is None:
+                last_modified = file_path.stat().st_mtime
+
+            age_days = (time.time() - last_modified) / (24 * 3600)
             if age_days > 30:
                 score += 0.3
             elif age_days > 7:
@@ -262,7 +319,7 @@ class BulletproofDeduplicator:
         # Pattern recognition (obvious duplicates safer)
         filename = file_path.name
         for pattern in self.safe_duplicate_patterns:
-            if re.match(pattern, filename):
+            if pattern.match(filename):
                 score += 0.4
                 break
         
@@ -310,72 +367,76 @@ class BulletproofDeduplicator:
             "errors": []
         }
         
-        # Find all files with safe walker
-        all_files = []
+        # Find all files with safe walker (using optimized _fast_scan)
         print("   Scanning files (skipping .imovielibrary and other bundles)...")
-        
+        print("📊 Tier 0: Grouping by file size...")
+
+        size_groups = {}
+        # skipped_files = 0 # unused in HEAD resolution
+        protected_files = 0
+        scanned_count = 0
+        stat_cache = {}
+
         try:
-            for root, dirs, files in os.walk(directory):
-                # Skip problematic bundles and hidden directories
-                dirs[:] = [d for d in dirs if not d.endswith('.imovielibrary') 
-                          and not d.endswith('.photoslibrary')
-                          and not d.startswith('.')]
-                
-                for file in files:
-                    if file.startswith('.'):
-                        continue
-                        
-                    try:
-                        file_path = Path(root) / file
-                        all_files.append(file_path)
-                    except Exception as e:
-                        print(f"   ⚠️ Error accessing {file}: {e}")
-                        
+            # Yields (DirEntry, stat) to avoid Path creation overhead
+            for entry, stat in self._fast_scan(directory):
+                scanned_count += 1
+
+                # Check directly on entry (avoids Path creation)
+                if self.is_database_or_learned_data(entry):
+                    protected_files += 1
+                    continue
+
+                size = stat.st_size
+                if size not in size_groups:
+                    size_groups[size] = []
+
+                # Only convert to Path when storing
+                file_path = Path(entry.path)
+                size_groups[size].append(file_path)
+
+                # Cache stat for later use in this scan session
+                stat_cache[file_path] = stat
+
         except Exception as e:
             print(f"   ❌ Critical error during scan: {e}")
             return {"error": str(e)}
-        
-        print(f"📁 Found {len(all_files)} files to analyze")
+
+        results["scanned_files"] = scanned_count
+        print(f"📁 Scanned {scanned_count} files")
+
+        # Only process size groups with multiple files
+        size_potential = {s: paths for s, paths in size_groups.items() if len(paths) > 1}
+        total_potential_files = sum(len(paths) for paths in size_potential.values())
+        print(f"   Found {total_potential_files} files with non-unique sizes")
 
         # Group files by quick hash (Tier 1 screening)
-        print("⚡ Tier 1: Quick MD5 screening...")
+        print("⚡ Tier 1: Quick MD5 screening for size-matched files...")
         quick_hash_groups = {}
+        processed_count = 0
         skipped_files = 0
-        protected_files = 0
 
-        for i, file_path in enumerate(all_files):
-            # Show progress every 50 files
-            if (i + 1) % 50 == 0 or (i + 1) == len(all_files):
-                print(f"   Progress: {i + 1}/{len(all_files)} files ({((i+1)/len(all_files)*100):.1f}%)")
+        for size, file_list in size_potential.items():
+            for file_path in file_list:
+                processed_count += 1
+                if processed_count % 50 == 0 or processed_count == total_potential_files:
+                    print(f"   Progress: {processed_count}/{total_potential_files} files ({((processed_count/total_potential_files)*100):.1f}%)")
 
-            # ABSOLUTE PROTECTION: Skip database and learned data files
-            if self.is_database_or_learned_data(file_path):
-                protected_files += 1
-                continue
-
-            quick_hash = self.calculate_quick_hash(file_path)
-            if quick_hash:
-                if quick_hash not in quick_hash_groups:
-                    quick_hash_groups[quick_hash] = []
-                quick_hash_groups[quick_hash].append(file_path)
-            else:
-                skipped_files += 1
+                # Reuse size from tier 0
+                quick_hash = self.calculate_quick_hash(file_path, file_size=size)
+                if quick_hash:
+                    if quick_hash not in quick_hash_groups:
+                        quick_hash_groups[quick_hash] = []
+                    quick_hash_groups[quick_hash].append(file_path)
+                else:
+                    skipped_files += 1
 
         if skipped_files > 0:
             print(f"   ⏭️  Skipped {skipped_files} files (locked, symlinks, or inaccessible)")
+        
+        # Only process hash groups with multiple files
+        potential_duplicates = {h: paths for h, paths in quick_hash_groups.items() if len(paths) > 1}
 
-        if protected_files > 0:
-            print(f"   🛡️  Protected {protected_files} database/learned-data files (NEVER MODIFIED)")
-
-        results["scanned_files"] = len(all_files)
-        
-        # Find potential duplicates (groups with multiple files)
-        potential_duplicates = {k: v for k, v in quick_hash_groups.items() if len(v) > 1}
-        
-        if not potential_duplicates:
-            print("✅ No duplicates found")
-            return results
-        
         print(f"🔍 Found {len(potential_duplicates)} potential duplicate groups")
         print("🔒 Tier 2: SHA-256 bulletproof verification...")
 
@@ -383,29 +444,47 @@ class BulletproofDeduplicator:
         confirmed_duplicates = {}
         total_groups = len(potential_duplicates)
 
-        for group_idx, (quick_hash, file_list) in enumerate(potential_duplicates.items()):
-            # Show progress for verification phase
-            if (group_idx + 1) % 10 == 0 or (group_idx + 1) == total_groups:
-                print(f"   Verifying group {group_idx + 1}/{total_groups} ({((group_idx+1)/total_groups*100):.1f}%)")
+        # Reuse database connection for batch processing
+        with sqlite3.connect(self.db_path) as conn:
+            for group_idx, (quick_hash, file_list) in enumerate(potential_duplicates.items()):
+                # Show progress for verification phase
+                if (group_idx + 1) % 10 == 0 or (group_idx + 1) == total_groups:
+                    print(f"   Verifying group {group_idx + 1}/{total_groups} ({((group_idx+1)/total_groups*100):.1f}%)")
 
-            # Calculate secure hashes for this group
-            secure_hash_groups = {}
+                # Calculate secure hashes for this group
+                secure_hash_groups = {}
 
-            for file_path in file_list:
-                secure_hash = self.calculate_secure_hash(file_path)
-                if secure_hash:
-                    if secure_hash not in secure_hash_groups:
-                        secure_hash_groups[secure_hash] = []
-                    secure_hash_groups[secure_hash].append({
-                        'path': file_path,
-                        'size': file_path.stat().st_size,
-                        'mtime': file_path.stat().st_mtime
-                    })
+                for file_path in file_list:
+                    # Get cached stat if available
+                    stat = stat_cache.get(file_path)
+                    f_size = stat.st_size if stat else None
+                    f_mtime = stat.st_mtime if stat else None
 
-            # Only groups with multiple files are true duplicates
-            for secure_hash, duplicate_group in secure_hash_groups.items():
-                if len(duplicate_group) > 1:
-                    confirmed_duplicates[secure_hash] = duplicate_group
+                    secure_hash = self.calculate_secure_hash(file_path, db_connection=conn,
+                                                           file_size=f_size, last_modified=f_mtime)
+                    if secure_hash:
+                        if secure_hash not in secure_hash_groups:
+                            secure_hash_groups[secure_hash] = []
+
+                        # Use cached stat or fetch if missing
+                        if not stat:
+                            try:
+                                stat = file_path.stat()
+                                f_size = stat.st_size
+                                f_mtime = stat.st_mtime
+                            except OSError:
+                                continue
+
+                        secure_hash_groups[secure_hash].append({
+                            'path': file_path,
+                            'size': f_size,
+                            'mtime': f_mtime
+                        })
+
+                # Only groups with multiple files are true duplicates
+                for secure_hash, duplicate_group in secure_hash_groups.items():
+                    if len(duplicate_group) > 1:
+                        confirmed_duplicates[secure_hash] = duplicate_group
         
         if not confirmed_duplicates:
             print("✅ No confirmed duplicates found (passed SHA-256 verification)")
@@ -427,7 +506,7 @@ class BulletproofDeduplicator:
             file_scores = []
             for file_info in duplicate_group:
                 file_path = file_info['path']
-                safety_score = self.calculate_safety_score(file_path, duplicate_group)
+                safety_score = self.calculate_safety_score(file_path, duplicate_group, last_modified=file_info.get('mtime'))
                 
                 # Get more file info for the group
                 file_info_full = {
@@ -516,89 +595,91 @@ class BulletproofDeduplicator:
         print("📁 STEP 1: Indexing Google Drive staging areas...")
         gdrive_hashes = {}  # secure_hash -> file_path
 
-        for gdrive_dir in gdrive_dirs:
-            if not gdrive_dir.exists():
-                print(f"   ⚠️  Skipping non-existent: {gdrive_dir}")
-                continue
-
-            print(f"   📂 Scanning: {gdrive_dir.name}")
-
-            for file_path in gdrive_dir.rglob('*'):
-                if not file_path.is_file():
+        # Optimization: Reuse database connection for batch processing
+        with sqlite3.connect(self.db_path) as conn:
+            for gdrive_dir in gdrive_dirs:
+                if not gdrive_dir.exists():
+                    print(f"   ⚠️  Skipping non-existent: {gdrive_dir}")
                     continue
 
-                # Skip database/learned data
-                if self.is_database_or_learned_data(file_path):
+                print(f"   📂 Scanning: {gdrive_dir.name}")
+
+                for entry, stat in self._fast_scan(gdrive_dir):
+                    # Skip database/learned data (check on entry directly)
+                    if self.is_database_or_learned_data(entry):
+                        continue
+
+                    file_path = Path(entry.path)
+                    secure_hash = self.calculate_secure_hash(file_path, db_connection=conn,
+                                                           file_size=stat.st_size, last_modified=stat.st_mtime)
+                    if secure_hash:
+                        gdrive_hashes[secure_hash] = file_path
+                        results["gdrive_files_scanned"] += 1
+
+                        if results["gdrive_files_scanned"] % 50 == 0:
+                            print(f"      Progress: {results['gdrive_files_scanned']} files indexed")
+
+            print(f"   ✅ Indexed {results['gdrive_files_scanned']} Google Drive files")
+            print()
+
+            # STEP 2: Scan local directories and compare
+            print("💻 STEP 2: Scanning local directories for duplicates...")
+
+            for local_dir in local_dirs:
+                if not local_dir.exists():
+                    print(f"   ⚠️  Skipping non-existent: {local_dir}")
                     continue
 
-                secure_hash = self.calculate_secure_hash(file_path)
-                if secure_hash:
-                    gdrive_hashes[secure_hash] = file_path
-                    results["gdrive_files_scanned"] += 1
+                print(f"   📂 Scanning: {local_dir}")
 
-                    if results["gdrive_files_scanned"] % 50 == 0:
-                        print(f"      Progress: {results['gdrive_files_scanned']} files indexed")
+                for entry, stat in self._fast_scan(local_dir):
+                    # Skip database/learned data (ABSOLUTE PROTECTION)
+                    if self.is_database_or_learned_data(entry):
+                        continue
 
-        print(f"   ✅ Indexed {results['gdrive_files_scanned']} Google Drive files")
-        print()
+                    # Check protected paths on string (faster)
+                    entry_path_str = entry.path
+                    if any(protected in entry_path_str for protected in self.protected_paths):
+                        continue
 
-        # STEP 2: Scan local directories and compare
-        print("💻 STEP 2: Scanning local directories for duplicates...")
+                    results["local_files_scanned"] += 1
 
-        for local_dir in local_dirs:
-            if not local_dir.exists():
-                print(f"   ⚠️  Skipping non-existent: {local_dir}")
-                continue
+                    if results["local_files_scanned"] % 50 == 0:
+                        print(f"      Progress: {results['local_files_scanned']} local files scanned")
 
-            print(f"   📂 Scanning: {local_dir}")
+                    file_path = Path(entry_path_str)
 
-            for file_path in local_dir.rglob('*'):
-                if not file_path.is_file():
-                    continue
+                    # Calculate hash and check if exists in Google Drive
+                    secure_hash = self.calculate_secure_hash(file_path, db_connection=conn,
+                                                           file_size=stat.st_size, last_modified=stat.st_mtime)
 
-                # Skip database/learned data (ABSOLUTE PROTECTION)
-                if self.is_database_or_learned_data(file_path):
-                    continue
+                    if secure_hash and secure_hash in gdrive_hashes:
+                        # Found a duplicate!
+                        gdrive_path = gdrive_hashes[secure_hash]
+                        results["duplicates_found"] += 1
 
-                # Skip files in protected paths
-                if any(protected in str(file_path) for protected in self.protected_paths):
-                    continue
+                        try:
+                            file_size = stat.st_size
+                            results["space_recoverable"] += file_size
 
-                results["local_files_scanned"] += 1
+                            print(f"   🔗 DUPLICATE FOUND:")
+                            print(f"      Local:  {file_path}")
+                            print(f"      GDrive: {gdrive_path}")
+                            print(f"      Size:   {file_size / (1024*1024):.1f} MB")
 
-                if results["local_files_scanned"] % 50 == 0:
-                    print(f"      Progress: {results['local_files_scanned']} local files scanned")
+                            if execute:
+                                file_path.unlink()
+                                results["deleted_files"] += 1
+                                print(f"      ✅ Deleted local copy")
+                            else:
+                                print(f"      🔍 Would delete (dry-run)")
 
-                # Calculate hash and check if exists in Google Drive
-                secure_hash = self.calculate_secure_hash(file_path)
+                            print()
 
-                if secure_hash and secure_hash in gdrive_hashes:
-                    # Found a duplicate!
-                    gdrive_path = gdrive_hashes[secure_hash]
-                    results["duplicates_found"] += 1
-
-                    try:
-                        file_size = file_path.stat().st_size
-                        results["space_recoverable"] += file_size
-
-                        print(f"   🔗 DUPLICATE FOUND:")
-                        print(f"      Local:  {file_path}")
-                        print(f"      GDrive: {gdrive_path}")
-                        print(f"      Size:   {file_size / (1024*1024):.1f} MB")
-
-                        if execute:
-                            file_path.unlink()
-                            results["deleted_files"] += 1
-                            print(f"      ✅ Deleted local copy")
-                        else:
-                            print(f"      🔍 Would delete (dry-run)")
-
-                        print()
-
-                    except Exception as e:
-                        error_msg = f"Failed to process {file_path}: {e}"
-                        results["errors"].append(error_msg)
-                        print(f"      ❌ {error_msg}")
+                        except Exception as e:
+                            error_msg = f"Failed to process {file_path}: {e}"
+                            results["errors"].append(error_msg)
+                            print(f"      ❌ {error_msg}")
 
         # STEP 3: Summary
         print("=" * 80)
@@ -637,8 +718,12 @@ def main():
     
     results = deduplicator.scan_directory(directory, args.execute, args.safety_threshold)
     
+    if results.get("error"):
+        print(f"\n❌ ERROR: {results['error']}")
+        sys.exit(1)
+
     if results.get("errors"):
-        print("\n❌ ERRORS:")
+        print("\n⚠️  SUB-ERRORS:")
         for error in results["errors"]:
             print(f"   {error}")
     
