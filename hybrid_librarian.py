@@ -23,7 +23,7 @@ except ImportError:
 
 from query_interface import QueryProcessor, QueryResult
 from content_extractor import ContentExtractor
-from classification_engine import FileClassificationEngine
+from unified_classifier import UnifiedClassificationService
 from gdrive_integration import get_ai_organizer_root
 
 @dataclass
@@ -57,30 +57,83 @@ class HybridLibrarian:
         # Initialize your existing components
         self.query_processor = QueryProcessor(str(self.base_dir))
         self.content_extractor = ContentExtractor(str(self.base_dir))
-        self.classifier = FileClassificationEngine(str(self.base_dir))
+        self.classifier = UnifiedClassificationService()
         
         # Semantic search setup
         self.embeddings_db_path = self.base_dir / "embeddings.db"
         self.model = None
-        if EMBEDDINGS_AVAILABLE:
-            self._init_semantic_search()
+        self.remote_enabled = False
+        self.remote_ip = ""
+        self.remote_port = 11434
+        self.remote_model = "nomic-embed-text"
+
+        self._init_semantic_search()
         
         # Query intelligence
         self.query_stats = {}
         self._load_query_patterns()
     
     def _init_semantic_search(self):
-        """Initialize semantic search components"""
+        """Initialize semantic search components (Local or Remote)"""
+        # 1. Try to load remote configuration first
         try:
-            # Use a lightweight, fast model for local processing
-            self.model = SentenceTransformer('all-MiniLM-L6-v2')
-            print("✅ Semantic search initialized")
+            from gdrive_integration import get_metadata_root
+            config_path = get_metadata_root() / "config" / "hybrid_config.json"
+            if config_path.exists():
+                with open(config_path, 'r') as f:
+                    config = json.load(f)
+                    remote = config.get("remote_powerhouse", {})
+                    if remote.get("enabled"):
+                        svc = remote.get("services", {}).get("ollama", {})
+                        svc_ip = svc.get("ip") or remote.get("ip")
+                        if svc_ip:
+                            self.remote_enabled = True
+                            self.remote_ip = svc_ip
+                            self.remote_port = svc.get("port", 11434)
+                            # Use nomic-embed-text as verified in user list
+                            self.remote_model = "nomic-embed-text"
+                            print(f"📡 Hybrid Librarian: Remote embeddings enabled via {self.remote_ip}")
         except Exception as e:
-            print(f"⚠️  Could not load embedding model: {e}")
-            self.model = None
+            print(f"⚠️  Error loading hybrid config for Librarian: {e}")
+
+        # 2. Check local embeddings availability if remote is not enabled or as backup
+        if EMBEDDINGS_AVAILABLE and not self.remote_enabled:
+            try:
+                # Use a lightweight, fast model for local processing
+                from sentence_transformers import SentenceTransformer
+                self.model = SentenceTransformer('all-MiniLM-L6-v2')
+                print("✅ Local semantic search initialized")
+            except Exception as e:
+                print(f"⚠️  Could not load local embedding model: {e}")
+                self.model = None
         
         # Create embeddings database
         self._init_embeddings_db()
+
+    def _generate_embedding(self, text: str) -> np.ndarray:
+        """Generate embedding using either local model or remote Ollama worker"""
+        if self.remote_enabled:
+            try:
+                import requests
+                url = f"http://{self.remote_ip}:{self.remote_port}/api/embeddings"
+                payload = {
+                    "model": self.remote_model,
+                    "prompt": text
+                }
+                resp = requests.post(url, json=payload, timeout=5.0)
+                if resp.status_code == 200:
+                    embedding = resp.json().get("embedding")
+                    if embedding:
+                        return np.array(embedding, dtype=np.float32)
+                print(f"⚠️  Remote embedding failed (Status {resp.status_code}), falling back...")
+            except Exception as e:
+                print(f"⚠️  Remote embedding error: {e}")
+
+        # Fallback to local model if available
+        if self.model:
+            return self.model.encode(text)
+
+        raise RuntimeError("No embedding engine available (Remote disabled/failed and Local unavailable)")
     
     def _init_embeddings_db(self):
         """Create database for storing embeddings"""
@@ -157,7 +210,7 @@ class HybridLibrarian:
         
         if search_mode == "fast":
             return self._fast_search(query, limit)
-        elif search_mode == "semantic" and self.model:
+        elif search_mode == "semantic" and (self.model or self.remote_enabled):
             return self._semantic_search(query, limit)
         elif search_mode == "hybrid":
             return self._hybrid_search(query, limit)
@@ -182,13 +235,13 @@ class HybridLibrarian:
                          if pattern in query_lower)
         
         # Decision logic
-        if semantic_score > 0 and self.model:
+        if semantic_score > 0 and (self.model or self.remote_enabled):
             return "semantic"
         elif metadata_score > semantic_score:
             return "fast"
         elif entity_score > 0:
             return "fast"  # Your existing system handles entities well
-        elif len(query.split()) > 5 and self.model:
+        elif len(query.split()) > 5 and (self.model or self.remote_enabled):
             return "semantic"  # Long queries often need semantic understanding
         else:
             return "fast"
@@ -204,7 +257,8 @@ class HybridLibrarian:
             try:
                 file_path = Path(result.file_path)
                 classification = self.classifier.classify_file(file_path)
-                tags = classification.tags if hasattr(classification, 'tags') else []
+                # UnifiedClassificationService returns a dict
+                tags = classification.get('tags', []) if isinstance(classification, dict) else []
             except:
                 tags = []
             
@@ -233,7 +287,7 @@ class HybridLibrarian:
         
         # Get semantic results if available
         semantic_results = []
-        if self.model:
+        if self.model or self.remote_enabled:
             semantic_results = self._semantic_search(query, limit)
         
         # Combine and deduplicate
@@ -265,7 +319,7 @@ class HybridLibrarian:
             
     def index_file_for_semantic_search(self, file_path: Path) -> bool:
         """Index a file for semantic search using Smart Chunking"""
-        if not self.model:
+        if not self.model and not self.remote_enabled:
             return False
         
         try:
@@ -286,7 +340,7 @@ class HybridLibrarian:
             
             # Generate file-level embedding (from summary + concepts)
             file_context = f"{summary}\nKey Concepts: {', '.join(key_concepts)}"
-            file_embedding = self.model.encode(file_context)
+            file_embedding = self._generate_embedding(file_context)
             
             with sqlite3.connect(self.embeddings_db_path) as conn:
                 conn.execute("""
@@ -315,7 +369,7 @@ class HybridLibrarian:
                 chunks = chunker.chunk_document(content, str(file_path))
                 
                 for chunk in chunks:
-                    chunk_embedding = self.model.encode(chunk.content)
+                    chunk_embedding = self._generate_embedding(chunk.content)
                     
                     conn.execute("""
                         INSERT INTO file_chunks 
@@ -339,12 +393,12 @@ class HybridLibrarian:
 
     def _semantic_search(self, query: str, limit: int) -> List[EnhancedQueryResult]:
         """Semantic search using embeddings (Chunks + File Level)"""
-        if not self.model:
+        if not self.model and not self.remote_enabled:
             print("⚠️  Semantic search not available, falling back to fast search")
             return self._fast_search(query, limit)
         
         # Generate query embedding
-        query_embedding = self.model.encode(query)
+        query_embedding = self._generate_embedding(query)
         
         results = []
         seen_files = set()
@@ -390,8 +444,9 @@ class HybridLibrarian:
                 # Get file classification for tags
                 try:
                     classification = self.classifier.classify_file(Path(match['file_path']))
-                    tags = classification.tags if hasattr(classification, 'tags') else []
-                    category = classification.category if hasattr(classification, 'category') else 'unknown'
+                    # UnifiedClassificationService returns a dict
+                    tags = classification.get('tags', []) if isinstance(classification, dict) else []
+                    category = classification.get('category', 'unknown') if isinstance(classification, dict) else 'unknown'
                 except:
                     tags = []
                     category = 'unknown'

@@ -5,14 +5,14 @@ from pathlib import Path
 from pydantic import BaseModel
 
 from gdrive_integration import get_metadata_root, get_ai_organizer_root
-from taxonomy_service import TaxonomyService
+from taxonomy_service import TaxonomyService, get_taxonomy_service as get_service_factory
 
 router = APIRouter(prefix="/api/taxonomy", tags=["taxonomy"])
 
 # Dependency to get TaxonomyService
 def get_taxonomy_service():
     config_dir = get_metadata_root() / "config"
-    return TaxonomyService(config_dir)
+    return get_service_factory(config_dir)
 
 class CategoryUpdate(BaseModel):
     display_name: Optional[str] = None

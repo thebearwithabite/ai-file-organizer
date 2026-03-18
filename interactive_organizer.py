@@ -20,11 +20,30 @@ import argparse
 project_dir = Path(__file__).parent
 sys.path.insert(0, str(project_dir))
 
-from interactive_classifier import InteractiveClassifier
 from staging_monitor import StagingMonitor
-from enhanced_librarian import EnhancedLibrarianCLI
+from staging_monitor import StagingMonitor
+from unified_classifier import UnifiedClassificationService
+from taxonomy_service import TaxonomyService
+from gdrive_integration import get_metadata_root
+from dataclasses import dataclass, field
+
 from safe_file_recycling import SafeFileRecycling
 from gdrive_integration import get_ai_organizer_root
+from audio_ai_analyzer import AudioAIAnalyzer
+
+@dataclass
+class ClassificationResult:
+    """
+    Result of file classification compatible with InteractiveOrganizer.
+    """
+    category: str
+    confidence: float
+    reasoning: List[str]
+    suggested_path: str
+    tags: List[str] = field(default_factory=list)
+    people: List[str] = field(default_factory=list)
+    projects: List[str] = field(default_factory=list)
+    subcategory: str = "General"
 
 class InteractiveOrganizer:
     """
@@ -35,9 +54,13 @@ class InteractiveOrganizer:
     def __init__(self, base_dir: str = None):
         # Use Google Drive integration as primary storage root
         self.base_dir = Path(base_dir) if base_dir else get_ai_organizer_root()
-        self.classifier = InteractiveClassifier(str(self.base_dir))
+
+        # Initialize Core Services
+        self.classifier_service = UnifiedClassificationService()
+        self.taxonomy_service = TaxonomyService.get_instance(get_metadata_root() / "config")
+
         self.staging_monitor = StagingMonitor(str(self.base_dir))
-        self.librarian = EnhancedLibrarianCLI(str(self.base_dir))
+        self.audio_analyzer = AudioAIAnalyzer(str(self.base_dir))
         self.recycling = SafeFileRecycling(str(self.base_dir))
         
         # ADHD-friendly safety mode (default on)
@@ -84,6 +107,12 @@ class InteractiveOrganizer:
         print(f"   High confidence: {self.session_stats['high_confidence']}")
         print(f"   Learning events: {self.session_stats['learned_preferences']}")
         
+        if self.use_recycling and self.session_stats['files_recycled'] > 0:
+            print(f"   ♻️  Files recycled safely: {self.session_stats['files_recycled']}")
+            print(f"   💡 Complete organization: python safe_file_recycling.py --list")
+        elif not self.use_recycling and self.session_stats['files_organized'] > 0:
+            print(f"   ✅ Files moved directly: {self.session_stats['files_organized']}")
+
         return self.session_stats
     
     def organize_specific_file(self, file_path: Path, dry_run: bool = True) -> bool:
@@ -108,7 +137,7 @@ class InteractiveOrganizer:
                     if file_path.is_file() and not file_path.name.startswith('.'):
                         staging_files.append(file_path)
         
-        return staging_files[:20]  # Limit to prevent overwhelming
+        return staging_files[:200]  # Limit to prevent overwhelming
     
     def _organize_single_file(self, file_path: Path, dry_run: bool) -> bool:
         """Organize a single file with interactive classification"""
@@ -118,8 +147,33 @@ class InteractiveOrganizer:
             
             # Extract content for better classification
             content = ""
+            audio_analysis = None
+
             try:
-                if file_path.suffix.lower() == '.txt':
+                # Check if it's an audio file first
+                audio_extensions = {'.mp3', '.wav', '.flac', '.m4a', '.aac', '.ogg', '.wma', '.aiff'}
+                if file_path.suffix.lower() in audio_extensions:
+                    print(f"🎵 Detected audio file - running AudioAI analysis...")
+                    try:
+                        audio_analysis = self.audio_analyzer.analyze_audio_file(file_path)
+                        self.audio_analyzer.save_analysis(audio_analysis)
+
+                        # Use audio analysis for classification context
+                        content = f"Audio file: {audio_analysis.content_type}, {audio_analysis.duration_seconds:.1f}s"
+                        if audio_analysis.transcription:
+                            content += f" - {audio_analysis.transcription[:500]}"
+
+                        print(f"   🎯 Audio type: {audio_analysis.content_type}")
+                        print(f"   ⏱️  Duration: {audio_analysis.duration_seconds:.1f}s")
+                        if audio_analysis.creative_tags:
+                            print(f"   🏷️  Tags: {', '.join(audio_analysis.creative_tags[:3])}")
+
+                    except Exception as e:
+                        print(f"   ⚠️  Audio analysis failed: {e}")
+                        print(f"   📄 Falling back to basic file classification...")
+
+                # Text file content extraction
+                elif file_path.suffix.lower() == '.txt':
                     content = file_path.read_text(encoding='utf-8', errors='ignore')[:2000]
                 elif file_path.suffix.lower() == '.pdf':
                     # Use existing content extractor
@@ -131,9 +185,31 @@ class InteractiveOrganizer:
             except:
                 pass  # Use filename-based classification
             
-            # Classify with interactive questions
+            # Classify with Unified Service + Interaction
             print(f"🤔 Analyzing file...")
-            classification = self.classifier.classify_with_questions(file_path, content)
+            classification = self._classify_and_interact(file_path, audio_analysis)
+
+            # Enhanced classification for audio files
+            if audio_analysis and audio_analysis.confidence_score > 0.7:
+                # Use AudioAI analysis to improve classification
+                if audio_analysis.content_type == 'interview':
+                    classification.category = "Entertainment_Industry/Interviews"
+                    classification.confidence = max(classification.confidence, 90)
+                elif audio_analysis.content_type == 'voice_sample':
+                    classification.category = "Entertainment_Industry/Voice_Samples"
+                    classification.confidence = max(classification.confidence, 85)
+                elif audio_analysis.content_type == 'scene_audio':
+                    classification.category = "Entertainment_Industry/Scene_Work"
+                    classification.confidence = max(classification.confidence, 85)
+                elif audio_analysis.content_type == 'music':
+                    classification.category = "Creative_Projects/Music"
+                    classification.confidence = max(classification.confidence, 80)
+
+                # Add audio-specific reasoning
+                if audio_analysis.creative_tags:
+                    classification.reasoning.extend([f"AudioAI: {tag}" for tag in audio_analysis.creative_tags[:2]])
+
+                print(f"   🎵 AudioAI enhanced classification: {audio_analysis.content_type}")
             
             # Update session stats
             self.session_stats['files_processed'] += 1
@@ -176,7 +252,8 @@ class InteractiveOrganizer:
                     if recycled_path:
                         self.session_stats['files_recycled'] += 1
                         print(f"   ♻️  File recycled safely (can undo)")
-                        print(f"   💡 Restore with: python safe_file_recycling.py --restore {recycled_path.name}")
+                        print(f"   💡 Complete organization: python safe_file_recycling.py --complete {recycled_path.name}")
+                        print(f"   ↩️  Or restore: python safe_file_recycling.py --restore {recycled_path.name}")
                     else:
                         print(f"   ❌ Failed to recycle file safely")
                         return False
@@ -202,6 +279,142 @@ class InteractiveOrganizer:
         except Exception as e:
             print(f"   ❌ Error organizing file: {e}")
             return False
+
+    def _classify_and_interact(self, file_path: Path, audio_analysis=None) -> ClassificationResult:
+        """
+        Classify file, apply audio enhancements, and ask questions if confidence is low.
+        """
+        # 1. Get initial classification from Unified Service
+        result_dict = self.classifier_service.classify_file(file_path)
+
+        # Parse the result
+        final = result_dict.get('final', {})
+        category = final.get('category', 'unknown')
+        confidence = final.get('confidence', 0.0) * 100 # Convert 0-1.0 to 0-100 scale
+
+        trace = final.get('decision_trace', '')
+        reasoning = [trace] if trace else []
+        candidates = final.get('candidates', [])
+
+        # Add candidate info to reasoning
+        for cand in candidates:
+            reasoning.append(f"Candidate ({cand.get('source')}): {cand.get('category')} ({cand.get('confidence', 0):.2f})")
+
+        # Initial Result Construction
+        result = ClassificationResult(
+            category=category,
+            confidence=confidence,
+            reasoning=reasoning,
+            suggested_path=str(self.taxonomy_service.resolve_path(category)),
+            tags=[category]
+        )
+
+        # 2. Apply Audio Enhancements (Strategy: Boost Confidence BEFORE asking user)
+        if audio_analysis and audio_analysis.confidence_score > 0.7:
+             # Use AudioAI analysis to improve classification
+            if audio_analysis.content_type == 'interview':
+                result.category = "Entertainment_Industry/Interviews" # TODO: Update this to match new Taxonomy IDs if needed
+                result.confidence = max(result.confidence, 90)
+            elif audio_analysis.content_type == 'voice_sample':
+                result.category = "audio_vox" # V3 Taxonomy ID
+                result.confidence = max(result.confidence, 85)
+            elif audio_analysis.content_type == 'scene_audio':
+                result.category = "Entertainment_Industry/Scene_Work"
+                result.confidence = max(result.confidence, 85)
+            elif audio_analysis.content_type == 'music':
+                result.category = "audio_music" # V3 Taxonomy ID
+                result.confidence = max(result.confidence, 80)
+
+            # Add audio-specific reasoning
+            if audio_analysis.creative_tags:
+                result.reasoning.extend([f"AudioAI: {tag}" for tag in audio_analysis.creative_tags[:2]])
+
+            print(f"   🎵 AudioAI enhanced classification: {audio_analysis.content_type}")
+
+            # Update path based on new category
+            result.suggested_path = str(self.taxonomy_service.resolve_path(result.category))
+
+        # 3. Interactive Questioning (Threshold: 65%)
+        if result.confidence < 65:
+            self._ask_user_questions(file_path, result, candidates)
+            # Update path again in case user changed category
+            result.suggested_path = str(self.taxonomy_service.resolve_path(result.category))
+
+        return result
+
+    def _ask_user_questions(self, file_path: Path, result: ClassificationResult, candidates: List[Dict]):
+        """
+        Ask user questions to resolve uncertainty.
+        Modifies result in-place.
+        """
+        print(f"\n❓ Uncertainty detected for: {file_path.name} (Confidence: {result.confidence:.1f}%)")
+        print(f"   Current best guess: {result.category}")
+
+        # Identify options
+        options = []
+        seen_cats = set()
+
+        # Add current best guess
+        if result.category != "unknown":
+            options.append(result.category)
+            seen_cats.add(result.category)
+
+        # Add other candidates from Unified Service
+        for cand in candidates:
+            cat = cand.get('category')
+            if cat and cat != "unknown" and cat not in seen_cats:
+                options.append(cat)
+                seen_cats.add(cat)
+
+        # Fill with standard categories from Taxonomy
+        # We can get these from taxonomy service
+        all_cats = list(self.taxonomy_service.get_all_categories().keys())
+        # Sort by some logic or just take common ones?
+        # For now, let's use the ones that were hardcoded but as IDs
+        standard_cats = ["audio_vox", "audio_sfx", "tech_literature", "biz_financials", "personal_photos"]
+
+        for cat in standard_cats:
+            if len(options) >= 5:
+                break
+            if cat not in seen_cats and cat in all_cats:
+                options.append(cat)
+                seen_cats.add(cat)
+
+        print("   What is the primary category for this file?")
+        for i, opt in enumerate(options, 1):
+            print(f"   {i}. {opt}")
+        print(f"   {len(options)+1}. [Custom Category ID]")
+        print(f"   {len(options)+2}. [Skip / Keep Unknown]")
+
+        try:
+            choice = input(f"   Select (1-{len(options)+2}): ").strip()
+            if choice.isdigit():
+                idx = int(choice) - 1
+
+                # Preset option selected
+                if 0 <= idx < len(options):
+                    selected_cat = options[idx]
+                    result.category = selected_cat
+                    result.confidence = 100.0
+                    result.reasoning.append(f"User selected: {selected_cat}")
+
+                # Custom category
+                elif idx == len(options):
+                    custom = input("   Enter category ID: ").strip()
+                    if custom:
+                        # Verify it exists? Or allow creating new?
+                        # For now, let's assume valid ID or string
+                        result.category = custom
+                        result.confidence = 100.0
+                        result.reasoning.append(f"User defined: {custom}")
+
+                # Skip
+                elif idx == len(options) + 1:
+                    print("   Skipping manual classification.")
+
+        except (KeyboardInterrupt, EOFError):
+            print("\n   Skipping question (interrupted).")
+            pass
     
     def _handle_duplicate(self, source: Path, destination: Path, dry_run: bool) -> bool:
         """Handle duplicate file detection"""
@@ -285,6 +498,16 @@ class InteractiveOrganizer:
         
         return self.session_stats
 
+    def enable_direct_moves(self):
+        """Disable recycling for direct file moves (less safe)"""
+        self.use_recycling = False
+        print("⚠️  Direct moves enabled - files will be moved immediately without recycling safety")
+
+    def enable_recycling(self):
+        """Enable recycling for safe file moves (default)"""
+        self.use_recycling = True
+        print("✅ Recycling enabled - files will be moved to recycling first for safety")
+
 def main():
     """Command line interface for interactive organization"""
     parser = argparse.ArgumentParser(
@@ -304,6 +527,8 @@ Examples:
     )
     
     parser.add_argument('--base-dir', help='Base directory for file organization')
+    parser.add_argument('--direct-moves', action='store_true',
+                       help='Move files directly without recycling (less safe)')
     subparsers = parser.add_subparsers(dest='command', help='Available commands')
     
     # Organize staging areas
@@ -328,6 +553,10 @@ Examples:
     # Initialize organizer
     organizer = InteractiveOrganizer(args.base_dir)
     
+    # Handle recycling mode
+    if args.direct_moves:
+        organizer.enable_direct_moves()
+
     # Execute command
     try:
         if args.command == 'organize':
@@ -343,8 +572,8 @@ Examples:
         else:
             print("🤔 Interactive File Organizer")
             print("Use --help to see available commands")
-            print("\nFeatures:")
-            print("  • Asks questions until 85% confident")
+            print(f"Features:")
+            print(f"  • Asks questions until 65% confident")
             print("  • Learns your preferences over time")
             print("  • ADHD-friendly decision making")
             print("  • Integrates with semantic search")
