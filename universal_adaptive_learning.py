@@ -10,6 +10,7 @@ Created by: RT Max / Claude Code
 """
 
 import os
+import tempfile
 import sys
 import json
 import pickle
@@ -281,6 +282,31 @@ class UniversalAdaptiveLearning:
             self._last_flush = now
             self._dirty = False
 
+
+    def _atomic_write_pickle(self, file_path: Path, data: Any):
+        """Atomically write pickle data (write to temp, then rename)"""
+        temp_fd, temp_path = tempfile.mkstemp(dir=file_path.parent, suffix=".tmp")
+        try:
+            with os.fdopen(temp_fd, "wb") as f:
+                pickle.dump(data, f)
+            os.replace(temp_path, file_path)
+        except Exception:
+            if os.path.exists(temp_path):
+                os.unlink(temp_path)
+            raise
+
+    def _atomic_write_json(self, file_path: Path, data: Any):
+        """Atomically write JSON data (write to temp, then rename)"""
+        temp_fd, temp_path = tempfile.mkstemp(dir=file_path.parent, suffix=".tmp")
+        try:
+            with os.fdopen(temp_fd, "w") as f:
+                json.dump(data, f, indent=2)
+            os.replace(temp_path, file_path)
+        except Exception:
+            if os.path.exists(temp_path):
+                os.unlink(temp_path)
+            raise
+
     def save_all_data(self, force: bool = False):
         """Save all learning data to persistent storage (Throttled via _maybe_flush usually)"""
         # If called directly without force, route through throttle
@@ -290,19 +316,15 @@ class UniversalAdaptiveLearning:
 
         try:
             # Save pickle files
-            with open(self.learning_events_file, 'wb') as f:
-                pickle.dump(self.learning_events, f)
+            self._atomic_write_pickle(self.learning_events_file, self.learning_events)
             
-            with open(self.patterns_file, 'wb') as f:
-                pickle.dump(self.patterns, f)
+            self._atomic_write_pickle(self.patterns_file, self.patterns)
             
-            with open(self.preferences_file, 'wb') as f:
-                pickle.dump(self.user_preferences, f)
+            self._atomic_write_pickle(self.preferences_file, self.user_preferences)
             
             # Update stats
             self.stats["last_updated"] = datetime.now().isoformat()
-            with open(self.stats_file, 'w') as f:
-                json.dump(self.stats, f, indent=2)
+            self._atomic_write_json(self.stats_file, self.stats)
             
             # Sync to database
             self._sync_to_database()
@@ -321,13 +343,8 @@ class UniversalAdaptiveLearning:
             conn.execute("DELETE FROM learning_events WHERE timestamp < ?", (cutoff,))
             
             # UPSERT learning events (Last 1000 items from memory)
-            for event in self.learning_events[-1000:]:
-                conn.execute('''
-                    INSERT OR REPLACE INTO learning_events 
-                    (event_id, timestamp, event_type, file_path, original_prediction, user_action,
-                     confidence_before, confidence_after, context)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''', (
+            events_data = [
+                (
                     event.event_id,
                     event.timestamp.isoformat(),
                     event.event_type,
@@ -337,13 +354,21 @@ class UniversalAdaptiveLearning:
                     event.confidence_before,
                     event.confidence_after,
                     json.dumps(event.context) if event.context else None
-                ))
+                )
+                for event in self.learning_events[-1000:]
+            ]
+
+            if events_data:
+                conn.executemany('''
+                    INSERT OR REPLACE INTO learning_events
+                    (event_id, timestamp, event_type, file_path, original_prediction, user_action,
+                     confidence_before, confidence_after, context)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', events_data)
             
             # UPSERT patterns
-            for pattern in self.patterns.values():
-                conn.execute('''
-                    INSERT OR REPLACE INTO patterns VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                ''', (
+            patterns_data = [
+                (
                     pattern.pattern_id,
                     pattern.pattern_type,
                     json.dumps(pattern.trigger_conditions),
@@ -352,13 +377,18 @@ class UniversalAdaptiveLearning:
                     pattern.frequency,
                     pattern.last_seen.isoformat(),
                     pattern.accuracy_rate
-                ))
+                )
+                for pattern in self.patterns.values()
+            ]
+
+            if patterns_data:
+                conn.executemany('''
+                    INSERT OR REPLACE INTO patterns VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ''', patterns_data)
             
             # UPSERT preferences
-            for pref in self.user_preferences.values():
-                conn.execute('''
-                    INSERT OR REPLACE INTO user_preferences VALUES (?, ?, ?, ?, ?, ?, ?)
-                ''', (
+            preferences_data = [
+                (
                     pref.preference_id,
                     pref.preference_type,
                     json.dumps(pref.conditions),
@@ -366,7 +396,14 @@ class UniversalAdaptiveLearning:
                     pref.strength,
                     pref.frequency,
                     pref.last_reinforced.isoformat()
-                ))
+                )
+                for pref in self.user_preferences.values()
+            ]
+
+            if preferences_data:
+                conn.executemany('''
+                    INSERT OR REPLACE INTO user_preferences VALUES (?, ?, ?, ?, ?, ?, ?)
+                ''', preferences_data)
 
     def record_learning_event(self, 
                             event_type: str,
