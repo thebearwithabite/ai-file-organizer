@@ -221,16 +221,18 @@ export const TaxonomySettings: React.FC = () => {
                                                 disabled={cat.locked}
                                                 className="p-2 hover:bg-white/10 rounded-lg text-white/60 hover:text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                                                 title="Edit Metadata"
+                                                aria-label={`Edit metadata for ${cat.display_name}`}
                                             >
-                                                <Edit size={18} />
+                                                <Edit size={18} aria-hidden="true" />
                                             </button>
                                             <button
                                                 onClick={() => handleRenameOpen(cat)}
                                                 disabled={cat.locked}
                                                 className="p-2 hover:bg-white/10 rounded-lg text-white/60 hover:text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                                                 title="Rename Category & Folder"
+                                                aria-label={`Rename category and folder for ${cat.display_name}`}
                                             >
-                                                <FolderEdit size={18} />
+                                                <FolderEdit size={18} aria-hidden="true" />
                                             </button>
                                         </div>
                                     </td>
@@ -247,8 +249,8 @@ export const TaxonomySettings: React.FC = () => {
                     <div className="bg-[#1a1a1a] border border-white/20 rounded-2xl w-full max-w-md shadow-2xl animate-in fade-in zoom-in duration-200">
                         <div className="flex justify-between items-center p-6 border-b border-white/10">
                             <h3 className="text-lg font-bold text-white">Edit Metadata: {editCategory.display_name}</h3>
-                            <button onClick={() => setEditCategory(null)} className="text-white/40 hover:text-white">
-                                <X size={20} />
+                            <button onClick={() => setEditCategory(null)} className="text-white/40 hover:text-white" aria-label="Close edit dialog">
+                                <X size={20} aria-hidden="true" />
                             </button>
                         </div>
                         <div className="p-6 space-y-4">
@@ -290,8 +292,8 @@ export const TaxonomySettings: React.FC = () => {
                     <div className="bg-[#1a1a1a] border border-white/20 rounded-2xl w-full max-w-md shadow-2xl animate-in fade-in zoom-in duration-200">
                         <div className="flex justify-between items-center p-6 border-b border-white/10">
                             <h3 className="text-lg font-bold text-white">Rename Category</h3>
-                            <button onClick={() => setRenameCategory(null)} className="text-white/40 hover:text-white">
-                                <X size={20} />
+                            <button onClick={() => setRenameCategory(null)} className="text-white/40 hover:text-white" aria-label="Close rename dialog">
+                                <X size={20} aria-hidden="true" />
                             </button>
                         </div>
                         <div className="p-6 space-y-4">
@@ -338,8 +340,8 @@ export const TaxonomySettings: React.FC = () => {
                     <div className="bg-[#1a1a1a] border border-white/20 rounded-2xl w-full max-w-lg shadow-2xl animate-in fade-in zoom-in duration-200 max-h-[90vh] overflow-y-auto">
                         <div className="flex justify-between items-center p-6 border-b border-white/10 sticky top-0 bg-[#1a1a1a] z-10">
                             <h3 className="text-lg font-bold text-white">Add New Category</h3>
-                            <button onClick={() => setCreateDialogOpen(false)} className="text-white/40 hover:text-white">
-                                <X size={20} />
+                            <button onClick={() => setCreateDialogOpen(false)} className="text-white/40 hover:text-white" aria-label="Close create dialog">
+                                <X size={20} aria-hidden="true" />
                             </button>
                         </div>
                         <div className="p-6 space-y-4">
