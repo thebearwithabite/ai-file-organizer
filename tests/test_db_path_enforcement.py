@@ -16,7 +16,7 @@ class TestDatabasePathEnforcement(unittest.TestCase):
     
     def test_ensure_safe_local_path_valid(self):
         """Test that a valid local path is accepted"""
-        path = Path.home() / "Documents/AI_METADATA_SYSTEM/databases/test.db"
+        path = Path.home() / "AI_METADATA_SYSTEM/databases/test.db"
         try:
             result = ensure_safe_local_path(path)
             self.assertEqual(result, path)

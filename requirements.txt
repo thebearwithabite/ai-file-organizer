@@ -32,11 +32,20 @@ faster-whisper
 google-generativeai>=0.3.0
 sentence-transformers>=2.2.0
 chromadb>=0.4.0
+mcp[cli]
+jsonrpcserver>=5.0.0
 
 # Google Drive Integration
 google-api-python-client>=2.100.0
 google-auth-httplib2>=0.1.1
 google-auth-oauthlib>=1.0.0
+
+# Audio/Video Processing (Unified)
+librosa>=0.10.0
+ffmpeg-python>=0.2.0
+SpeechRecognition>=3.10.0
+pydub>=0.25.1
+soundfile>=0.12.1
 
 # Testing
 pytest>=7.0.0
