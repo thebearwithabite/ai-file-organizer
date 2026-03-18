@@ -10,9 +10,10 @@ FastAPI Hello World Application
 Basic boilerplate for a FastAPI web application
 """
 
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Query, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import uvicorn
@@ -33,7 +34,7 @@ load_dotenv()
 # Import our services
 from api.services import SystemService, SearchService, TriageService
 from api.rollback_service import RollbackService
-from api.veo_api import router as veo_router, clip_router
+from api.veo_prompts_api import router as veo_router, clip_router
 from security_utils import sanitize_filename, validate_path_within_base
 from gdrive_integration import get_metadata_root, get_ai_organizer_root
 from universal_adaptive_learning import UniversalAdaptiveLearning
@@ -88,83 +89,52 @@ app.add_middleware(
 # Mount static files for the web interface
 
 
-# Initialize services
-print("DEBUG: Initializing SystemService...")
-system_service = SystemService()
-print("DEBUG: SystemService initialized.")
-
-print("DEBUG: Initializing SearchService...")
-search_service = SearchService()
-print("DEBUG: SearchService initialized.")
-
-print("DEBUG: Initializing RollbackService...")
-rollback_service = RollbackService()
-print("DEBUG: RollbackService initialized.")
-
-print("DEBUG: Initializing TriageService...")
-triage_service = TriageService(rollback_service=rollback_service)
-print("DEBUG: TriageService initialized.")
-
-# Final Initialization Check
-try:
-    import re
-    import subprocess
-    from pathlib import Path
-    logger.info("✅ Core dependencies verified.")
-except ImportError as e:
-    logger.error(f"❌ CRITICAL ERROR: Missing dependency during startup: {e}")
-    # In a production environment, we might want to exit here
-    # sys.exit(1)
-
-print("DEBUG: Application initialization sequence complete.")
-
-print("DEBUG: Initializing UniversalAdaptiveLearning...")
-learning_system = UniversalAdaptiveLearning()
-print("DEBUG: UniversalAdaptiveLearning initialized.")
-
-print("DEBUG: Initializing ADHDFriendlyConfidenceSystem...")
-confidence_system = ADHDFriendlyConfidenceSystem()
-print("DEBUG: ADHDFriendlyConfidenceSystem initialized.")
-
-print("DEBUG: Initializing AutomatedDeduplicationService...")
-deduplication_service = AutomatedDeduplicationService()
-print("DEBUG: AutomatedDeduplicationService initialized.")
-
-print("DEBUG: Initializing EmergencySpaceProtection...")
-space_protection = EmergencySpaceProtection()
-print("DEBUG: EmergencySpaceProtection initialized.")
-
-# Global state for background monitor
-background_monitor = None
-monitor_paths = []
-
-from api.taxonomy_router import router as taxonomy_router
-from api.identity_router import router as identity_router
-
-# Include VEO API routers (Sprint 2.0)
-app.include_router(veo_router)
-app.include_router(clip_router)
-app.include_router(taxonomy_router)
-app.include_router(identity_router)
-print("DEBUG: VEO, Taxonomy, & Identity API routers included.")
-
-# Background scanning tasks
-@app.on_event("startup")
-async def startup_event():
+# Helper for Rule #1 Enforcement
+def verify_metadata_safety():
     """
-    Non-blocking startup - schedule initial scan after 30-second delay.
-    This keeps server startup fast while still catching existing Downloads files.
+    CRITICAL: Rule #1 & #5 Enforcement (Metadata Tripwire)
+    Ensures no metadata/database paths point to CloudStorage.
+    If a violation is detected, the app CRASHES immediately to prevent corruption.
     """
-    global background_monitor, monitor_paths
+    metadata_root = get_metadata_root()
+    illegal_patterns = ["CloudStorage", "GoogleDrive", "Google Drive", "Dropbox", "OneDrive"]
 
-    # Initialize rollback database first
+    path_str = str(metadata_root)
+    for pattern in illegal_patterns:
+        if pattern in path_str:
+            error_msg = f"CRITICAL SECURITY/RULE VIOLATION: Metadata root '{path_str}' is in CloudStorage ({pattern}). App halted."
+            logger.error(error_msg)
+            raise RuntimeError(error_msg)
+
+    logger.info(f"✅ Rule #1 Metadata Safety Check Passed: {path_str}")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Stateful lifecycle management for the FastAPI application.
+    Ensures services are initialized once and cleaned up properly.
+    """
+    logger.info("🚀 Starting AI File Organizer Architecture (Lifespan mode)...")
+
+    # 0. Rule #1 Tripwire
+    verify_metadata_safety()
+
+    # 1. Initialize core persistence
     try:
+        from easy_rollback_system import ensure_rollback_db
+        from api.veo_prompts_api import init_veo_prompts_table
         ensure_rollback_db()
-        logger.info("✅ Rollback DB ready")
+        init_veo_prompts_table()
+        try:
+            from api.veo_studio_api import init_veo_studio_tables
+            init_veo_studio_tables()
+        except ImportError:
+            logger.warning("veo_studio_api not available - skipping table init")
+        logger.info("✅ Core DBs & Tables initialized")
     except Exception as e:
-        logger.exception("Failed to initialize rollback DB: %s", e)
+        logger.exception("Failed to initialize core DBs: %s", e)
 
-    # Initialize adaptive background monitor
+    # 2. Setup Background Monitoring
     try:
         paths_str = os.getenv("AUTO_MONITOR_PATHS", "")
         paths_list = []
@@ -174,10 +144,6 @@ async def startup_event():
                 for p in paths_str.split(",")
                 if p.strip()
             ]
-            
-        # Add default paths if not specified or alongside env vars depending on logic
-        # Here we just add defaults if env is empty, but let's ensure we contain defaults anyway
-        # if the user wants strictly only AUTO_MONITOR_PATHS, they should set it validation
         
         default_paths = [
             os.path.expanduser("~/Downloads"),
@@ -185,52 +151,161 @@ async def startup_event():
             os.path.expanduser("~/Documents")
         ]
         
-        # Combine and deduplicate smartly
-        # 1. Normalize user paths
-        # Current policy: Always include all paths
         all_paths = set(paths_list)
         all_paths.update(default_paths)
         
-        # CRITICAL: Watch the Library Root so we learn from internal organization
         try:
             library_root = get_ai_organizer_root()
             all_paths.add(str(library_root))
-            logger.info(f"📚 Added Library Root to monitor: {library_root}")
+            logger.info(f"📚 Library Root: {library_root}")
         except Exception as e:
-            logger.warning(f"Could not determine Library Root for monitoring: {e}")
+            logger.warning(f"Could not determine Library Root: {e}")
              
         monitor_paths = list(all_paths)
-
-        logger.info(f"🛡️  Initializing Adaptive Monitor for: {monitor_paths}")
+        logger.info(f"🛡️  Paths: {monitor_paths}")
         
-        background_monitor = AdaptiveBackgroundMonitor(
+        # Initialize and start monitor
+        app.state.background_monitor = AdaptiveBackgroundMonitor(
             additional_watch_paths=monitor_paths
         )
-        background_monitor.start()
-        SystemService.set_monitor(background_monitor)
-        logger.info("✅ Adaptive Background Monitor started")
-
-        # Schedule background tasks
-        logger.info("🚀 Server started - scheduling initial Downloads scan in 30 seconds...")
-        asyncio.create_task(delayed_initial_scan())
-        asyncio.create_task(periodic_orchestration())
+        app.state.background_monitor.start()
+        SystemService.set_monitor(app.state.background_monitor)
+        logger.info("✅ Background Monitor Active")
 
     except Exception as e:
-        logger.error(f"❌ Failed to start background monitor: {e}")
+        logger.error(f"❌ Monitor Initialization Failed: {e}")
+        app.state.background_monitor = None
 
-@app.on_event("shutdown")
-async def shutdown_event():
-    """
-    Graceful shutdown handler.
-    """
-    global background_monitor
-    logger.info("🛑 Shutting down services...")
+    # 3. Start Emergency Services
+    try:
+        app.state.space_protection = EmergencySpaceProtection()
+        app.state.space_protection.start_space_protection()
+        logger.info("🛡️  Space Protection Active")
+    except Exception as e:
+        logger.error(f"❌ Space Protection Failed: {e}")
+        app.state.space_protection = None
+
+    # 4. Schedule Orchestration Tasks
+    logger.info("🎼 Scheduling background orchestration...")
+    app.state.scan_task = asyncio.create_task(delayed_initial_scan())
+    app.state.orchestration_task = asyncio.create_task(periodic_orchestration())
+
+    yield
+
+    # --- SHUTDOWN ---
+    logger.info("🛑 Shutting down AI File Organizer services...")
+
+    if hasattr(app.state, 'background_monitor') and app.state.background_monitor:
+        logger.info("   Stopping monitor...")
+        app.state.background_monitor.stop()
+
+    if hasattr(app.state, 'space_protection') and app.state.space_protection:
+        logger.info("   Stopping protection...")
+        app.state.space_protection.stop_space_protection()
+
+    if hasattr(app.state, 'scan_task'):
+        app.state.scan_task.cancel()
     
-    if background_monitor:
-        logger.info("   Stopping background monitor...")
-        background_monitor.stop()
+    if hasattr(app.state, 'orchestration_task'):
+        app.state.orchestration_task.cancel()
         
     logger.info("✅ Shutdown complete")
+
+# Global state for background monitor (Deprecated: Use app.state in routes)
+background_monitor = None
+monitor_paths = []
+
+# Move router inclusion AFTER lifespan definition
+from api.taxonomy_router import router as taxonomy_router
+from api.identity_router import router as identity_router
+# Optional routers (graceful degradation if dependencies missing)
+try:
+    from api.veo_studio_api import router as veo_studio_router
+except ImportError:
+    veo_studio_router = None
+    logging.getLogger(__name__).warning("veo_studio_api unavailable - skipping")
+
+try:
+    from api.veo_brain_api import router as veo_brain_router
+except ImportError:
+    veo_brain_router = None
+    logging.getLogger(__name__).warning("veo_brain_api unavailable - skipping")
+
+# Include VEO API routers
+app.include_router(veo_router)
+app.include_router(clip_router)
+if veo_studio_router:
+    app.include_router(veo_studio_router)
+if veo_brain_router:
+    app.include_router(veo_brain_router)
+app.include_router(taxonomy_router)
+app.include_router(identity_router)
+
+# Initialize FastAPI with lifespan
+app.router.lifespan_context = lifespan
+
+# Global singletons (Lazy Load Pattern)
+_system_service = None
+_search_service = None
+_rollback_service = None
+_triage_service = None
+_learning_system = None
+_confidence_system = None
+_deduplication_service = None
+
+def get_system_service():
+    global _system_service
+    if _system_service is None:
+        _system_service = SystemService()
+    return _system_service
+
+def get_search_service():
+    global _search_service
+    if _search_service is None:
+        _search_service = SearchService()
+    return _search_service
+
+def get_rollback_service():
+    global _rollback_service
+    if _rollback_service is None:
+        _rollback_service = RollbackService()
+    return _rollback_service
+
+def get_triage_service():
+    global _triage_service
+    if _triage_service is None:
+        _triage_service = TriageService(rollback_service=get_rollback_service())
+    return _triage_service
+
+def get_learning_system():
+    global _learning_system
+    if _learning_system is None:
+        _learning_system = UniversalAdaptiveLearning()
+    return _learning_system
+
+def get_confidence_system():
+    global _confidence_system
+    if _confidence_system is None:
+        _confidence_system = ADHDFriendlyConfidenceSystem()
+    return _confidence_system
+
+def get_deduplication_service():
+    global _deduplication_service
+    if _deduplication_service is None:
+        _deduplication_service = AutomatedDeduplicationService()
+    return _deduplication_service
+
+def get_space_protection(request: Request):
+    """Access space protection from app state"""
+    return getattr(request.app.state, 'space_protection', None)
+
+def get_background_monitor(request: Request):
+    """Access background monitor from app state"""
+    return getattr(request.app.state, 'background_monitor', None)
+
+# The old top-level initializations are now REMOVED or moved into get_* functions.
+# This prevents side effects on import.
+
 
 if __name__ == "__main__":
     # Enforce single instance
@@ -248,14 +323,17 @@ if __name__ == "__main__":
         
         logger.info(f"DEBUG: Rollback DB Path: {rollback_db_path}")
         logger.info(f"DEBUG: Learning DB Path: {learning_db_path}")
+    except Exception as e:
+        logger.error(f"DEBUG: Failed to print DB paths: {e}")
         
-        if triage_service.rollback_service:
+    try:
+        if get_triage_service().rollback_service:
              logger.info("DEBUG: TriageService has RollbackService initialized")
         else:
              logger.error("DEBUG: TriageService MISSING RollbackService")
              
     except Exception as e:
-        logger.error(f"DEBUG: Failed to print DB paths: {e}")
+        logger.error(f"DEBUG: Failed to verify services: {e}")
 
     try:
         # Start uvicorn server
@@ -278,7 +356,7 @@ async def delayed_initial_scan():
     try:
         # Run in thread pool to avoid blocking async loop
         loop = asyncio.get_event_loop()
-        result = await loop.run_in_executor(None, triage_service.trigger_scan)
+        result = await loop.run_in_executor(None, get_triage_service().trigger_scan)
         logger.info(f"✅ Initial scan complete: {result.get('files_found', 0)} files found for triage")
     except Exception as e:
         logger.error(f"❌ Initial scan failed: {e}")
@@ -350,7 +428,7 @@ async def health_check():
 async def get_system_status():
     """Get current system status including file counts, monitor status, and last run time"""
     # SystemService now handles aggregation of all status data
-    return system_service.get_status()
+    return get_system_service().get_status()
 
 @app.post("/api/system/orchestrate")
 async def trigger_orchestration():
@@ -374,7 +452,7 @@ async def trigger_orchestration():
 async def get_recent_activity(limit: int = 50):
     """Get recent system activity"""
     try:
-        activities = learning_system.get_recent_activity(limit)
+        activities = get_learning_system().get_recent_activity(limit)
         return {"activities": activities}
     except Exception as e:
         logger.error(f"Error getting recent activity: {e}")
@@ -383,7 +461,7 @@ async def get_recent_activity(limit: int = 50):
 @app.post("/api/system/emergency_cleanup")
 async def emergency_cleanup():
     """Emergency cleanup: Move large files from Downloads to Google Drive"""
-    result = system_service.emergency_cleanup()
+    result = get_system_service().emergency_cleanup()
     return result
 
 @app.get("/api/system/monitor-status")
@@ -435,12 +513,12 @@ async def get_monitor_status():
 @app.get("/api/system/maintenance-logs")
 async def get_maintenance_logs(limit: int = 50):
     """Get recent maintenance task logs"""
-    return system_service.get_maintenance_logs(limit)
+    return get_system_service().get_maintenance_logs(limit)
 
 @app.get("/api/system/emergency-logs")
 async def get_emergency_logs(limit: int = 50):
     """Get recent emergency logs"""
-    return system_service.get_emergency_logs(limit)
+    return get_system_service().get_emergency_logs(limit)
 
 @app.get("/api/settings/learning-stats")
 async def get_learning_stats():
@@ -458,11 +536,11 @@ async def get_learning_stats():
         JSON with learning statistics
     """
     try:
-        stats = learning_system.get_learning_statistics()
+        stats = get_learning_system().get_learning_statistics()
         
         # Add files organized today from rollback service
         try:
-            today_ops = rollback_service.get_operations(today_only=True)
+            today_ops = get_rollback_service().get_operations(today_only=True)
             stats["files_organized_today"] = len(today_ops)
         except Exception:
             stats["files_organized_today"] = 0
@@ -599,10 +677,10 @@ async def get_confidence_mode():
     """
     try:
         # Get current mode from user config
-        current_mode = confidence_system.user_config.get("default_level", "SMART")
+        current_mode = get_confidence_system().user_config.get("default_level", "SMART")
 
         # Get confidence statistics
-        stats = confidence_system.get_confidence_stats()
+        stats = get_confidence_system().get_confidence_stats()
 
         return {
             "status": "success",
@@ -646,8 +724,8 @@ async def set_confidence_mode(request: ConfidenceModeRequest):
             )
 
         # Update user config
-        confidence_system.user_config["default_level"] = mode
-        confidence_system.save_user_config()
+        get_confidence_system().user_config["default_level"] = mode
+        get_confidence_system().save_user_config()
 
         logger.info(f"Confidence mode changed to: {mode}")
 
@@ -683,8 +761,8 @@ async def scan_for_duplicates():
     """
     try:
         # Perform a fresh scan of the primary AI organizer root
-        base_dir = deduplication_service.base_dir
-        report = deduplication_service.scan_for_duplicates(str(base_dir))
+        base_dir = get_deduplication_service().base_dir
+        report = get_deduplication_service().scan_for_duplicates(str(base_dir))
 
         logger.info(f"Duplicate scan completed for {base_dir} - returning findings")
 
@@ -714,7 +792,7 @@ async def perform_deduplication_cleanup():
     """
     try:
         # Get current stats before cleanup
-        before_stats = deduplication_service.get_service_stats()
+        before_stats = get_deduplication_service().get_service_stats()
 
         # Check if there are any active threats to process
         active_threats = before_stats.get("active_threats", 0)
@@ -732,10 +810,10 @@ async def perform_deduplication_cleanup():
 
         # Process all threats in the queue
         # This will automatically handle cleanup with rollback protection
-        deduplication_service._process_threats()
+        get_deduplication_service()._process_threats()
 
         # Get updated stats after cleanup
-        after_stats = deduplication_service.get_service_stats()
+        after_stats = get_deduplication_service().get_service_stats()
 
         duplicates_removed = after_stats["service_stats"]["duplicates_removed"]
         space_freed = after_stats["service_stats"]["space_saved_mb"]
@@ -757,25 +835,23 @@ async def perform_deduplication_cleanup():
         raise HTTPException(status_code=500, detail="Failed to perform deduplication cleanup")
 
 @app.get("/api/system/space-protection")
-async def get_space_protection_status():
+async def get_space_protection_status(request: Request):
     """
     Get disk space protection status and statistics
-
-    Returns:
-        JSON with space protection status including:
-        - status: success or error
-        - message: Human-readable message
-        - data: Disk usage statistics, emergency details, and protection settings
     """
     try:
+        sp = get_space_protection(request)
+        if not sp:
+             raise HTTPException(status_code=503, detail="Space protection service not initialized")
+
         # Get protection statistics
-        stats = space_protection.get_protection_stats()
+        stats = sp.get_protection_stats()
 
         # Force emergency check to get current disk status
-        emergency_check = space_protection.force_emergency_check()
+        emergency_check = sp.force_emergency_check()
         
         # Get current disk space info directly
-        disk_space = system_service.get_disk_space()
+        disk_space = get_system_service().get_disk_space()
 
         return {
             "status": "success",
@@ -787,12 +863,12 @@ async def get_space_protection_status():
                 "status": disk_space["status"],
                 "protection_stats": stats,
                 "current_emergency_check": emergency_check,
-                "monitoring_active": space_protection.monitoring_active,
+                "monitoring_active": sp.monitoring_active,
                 "config": {
-                    "warning_threshold": space_protection.config["warning_threshold"],
-                    "critical_threshold": space_protection.config["critical_threshold"],
-                    "emergency_threshold": space_protection.config["emergency_threshold"],
-                    "target_free_space": space_protection.config["target_free_space"]
+                    "warning_threshold": sp.config["warning_threshold"],
+                    "critical_threshold": sp.config["critical_threshold"],
+                    "emergency_threshold": sp.config["emergency_threshold"],
+                    "target_free_space": sp.config["target_free_space"]
                 }
             }
         }
@@ -801,19 +877,17 @@ async def get_space_protection_status():
         raise HTTPException(status_code=500, detail="Failed to get space protection status")
 
 @app.post("/api/system/space-protection")
-async def trigger_space_cleanup():
+async def trigger_space_cleanup(request: Request):
     """
     Trigger emergency space cleanup
-
-    Returns:
-        JSON with cleanup results including:
-        - status: success or error
-        - message: Human-readable message
-        - data: Space freed, files processed, and cleanup details
     """
     try:
+        sp = get_space_protection(request)
+        if not sp:
+            raise HTTPException(status_code=503, detail="Space protection service not initialized")
+
         # Force emergency check first
-        emergency_check = space_protection.force_emergency_check()
+        emergency_check = sp.force_emergency_check()
 
         if emergency_check["emergencies_detected"] == 0:
             return {
@@ -827,7 +901,7 @@ async def trigger_space_cleanup():
             }
 
         # Get the first emergency and handle it
-        emergency = space_protection.current_emergencies[0] if space_protection.current_emergencies else None
+        emergency = sp.current_emergencies[0] if sp.current_emergencies else None
 
         if not emergency:
             return {
@@ -840,10 +914,10 @@ async def trigger_space_cleanup():
             }
 
         # Handle the emergency (this triggers cleanup internally)
-        space_protection._handle_space_emergency(emergency)
+        sp._handle_space_emergency(emergency)
 
         # Get updated stats after cleanup
-        updated_stats = space_protection.get_protection_stats()
+        updated_stats = sp.get_protection_stats()
 
         return {
             "status": "success",
@@ -874,7 +948,7 @@ async def search_files(q: str = Query(..., description="Search query", min_lengt
         raise HTTPException(status_code=400, detail="Query parameter 'q' cannot be empty")
 
     try:
-        results = search_service.search(q.strip())
+        results = get_search_service().search(q.strip())
         return {
             "query": q.strip(),
             "results": results,
@@ -897,7 +971,7 @@ async def get_files_to_review():
         JSON response with files needing review
     """
     try:
-        files = triage_service.get_files_for_review()
+        files = get_triage_service().get_files_for_review()
         return {
             "files": files,
             "count": len(files),
@@ -920,7 +994,7 @@ async def trigger_triage_scan():
         JSON response with scan results
     """
     try:
-        result = triage_service.trigger_scan()
+        result = get_triage_service().trigger_scan()
         return result
     except Exception as e:
         # Security: Log detailed error internally, return generic message to user
@@ -954,7 +1028,7 @@ async def scan_custom_folder(request: ScanFolderRequest):
              raise HTTPException(status_code=400, detail=f"Path is not a directory: {request.folder_path}")
 
         # Trigger scan on the custom folder
-        result = triage_service.scan_custom_folder(str(folder_path))
+        result = get_triage_service().scan_custom_folder(str(folder_path))
         return result
     except HTTPException:
         raise
@@ -969,7 +1043,7 @@ async def get_known_projects():
         JSON response with list of projects
     """
     try:
-        projects = triage_service.get_known_projects()
+        projects = get_triage_service().get_known_projects()
         # Convert dict to list of objects for frontend
         project_list = [{"id": k, "name": v} for k, v in projects.items()]
         return {
@@ -1121,7 +1195,7 @@ async def upload_file(file: UploadFile = File(...)):
         logger.info(f"File uploaded (sanitized): {file_path}")
 
         # Classify the file using triage service
-        classification = triage_service.get_classification(str(file_path))
+        classification = get_triage_service().get_classification(str(file_path))
 
         # Return classification result
         return {
@@ -1160,7 +1234,7 @@ async def classify_file(request: ClassificationRequest):
         JSON response with classification status and hierarchical metadata
     """
     try:
-        result = triage_service.classify_file(
+        result = get_triage_service().classify_file(
             file_path=request.file_path,
             confirmed_category=request.confirmed_category,
             project=request.project,
@@ -1260,7 +1334,7 @@ async def get_rollback_operations(
         JSON response with list of operations in {status, message, data} format
     """
     try:
-        operations = rollback_service.get_operations(days=days, today_only=today_only, search=search)
+        operations = get_rollback_service().get_operations(days=days, today_only=today_only, search=search)
 
         time_range = "today" if today_only else f"last {days} days"
         message = f"Found {len(operations)} operations from {time_range}"
@@ -1294,7 +1368,7 @@ async def undo_operation(operation_id: int):
         JSON response with success status in {status, message, data} format
     """
     try:
-        result = rollback_service.undo_operation(operation_id)
+        result = get_rollback_service().undo_operation(operation_id)
 
         if not result["success"]:
             raise HTTPException(status_code=400, detail=result["message"])
@@ -1322,7 +1396,7 @@ async def undo_today():
         JSON response with count and status in {status, message, data} format
     """
     try:
-        result = rollback_service.undo_today()
+        result = get_rollback_service().undo_today()
 
         if not result["success"] and result["count"] == 0:
             raise HTTPException(status_code=404, detail="No operations found to undo")

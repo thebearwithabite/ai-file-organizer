@@ -14,16 +14,21 @@ class TaxonomyService:
     """
     V3 Category Management System.
     The Authoritative Source of Truth for Classification Taxonomy.
-    
-    Handles:
-    1. Category Metadata (taxonomy.json)
-    2. Bidirectional Sync (Settings <-> Filesystem)
-    3. Safety Checks (Collisions, Overwrites)
     """
 
+    _instances: Dict[str, 'TaxonomyService'] = {}
+
+    @classmethod
+    def get_instance(cls, config_dir: Path) -> 'TaxonomyService':
+        """Keyed singleton to ensure one instance per config directory"""
+        key = str(Path(config_dir).absolute())
+        if key not in cls._instances:
+            cls._instances[key] = cls(config_dir)
+        return cls._instances[key]
+
     def __init__(self, config_dir: Path):
-        self.config_dir = config_dir
-        self.taxonomy_path = config_dir / "taxonomy.json"
+        self.config_dir = Path(config_dir)
+        self.taxonomy_path = self.config_dir / "taxonomy.json"
         
         # In-memory cache
         self.categories: Dict[str, Dict[str, Any]] = {}
@@ -198,7 +203,7 @@ class TaxonomyService:
                 "locked": False,
                 "aliases": [],
                 "keywords": ["receipt", "subscription", "membership"],
-                "extensions": [".pdf", ".jpg", ".png"],
+                "extensions": [".pdf", ".jpg", ".jpeg", ".png", ".heic", ".webp"],
                 "confidence": 0.80
             },
 
@@ -442,3 +447,23 @@ class TaxonomyService:
         cat["display_name"] = new_name # Update display name too
         
         self._atomic_save()
+
+# Singleton Cache
+_taxonomy_instances: Dict[str, TaxonomyService] = {}
+
+def get_taxonomy_service(config_dir: Path) -> TaxonomyService:
+    """
+    Get or create a singleton instance of TaxonomyService for the given config directory.
+
+    Args:
+        config_dir: Directory for storing taxonomy data
+
+    Returns:
+        TaxonomyService singleton
+    """
+    key = str(config_dir.resolve())
+
+    if key not in _taxonomy_instances:
+        _taxonomy_instances[key] = TaxonomyService(config_dir=config_dir)
+
+    return _taxonomy_instances[key]

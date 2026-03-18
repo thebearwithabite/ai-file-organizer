@@ -13,8 +13,9 @@ from pathlib import Path
 from typing import Dict, Any, Optional, List
 import datetime as dt_module
 
-from gdrive_librarian import GoogleDriveLibrarian
-from unified_classifier import UnifiedClassificationService
+from taxonomy_service import TaxonomyService
+from google_drive_auth import GoogleDriveAuth
+from unified_librarian import UnifiedLibrarian
 from gdrive_integration import get_ai_organizer_root, get_metadata_root
 from hierarchical_organizer import HierarchicalOrganizer
 from security_utils import validate_path_within_base
@@ -29,7 +30,7 @@ class SystemService:
     """Service class for system-related operations"""
 
     # Class-level shared instance to avoid re-initialization
-    _librarian_instance: Optional[GoogleDriveLibrarian] = None
+    _librarian_instance: Optional[UnifiedLibrarian] = None
     _initialization_error: Optional[str] = None
     _initialized: bool = False
     
@@ -38,25 +39,16 @@ class SystemService:
     _last_orchestration_stats = {"last_run": None, "files_processed": 0}
 
     def __init__(self):
-        """Initialize SystemService with lazy GoogleDriveLibrarian loading"""
+        """Initialize SystemService with lazy UnifiedLibrarian loading"""
         if SystemService._librarian_instance is None:
             try:
-                logger.info("Creating GoogleDriveLibrarian (lazy initialization mode)...")
-                # Use centralized metadata root for config
-                from gdrive_integration import get_metadata_root
-                config_path = get_metadata_root() / "config"
-                
-                SystemService._librarian_instance = GoogleDriveLibrarian(
-                    config_dir=config_path,
-                    cache_size_gb=2.0,
-                    auto_sync=False  # Disable auto-sync for API stability
-                )
-                # DO NOT call initialize() here - defer until first actual use
-                # This avoids blocking server startup with Google Drive API calls
-                logger.info("GoogleDriveLibrarian created (not yet initialized - will initialize on first use)")
+                logger.info("Initializing SystemService (orchestration mode)...")
+                # UnifiedLibrarian.get_instance() handles all the heavy lifting
+                SystemService._librarian_instance = UnifiedLibrarian.get_instance()
+                logger.info("UnifiedLibrarian instance linked to SystemService")
             except Exception as e:
                 SystemService._initialization_error = str(e)
-                logger.error(f"Failed to create GoogleDriveLibrarian: {e}")
+                logger.error(f"Failed to link UnifiedLibrarian: {e}")
                 SystemService._librarian_instance = None
 
     @classmethod
@@ -70,46 +62,15 @@ class SystemService:
         cls._last_orchestration_stats = stats
 
     @classmethod
-    def get_librarian(cls) -> Optional[GoogleDriveLibrarian]:
-        """Get the singleton GoogleDriveLibrarian instance, initializing if necessary"""
+    def get_librarian(cls) -> Optional[UnifiedLibrarian]:
+        """Get the singleton UnifiedLibrarian instance"""
         if cls._librarian_instance is None:
-            try:
-                logger.info("Creating GoogleDriveLibrarian (lazy initialization mode)...")
-                # Use centralized metadata root for config
-                from gdrive_integration import get_metadata_root
-                config_path = get_metadata_root() / "config"
-                
-                cls._librarian_instance = GoogleDriveLibrarian(
-                    config_dir=config_path,
-                    cache_size_gb=2.0,
-                    auto_sync=False
-                )
-            except Exception as e:
-                logger.error(f"Failed to create GoogleDriveLibrarian: {e}")
-                return None
-
-        if not cls._initialized and cls._librarian_instance:
-            try:
-                logger.info("Performing lazy initialization of GoogleDriveLibrarian...")
-                cls._librarian_instance.initialize()
-                cls._initialized = True
-                logger.info("GoogleDriveLibrarian initialized successfully")
-            except Exception as e:
-                logger.error(f"Lazy initialization failed: {e}")
-                
+             cls._librarian_instance = UnifiedLibrarian.get_instance()
         return cls._librarian_instance
 
     def _ensure_initialized(self):
-        """Ensure the librarian is initialized before use"""
-        if not SystemService._initialized and SystemService._librarian_instance:
-            try:
-                logger.info("Performing lazy initialization of GoogleDriveLibrarian...")
-                SystemService._librarian_instance.initialize()
-                SystemService._initialized = True
-                logger.info("GoogleDriveLibrarian initialized successfully")
-            except Exception as e:
-                logger.error(f"Lazy initialization failed: {e}")
-                SystemService._initialization_error = str(e)
+        """No-op for UnifiedLibrarian (initialized via singleton)"""
+        pass
 
     def get_status(self) -> Dict[str, Any]:
         """
@@ -134,6 +95,7 @@ class SystemService:
                 
                 monitor_info = {
                     "watching_paths": len(monitor_stats.get("watch_directories", {})),
+                    "status": "active" if monitor_stats.get("running") else "paused",
                     "rules_loaded": active_rules,
                     "stats": {
                         "processed_files": monitor_stats.get("processed_files", 0),
@@ -148,6 +110,7 @@ class SystemService:
         else:
             monitor_info = {
                 "watching_paths": 0,
+                "status": "offline",
                 "rules_loaded": 0,
                 "stats": {"processed_files": 0, "errors_24h": 0, "last_scan": None}
             }
@@ -161,10 +124,10 @@ class SystemService:
         }
 
         librarian = self.get_librarian()
-        if librarian:
+        if librarian and librarian.cloud:
             try:
                 # Get detailed status from librarian
-                lib_status = librarian.get_system_status()
+                lib_status = librarian.cloud.get_system_status()
                 
                 if lib_status.get("authenticated", False):
                     auth_info = lib_status.get("auth_info", {})
@@ -305,7 +268,7 @@ class SystemService:
         import sqlite3
         from gdrive_integration import get_metadata_root
         
-        db_path = get_metadata_root() / "adaptive_rules.db"
+        db_path = get_metadata_root() / "databases" / "adaptive_rules.db"
         logs = []
         
         if not db_path.exists():
@@ -330,7 +293,7 @@ class SystemService:
         import sqlite3
         from gdrive_integration import get_metadata_root
         
-        db_path = get_metadata_root() / "adaptive_rules.db"
+        db_path = get_metadata_root() / "databases" / "adaptive_rules.db"
         logs = []
         
         if not db_path.exists():
@@ -382,14 +345,14 @@ class SearchService:
             List of search results as dictionaries
         """
         librarian = SystemService.get_librarian()
-        if not librarian:
-            logger.error("Cannot perform search: System librarian not available")
+        if not librarian or not librarian.cloud:
+            logger.error("Cannot perform search: System librarian or cloud component not available")
             return []
 
         try:
             # Perform search using hybrid librarian (auto mode)
-            # Access the hybrid_librarian property which lazy-loads the semantic engine
-            results = librarian.hybrid_librarian.search(query, search_mode="auto", limit=limit)
+            # Access via the cloud property
+            results = librarian.cloud.hybrid_librarian.search(query, search_mode="auto", limit=limit)
 
             # Convert EnhancedQueryResult to API-friendly format
             api_results = []
@@ -438,60 +401,55 @@ class TriageService:
 
     def __init__(self, rollback_service=None):
         """Initialize TriageService with classification engine and rollback service"""
-        try:
-            # Initialize with AI Organizer root directory
-            self.base_dir = get_ai_organizer_root()
+        # Use components from UnifiedLibrarian to ensure singleton consistency
+        librarian = UnifiedLibrarian.get_instance()
 
-            # Initialize the unified classification service with AI-powered content analysis
-            self.classifier = UnifiedClassificationService()
+        # Initialize with AI Organizer root directory
+        self.base_dir = get_ai_organizer_root()
 
-            # Initialize hierarchical organizer for deep folder structures
-            self.hierarchical_organizer = HierarchicalOrganizer()
+        # Access unified classification service from orchestrator
+        self.classifier = librarian.classifier
 
-            # Store rollback service for operation tracking
-            self.rollback_service = rollback_service
+        # Initialize hierarchical organizer for deep folder structures
+        self.hierarchical_organizer = HierarchicalOrganizer()
 
-            # Initialize learning system for adaptive learning from user classifications
-            self.learning_system = UniversalAdaptiveLearning()
+        # Store rollback service for operation tracking
+        self.rollback_service = rollback_service
 
-            # Common staging areas where unorganized files are found
-            self.staging_areas = [
-                Path.home() / "Downloads",
-                Path.home() / "Desktop",
-                self.base_dir / "99_TEMP_PROCESSING" / "Downloads_Staging",
-                self.base_dir / "99_TEMP_PROCESSING" / "Desktop_Staging",
-                self.base_dir / "99_TEMP_PROCESSING" / "Manual_Review",
-                self.base_dir / "99_STAGING_EMERGENCY",  # Emergency staging for bulk file dumps
-                self.base_dir / "00_INBOX_STAGING",  # New Primary Input Queue
-                # Add iCloud Staging
-                Path.home() / "Library/Mobile Documents/com~apple~CloudDocs/Documents/GDRIVE_STAGING"
-            ]
+        # Access learning system from orchestrator (shared logic)
+        self.learning_system = librarian.classifier.learning_system
 
-            # Security: Validate all staging areas are within allowed base directories
-            # This prevents path traversal if staging areas ever become user-configurable
-            validated_staging_areas = []
-            user_home = Path.home()
+        # Common staging areas where unorganized files are found
+        self.staging_areas = [
+            Path.home() / "Downloads",
+            Path.home() / "Desktop",
+            self.base_dir / "99_TEMP_PROCESSING" / "Downloads_Staging",
+            self.base_dir / "99_TEMP_PROCESSING" / "Desktop_Staging",
+            self.base_dir / "99_TEMP_PROCESSING" / "Manual_Review",
+            self.base_dir / "99_STAGING_EMERGENCY",  # Emergency staging for bulk file dumps
+            self.base_dir / "00_INBOX_STAGING",  # New Primary Input Queue
+            # Add iCloud Staging
+            Path.home() / "Library/Mobile Documents/com~apple~CloudDocs/Documents/GDRIVE_STAGING"
+        ]
 
-            for area in self.staging_areas:
-                # Validate each staging area is within either user home or base_dir
-                is_in_home = validate_path_within_base(area, user_home)
-                is_in_base = validate_path_within_base(area, self.base_dir) if self.base_dir else False
+        # Security: Validate all staging areas are within allowed base directories
+        # This prevents path traversal if staging areas ever become user-configurable
+        validated_staging_areas = []
+        user_home = Path.home()
 
-                if is_in_home or is_in_base:
-                    validated_staging_areas.append(area)
-                else:
-                    logger.warning(f"Skipping invalid staging area (outside safe directories): {area}")
+        for area in self.staging_areas:
+            # Validate each staging area is within either user home or base_dir
+            is_in_home = validate_path_within_base(area, user_home)
+            is_in_base = validate_path_within_base(area, self.base_dir) if self.base_dir else False
 
-            self.staging_areas = validated_staging_areas
-            logger.info(f"TriageService initialized with {len(self.staging_areas)} validated staging areas")
+            if is_in_home or is_in_base:
+                validated_staging_areas.append(area)
+            else:
+                logger.warning(f"Skipping invalid staging area (outside safe directories): {area}")
 
-        except Exception as e:
-            logger.error(f"Failed to initialize TriageService: {e}")
-            # Fallback to basic initialization
-            self.classifier = None
-            self.staging_areas = []
-            self.base_dir = None
-            self.rollback_service = rollback_service
+        self.staging_areas = validated_staging_areas
+        logger.info(f"TriageService initialized with {len(self.staging_areas)} validated staging areas")
+
 
     def get_files_for_review(self) -> List[Dict[str, Any]]:
         """
@@ -547,19 +505,19 @@ class TriageService:
             # 2. FAILBACK SCAN (V2 Legacy/Hybrid)
             # ------------------------------------------------------------------
             # If queue is empty (or < 20 items), scan staging areas for new files
-            if len(files_for_review) < 20:
+            if len(files_for_review) < 200:
                 logger.debug("Queue low/empty - scanning staging areas for new files...")
-                confidence_threshold = 0.85 # Triage threshold
+                confidence_threshold = 0.60 # Triage threshold
                 queued_paths = {f['file_path'] for f in files_for_review}
                 
                 for area in self.staging_areas:
-                    if len(files_for_review) >= 20: break
+                    if len(files_for_review) >= 200: break
                     if not area.exists(): continue
                     
                     try:
                         # Scan recent files
                         for file_path in area.iterdir():
-                            if len(files_for_review) >= 20: break
+                            if len(files_for_review) >= 200: break
                             
                             # Filter obvious junk
                             if not file_path.is_file() or file_path.name.startswith('.'): continue
@@ -694,7 +652,7 @@ class TriageService:
             }
 
             files_for_review = []
-            confidence_threshold = 0.85  # ADHD-friendly threshold
+            confidence_threshold = 0.60  # ADHD-friendly threshold
 
             # Scan folder recursively for files
             logger.info(f"Scanning {folder_path} recursively for supported files...")
@@ -844,7 +802,7 @@ class TriageService:
             Dict mapping project keys to display names
         """
         if self.hierarchical_organizer:
-            return self.hierarchical_organizer.KNOWN_PROJECTS
+            return self.hierarchical_organizer.known_projects
         return {}
 
     def classify_file(self, file_path: str, confirmed_category: str, project: str = None, episode: str = None) -> Dict[str, Any]:
@@ -1030,12 +988,19 @@ class TriageService:
                         'content_keywords': found_keywords  # CRITICAL FOR LEARNING
                 }
                 
-                self.learning_system.record_classification(
+                # Use record_learning_event with manual_move for user confirmations
+                # This is critical for the Learning Loop to generate patterns
+                self.learning_system.record_learning_event(
+                    event_type='manual_move',
                     file_path=str(new_file_path),
-                    predicted_category=original_category,
-                    confidence=original_confidence,
-                    features=context_features,
-                    media_type=media_type
+                    original_prediction={
+                        'category': original_category,
+                        'confidence': original_confidence,
+                        'media_type': media_type
+                    },
+                    user_action={'category': confirmed_category, 'source': 'triage_confirmation'},
+                    confidence_before=original_confidence,
+                    context=context_features
                 )
                 logger.info(f"✅ Learning event recorded: {original_category} ({original_confidence:.2f}) → {confirmed_category} [{media_type}]")
             except Exception as e:
