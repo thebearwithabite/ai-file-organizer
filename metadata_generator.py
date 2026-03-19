@@ -229,7 +229,10 @@ class MetadataGenerator:
             
             # Step 5: Add missing columns atomically
             migration_count = 0
+            # Define allowed characters for column names to prevent SQL injection
             for col_name, col_type in gdrive_columns.items():
+                if not col_name.isidentifier():
+                    continue
                 if col_name not in existing_columns:
                     conn.execute(f"ALTER TABLE file_metadata ADD COLUMN {col_name} {col_type}")
                     migration_count += 1
@@ -467,9 +470,20 @@ class MetadataGenerator:
         
         try:
             with sqlite3.connect(self.db_path) as conn:
+                # Fetch valid columns to prevent SQL injection
+                cursor = conn.execute("PRAGMA table_info(file_metadata)")
+                valid_columns = {row[1] for row in cursor.fetchall()}
+
+                # Filter metadata to only include valid columns
+                filtered_metadata = {k: v for k, v in metadata.items() if k in valid_columns}
+
+                if not filtered_metadata:
+                    print("⚠️  No valid metadata fields to save.")
+                    return False
+
                 # Convert to database format
-                columns = list(metadata.keys())
-                values = list(metadata.values())
+                columns = list(filtered_metadata.keys())
+                values = list(filtered_metadata.values())
                 placeholders = ', '.join(['?' for _ in values])
                 column_names = ', '.join(columns)
                 
