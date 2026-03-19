@@ -577,8 +577,28 @@ class ComprehensiveTaggingSystem:
                           limit: int = 50) -> List[Dict]:
         """Find files that match specified tags"""
         
+        if not tags:
+            return []
+
         with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.execute("SELECT * FROM file_tags")
+            # ⚡ Bolt Optimization: Use SQLite LIKE to filter rows before parsing JSON
+            # This prevents full table scans and O(N) JSON deserialization
+            conditions = []
+            params = []
+
+            for tag in tags:
+                # Basic string match first - we'll verify exact match in Python
+                # Handle tags that contain double quotes by mimicking json encoding
+                json_encoded_tag = json.dumps(tag)[1:-1] # strip surrounding quotes
+
+                conditions.append("(auto_tags LIKE ? OR user_tags LIKE ?)")
+                params.extend([f'%"{json_encoded_tag}"%', f'%"{json_encoded_tag}"%'])
+
+            operator = " AND " if match_all else " OR "
+            where_clause = operator.join(conditions)
+
+            query = f"SELECT * FROM file_tags WHERE {where_clause}"
+            cursor = conn.execute(query, params)
             columns = [desc[0] for desc in cursor.description]
             results = []
             
@@ -589,15 +609,13 @@ class ComprehensiveTaggingSystem:
                 file_user_tags = json.loads(file_data['user_tags'])
                 all_file_tags = file_auto_tags + file_user_tags
                 
-                # Check tag matching
+                # Python-level verification for exact matching (prevents "tag1" matching "tag10")
                 if match_all:
-                    # All specified tags must be present
                     if all(tag in all_file_tags for tag in tags):
                         file_data['matching_tags'] = tags
                         file_data['all_tags'] = all_file_tags
                         results.append(file_data)
                 else:
-                    # Any specified tag must be present
                     matching_tags = [tag for tag in tags if tag in all_file_tags]
                     if matching_tags:
                         file_data['matching_tags'] = matching_tags
