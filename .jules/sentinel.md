@@ -19,3 +19,13 @@
 **Prevention:**
 1. Always convert `pathlib.Path` objects to absolute strings using `str(path.absolute())` before passing them as arguments to `subprocess.run`.
 2. Absolute paths always begin with a directory separator (`/` on Unix) or a drive letter (`C:\` on Windows), guaranteeing the command-line tool parses them as file paths rather than flags or options.
+## 2024-05-30 - SQL Injection via Unvalidated Dictionary Keys in Dynamic Queries
+
+**Vulnerability:** The `MetadataGenerator.save_file_metadata` method was vulnerable to SQL injection because it dynamically constructed an `INSERT OR REPLACE INTO file_metadata` query by directly using the dictionary keys and values provided by the caller without validating the keys against the actual database schema. Additionally, `_migrate_database_schema` directly interpolated column names into `ALTER TABLE` statements without verifying they were valid identifiers.
+
+**Learning:** When constructing dynamic SQL queries (e.g., `INSERT` or `UPDATE` with dynamically generated column names), standard `?` parameterization does not protect column keys. You must use an explicit schema allowlist (e.g., fetching `PRAGMA table_info` from the database) to filter dictionary keys and prevent SQL injection. For DDL statements like `ALTER TABLE`, user input must be strictly validated as a valid SQL identifier (e.g., using `.isidentifier()`).
+
+**Prevention:**
+1. Dynamically fetch the allowed schema using `PRAGMA table_info(table_name)`.
+2. Filter the incoming dictionary keys against the allowed schema to ensure only safe, existing columns are included in the query.
+3. For dynamic column names in DDL statements, validate them using `col_name.isidentifier()` to ensure they contain only valid characters.
