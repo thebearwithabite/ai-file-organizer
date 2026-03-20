@@ -1,3 +1,6 @@
 ## 2024-03-16 - Make hover-only actions keyboard accessible
 **Learning:** Actions hidden behind `opacity-0` and revealed with `group-hover:opacity-100` are completely inaccessible to keyboard-only users navigating via Tab. This is a common pattern for "secondary" actions like undo/delete buttons in lists.
 **Action:** When using `opacity-0 group-hover:opacity-100` to hide secondary actions, always pair it with `focus-visible:opacity-100`, `focus-visible:ring-2`, and `focus-visible:outline-none` to ensure the action becomes visible and clearly highlighted when focused via keyboard navigation.
+## 2024-03-20 - Keyboard Accessibility for Hover-Revealed Elements
+**Learning:** Elements that are visually hidden via `opacity-0` and revealed on hover (`group-hover:opacity-100`) become inaccessible to keyboard navigation if focus states aren't also handled.
+**Action:** When hiding interactive UI elements visually, always pair `group-hover:opacity-100` with `focus-within:opacity-100` on the container and `focus-visible:opacity-100` on the focusable elements, along with explicit `focus-visible:ring-2` styling. Ensure file inputs use screen-reader accessible hiding (`opacity-0 absolute inset-0`) rather than `display: none` (`className="hidden"`).

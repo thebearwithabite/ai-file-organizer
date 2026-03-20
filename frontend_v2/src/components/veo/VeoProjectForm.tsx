@@ -103,8 +103,8 @@ const VeoProjectForm: React.FC<VeoProjectFormProps> = ({
                     <div className="flex justify-between items-center mb-8 relative z-10">
                         <p className="text-[11px] text-white/40 font-bold uppercase tracking-widest leading-none">Draft your scene beats or upload a screenplay</p>
                         <div className="flex gap-2">
-                            <button type="button" onClick={() => scriptFileInputRef.current?.click()} className="p-3 bg-black/40 border border-white/5 rounded-xl hover:bg-white/10 text-white/40 hover:text-white transition-all"><FileUploadIcon className="w-4 h-4" /></button>
-                            <button type="button" className="p-3 bg-black/40 border border-white/5 rounded-xl hover:bg-white/10 text-white/40 hover:text-white transition-all"><FileAudioIcon className="w-4 h-4" /></button>
+                            <button aria-label="Upload Screenplay" title="Upload Screenplay" type="button" onClick={() => scriptFileInputRef.current?.click()} className="p-3 bg-black/40 border border-white/5 rounded-xl hover:bg-white/10 text-white/40 hover:text-white transition-all focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:outline-none"><FileUploadIcon aria-hidden="true" className="w-4 h-4" /></button>
+                            <button aria-label="Upload Audio" title="Upload Audio" type="button" className="p-3 bg-black/40 border border-white/5 rounded-xl hover:bg-white/10 text-white/40 hover:text-white transition-all focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:outline-none"><FileAudioIcon aria-hidden="true" className="w-4 h-4" /></button>
                         </div>
                     </div>
 

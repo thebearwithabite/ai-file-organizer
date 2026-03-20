@@ -233,12 +233,13 @@ const AssetCard = ({ asset, onRemove, onUpload }: AssetCardProps) => {
     };
 
     return (
-        <div className="group relative bg-white/5 rounded-2xl border border-white/10 overflow-hidden flex flex-col transition-all hover:border-white/20 hover:bg-white/10 shadow-xl">
+        <div className="group relative bg-white/5 rounded-2xl border border-white/10 overflow-hidden flex flex-col transition-all hover:border-white/20 hover:bg-white/10 shadow-xl focus-within:ring-2 focus-within:ring-indigo-500 focus-within:ring-inset">
             <button
+                aria-label={`Remove asset ${asset.name}`}
                 onClick={onRemove}
                 type="button"
-                className="absolute top-2 right-2 z-20 bg-black/60 backdrop-blur-md text-white/60 hover:text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-all border border-white/10 scale-90 group-hover:scale-100">
-                <XMarkIcon className="w-3 h-3" />
+                className="absolute top-2 right-2 z-20 bg-black/60 backdrop-blur-md text-white/60 hover:text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none transition-all border border-white/10 scale-90 group-hover:scale-100 focus-visible:scale-100">
+                <XMarkIcon aria-hidden="true" className="w-3 h-3" />
             </button>
 
             <div className="aspect-[4/3] bg-black/40 relative overflow-hidden">
@@ -249,23 +250,26 @@ const AssetCard = ({ asset, onRemove, onUpload }: AssetCardProps) => {
                         className="w-full h-full object-cover opacity-60 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700"
                     />
                 ) : (
-                    <label className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 transition-all group/upload">
-                        <UploadCloudIcon className="w-8 h-8 text-white/10 mb-2 group-hover/upload:text-indigo-400 group-hover/upload:scale-110 transition-all duration-300" />
-                        <span className="text-[9px] font-black uppercase text-white/20 tracking-widest group-hover/upload:text-indigo-400">Upload Still</span>
+                    <label className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 transition-all group/upload focus-within:ring-2 focus-within:ring-indigo-400 focus-within:bg-white/5 focus-within:outline-none">
+                        <UploadCloudIcon aria-hidden="true" className="w-8 h-8 text-white/10 mb-2 group-hover/upload:text-indigo-400 group-focus-within/upload:text-indigo-400 group-hover/upload:scale-110 group-focus-within/upload:scale-110 transition-all duration-300" />
+                        <span className="text-[9px] font-black uppercase text-white/20 tracking-widest group-hover/upload:text-indigo-400 group-focus-within/upload:text-indigo-400">Upload Still</span>
                         <input
+                            aria-label={`Upload image for asset ${asset.name}`}
                             type="file"
-                            className="hidden"
+                            className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
                             onChange={onUpload}
                             accept="image/png, image/jpeg, image/webp"
                         />
                     </label>
                 )}
                 {asset.image && (
-                    <label className="absolute bottom-2 right-2 bg-black/60 backdrop-blur-md p-2 rounded-full cursor-pointer hover:bg-indigo-600 border border-white/10 opacity-0 group-hover:opacity-100 transition-all scale-75 group-hover:scale-100">
-                        <UploadCloudIcon className="w-3 h-3 text-white" />
+                    <label className="absolute bottom-2 right-2 bg-black/60 backdrop-blur-md p-2 rounded-full cursor-pointer hover:bg-indigo-600 border border-white/10 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-all scale-75 group-hover:scale-100 focus-within:scale-100 focus-within:ring-2 focus-within:ring-white focus-within:outline-none">
+                        <UploadCloudIcon aria-hidden="true" className="w-3 h-3 text-white" />
+                        <span className="sr-only">Update image for asset {asset.name}</span>
                         <input
+                            aria-label={`Update image for asset ${asset.name}`}
                             type="file"
-                            className="hidden"
+                            className="opacity-0 absolute w-0 h-0"
                             onChange={onUpload}
                             accept="image/png, image/jpeg, image/webp"
                         />
