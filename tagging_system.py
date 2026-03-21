@@ -577,8 +577,28 @@ class ComprehensiveTaggingSystem:
                           limit: int = 50) -> List[Dict]:
         """Find files that match specified tags"""
         
+        if not tags:
+            return []
+
         with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.execute("SELECT * FROM file_tags")
+            # Optimize: Pre-filter rows using LIKE to avoid full-table JSON deserialization (O(N) bottleneck)
+            where_clauses = []
+            params = []
+
+            if match_all:
+                for tag in tags:
+                    tag_escaped = json.dumps(tag)[1:-1]
+                    where_clauses.append("(auto_tags LIKE ? OR user_tags LIKE ?)")
+                    params.extend([f'%"{tag_escaped}"%', f'%"{tag_escaped}"%'])
+                query = f"SELECT * FROM file_tags WHERE {' AND '.join(where_clauses)}"
+            else:
+                for tag in tags:
+                    tag_escaped = json.dumps(tag)[1:-1]
+                    where_clauses.append("auto_tags LIKE ? OR user_tags LIKE ?")
+                    params.extend([f'%"{tag_escaped}"%', f'%"{tag_escaped}"%'])
+                query = f"SELECT * FROM file_tags WHERE {' OR '.join(where_clauses)}"
+
+            cursor = conn.execute(query, params)
             columns = [desc[0] for desc in cursor.description]
             results = []
             
@@ -589,7 +609,7 @@ class ComprehensiveTaggingSystem:
                 file_user_tags = json.loads(file_data['user_tags'])
                 all_file_tags = file_auto_tags + file_user_tags
                 
-                # Check tag matching
+                # Check tag matching (exact match still needed to handle LIKE over-matching)
                 if match_all:
                     # All specified tags must be present
                     if all(tag in all_file_tags for tag in tags):
