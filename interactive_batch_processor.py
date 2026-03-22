@@ -1357,22 +1357,32 @@ class InteractiveBatchProcessor:
     def _record_user_decision(self, session_id: str, group: BatchGroup, user_decision: Dict[str, Any], result: Dict[str, Any]):
         """Record user decision for learning"""
         try:
-            with sqlite3.connect(self.batch_db_path) as conn:
-                for fp in group.file_previews:
-                    conn.execute("""
+            # OPTIMIZATION: Use executemany for bulk insert to prevent N+1 overhead and speed up processing
+            timestamp = datetime.now().isoformat()
+            decision_json = json.dumps(user_decision)
+            action = user_decision.get("action", "unknown")
+
+            feedback_data = []
+            for fp in group.file_previews:
+                feedback_id = hashlib.md5(f"{session_id}_{fp.file_path}_{timestamp}".encode()).hexdigest()[:12]
+                feedback_data.append((
+                    feedback_id,
+                    session_id,
+                    fp.file_path,
+                    fp.predicted_category,
+                    action,
+                    timestamp,
+                    decision_json
+                ))
+
+            if feedback_data:
+                with sqlite3.connect(self.batch_db_path) as conn:
+                    conn.executemany("""
                         INSERT INTO user_feedback
                         (feedback_id, session_id, file_path, predicted_action, user_action, feedback_time, comments)
                         VALUES (?, ?, ?, ?, ?, ?, ?)
-                    """, (
-                        hashlib.md5(f"{session_id}_{fp.file_path}_{datetime.now().isoformat()}".encode()).hexdigest()[:12],
-                        session_id,
-                        fp.file_path,
-                        fp.predicted_category,
-                        user_decision.get("action", "unknown"),
-                        datetime.now().isoformat(),
-                        json.dumps(user_decision)
-                    ))
-                conn.commit()
+                    """, feedback_data)
+                    conn.commit()
         except Exception as e:
             self.logger.error(f"Error recording user decision: {e}")
 
