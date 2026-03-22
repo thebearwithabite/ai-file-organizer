@@ -95,14 +95,14 @@ const ShotCard: React.FC<ShotCardProps> = ({
                         <pre className="text-indigo-400/80 leading-relaxed">
                             <code>{shot.veoJson ? JSON.stringify(shot.veoJson, null, 2) : '// Awaiting Director Breakdown...'}</code>
                         </pre>
-                        <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all translate-y-2 group-hover:translate-y-0">
+                        <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-all translate-y-2 group-hover:translate-y-0 focus-within:translate-y-0">
                             <button
                                 onClick={() => {
                                     navigator.clipboard.writeText(JSON.stringify(shot.veoJson, null, 2));
                                     setCopyButtonText('Copied!');
                                     setTimeout(() => setCopyButtonText('Copy JSON'), 2000);
                                 }}
-                                className="px-3 py-1.5 bg-white/10 backdrop-blur-md rounded-lg hover:bg-white/20 text-white text-[9px] font-black uppercase tracking-widest transition-all"
+                                className="px-3 py-1.5 bg-white/10 backdrop-blur-md rounded-lg hover:bg-white/20 text-white text-[9px] font-black uppercase tracking-widest transition-all focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-indigo-500"
                             >
                                 {copyButtonText}
                             </button>
