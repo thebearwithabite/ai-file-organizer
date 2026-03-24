@@ -115,15 +115,15 @@ export const generateProjectSummary = async (name: string, assets: any[], shots:
     return `Project ${name} with ${assets.length} assets and ${shots.length} shots.`;
 };
 
-export const analyzeVisualIdentity = async (base64: string, mimeType: string) => {
+export const analyzeVisualIdentity = async (_base64: string, _mimeType: string) => {
     return { detailed_description: "Visual analysis mocked." };
 };
 
-export const embedArtifactData = async (text: string) => {
+export const embedArtifactData = async (_text: string) => {
     return [0.1, 0.2, 0.3]; // Mock vector
 };
 
-export const refineVeoJson = async (currentJson: any, feedback: string, script: string) => {
+export const refineVeoJson = async (currentJson: any, _feedback: string, _script: string) => {
     // Mock refinement
     return { result: currentJson };
 };

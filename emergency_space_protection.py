@@ -91,10 +91,13 @@ class EmergencySpaceProtection:
             self.config = {
                 "monitoring_enabled": True,
                 "emergency_offloading_enabled": True,
-                "warning_threshold": 90,      # Warn at 85% disk usage
-                "critical_threshold": 95,     # Critical at 90% disk usage
-                "emergency_threshold": 98,    # Emergency at 95% disk usage
-                "target_free_space": 92,      # Target 80% usage after cleanup
+                "warning_threshold": 98,      # Warn at 98% disk usage
+                "critical_threshold": 99,     # Critical at 99% disk usage
+                "emergency_threshold": 99.5,  # Emergency at 99.5% disk usage
+                "min_free_gb_emergency": 0.5,
+                "min_free_gb_critical": 1.0, 
+                "min_free_gb_warning": 2.0,  
+                "target_free_space": 95,      # Target 95% usage after cleanup
                 "monitoring_interval": 300,   # Check every 5 minutes
                 "emergency_interval": 60,     # Check every minute in emergency
                 "offload_batch_size": 100,    # Max files per offload batch
@@ -267,6 +270,15 @@ class EmergencySpaceProtection:
 
     def start_space_protection(self):
         """Start space protection monitoring"""
+        
+        # DISABLED: APFS purgeable space tracking causes false emergencies.
+        # shutil.disk_usage reports 99.8% used when macOS shows 53GB free.
+        # This triggers emergency offloading of ALL files to Google Drive.
+        # Re-enable when proper macOS disk space detection is implemented.
+        if not self.config.get("monitoring_enabled", True) or not self.config.get("emergency_offloading_enabled", True):
+            self.logger.info("Emergency space protection DISABLED (APFS false positive prevention)")
+            return
+        
         self.logger.info("Starting emergency space protection...")
         
         self.monitoring_active = True
@@ -404,29 +416,16 @@ class EmergencySpaceProtection:
         """Check disk usage for a specific disk"""
         
         try:
-            # On macOS APFS, check the actual data volume for accurate stats
-            import platform
-            if platform.system() == 'Darwin':
-                # Use /System/Volumes/Data for accurate user storage stats
-                data_volume = '/System/Volumes/Data'
-                if Path(data_volume).exists():
-                    total, used, free = shutil.disk_usage(data_volume)
-                else:
-                    total, used, free = shutil.disk_usage(disk_path)
-            else:
-                total, used, free = shutil.disk_usage(disk_path)
+            from disk_space_utils import get_real_disk_space
+            total_gb, free_gb, usage_percent = get_real_disk_space()
             
-            total_gb = total / (1024**3)
-            free_gb = free / (1024**3)
-            usage_percent = (used / total) * 100
-            
-            # Determine severity level
+            # Determine severity level (both percentage AND absolute free GB conditions must be met)
             severity = None
-            if usage_percent >= self.config["emergency_threshold"]:
+            if usage_percent >= self.config["emergency_threshold"] and free_gb <= self.config["min_free_gb_emergency"]:
                 severity = "emergency"
-            elif usage_percent >= self.config["critical_threshold"]:
+            elif usage_percent >= self.config["critical_threshold"] and free_gb <= self.config["min_free_gb_critical"]:
                 severity = "critical"
-            elif usage_percent >= self.config["warning_threshold"]:
+            elif usage_percent >= self.config["warning_threshold"] and free_gb <= self.config["min_free_gb_warning"]:
                 severity = "warning"
             
             if not severity:

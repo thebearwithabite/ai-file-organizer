@@ -59,7 +59,7 @@ const API_BASE = '/api/veo/video';
 /**
  * Generates a video using Veo 3.1 via Python Proxy
  */
-export const generateVeoVideo = async (apiKey: string, params: VeoGenerateRequest): Promise<VeoGenerateResponse> => {
+export const generateVeoVideo = async (_apiKey: string, params: VeoGenerateRequest): Promise<VeoGenerateResponse> => {
     // apiKey argument is kept for compatibility with user's hook, but backend might use env var.
     // Actually, the new frontend code passes 'veoApiKey' state.
     // If we use the proxy, we can ignore it on the client side or pass it in header if dynamic.
@@ -87,7 +87,7 @@ export const generateVeoVideo = async (apiKey: string, params: VeoGenerateReques
 /**
  * Extends an existing Veo 3.1 video
  */
-export const extendVeoVideo = async (apiKey: string, params: VeoExtendRequest): Promise<VeoGenerateResponse> => {
+export const extendVeoVideo = async (_apiKey: string, params: VeoExtendRequest): Promise<VeoGenerateResponse> => {
     const response = await fetch(`${API_BASE}/extend`, {
         method: 'POST',
         headers: {
@@ -107,7 +107,7 @@ export const extendVeoVideo = async (apiKey: string, params: VeoExtendRequest): 
 /**
  * Checks the status of a Veo generation task
  */
-export const getVeoTaskDetails = async (apiKey: string, taskId: string): Promise<VeoTaskInfoResponse> => {
+export const getVeoTaskDetails = async (_apiKey: string, taskId: string): Promise<VeoTaskInfoResponse> => {
     const response = await fetch(`${API_BASE}/status/${taskId}`, {
         method: 'GET'
     });

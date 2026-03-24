@@ -183,13 +183,19 @@ class SystemService:
             Dict with free_gb, total_gb, percent_used, and status
         """
         try:
-            # Use shutil.disk_usage for reliable cross-platform stats
-            total, used, free = shutil.disk_usage("/")
-            
-            total_gb = round(total / (1024**3), 1)
-            free_gb = round(free / (1024**3), 1)
-            percent_used = round((used / total) * 100, 1)
-            
+            # Use APFS-aware disk space utility (shutil lies on macOS APFS)
+            try:
+                from disk_space_utils import get_real_disk_space
+                total_gb_raw, free_gb_raw, percent_used_raw = get_real_disk_space()
+                total_gb = round(total_gb_raw, 1)
+                free_gb = round(free_gb_raw, 1)
+                percent_used = round(percent_used_raw, 1)
+            except Exception:
+                total, used, free = shutil.disk_usage("/")
+                total_gb = round(total / (1024**3), 1)
+                free_gb = round(free / (1024**3), 1)
+                percent_used = round((used / total) * 100, 1)
+
             # Determine status based on free space
             if percent_used > 95:
                 status = "critical"

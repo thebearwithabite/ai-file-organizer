@@ -1086,21 +1086,25 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
         emergencies = []
         
         try:
-            # Check disk space
-            for watch_name, config in self.watch_directories.items():
-                path = config['path']
-                if path.exists():
-                    total, used, free = shutil.disk_usage(path)
-                    usage_percent = (used / total) * 100
-                    
-                    if usage_percent > self.emergency_thresholds["disk_usage_percent"]:
-                        emergencies.append({
-                            'type': 'disk_space_critical',
-                            'location': str(path),
-                            'severity': 'high',
-                            'details': f"Disk usage at {usage_percent:.1f}%",
-                            'recommended_action': 'emergency_cleanup'
-                        })
+            # Check disk space using APFS-aware utility
+            # shutil.disk_usage lies on APFS — counts purgeable space as used,
+            # causing false emergencies that trigger offloading to Google Drive.
+            try:
+                from disk_space_utils import get_real_disk_space
+                _, free_gb, usage_percent = get_real_disk_space()
+            except Exception:
+                total, used, free = shutil.disk_usage("/")
+                usage_percent = (used / total) * 100
+                free_gb = free / (1024 ** 3)
+
+            if usage_percent > self.emergency_thresholds["disk_usage_percent"] and free_gb < 5.0:
+                emergencies.append({
+                    'type': 'disk_space_critical',
+                    'location': str(Path.home()),
+                    'severity': 'high',
+                    'details': f"Disk usage at {usage_percent:.1f}% ({free_gb:.1f}GB free)",
+                    'recommended_action': 'emergency_cleanup'
+                })
             
             # Check for duplicate file crisis
             duplicate_count = self._count_recent_duplicates()
@@ -1160,12 +1164,16 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
             
             # Create a real emergency object for the protector
             disk_path = protector._get_disk_path(Path(location))
-            total, used, free = shutil.disk_usage(disk_path)
-            
+            from disk_space_utils import get_real_disk_space
+            total_gb, free_gb, usage_percent = get_real_disk_space()
+            total = int(total_gb * 1024**3)
+            free = int(free_gb * 1024**3)
+            used = total - free
+
             emergency = SpaceEmergency(
                 emergency_id=f"auto_{int(time.time())}",
                 detection_time=datetime.now(),
-                severity="emergency" if (used/total) > 0.95 else "critical",
+                severity="emergency" if usage_percent > 95 else "critical",
                 disk_path=disk_path,
                 total_space_gb=total / (1024**3),
                 free_space_gb=free / (1024**3),

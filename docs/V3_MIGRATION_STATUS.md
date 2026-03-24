@@ -55,11 +55,11 @@ These have `__main__` but aren't imported anywhere:
 - [x] Update dict access for classification results (was object attribute access)
 
 ### Phase 3: Cleanup
-- [ ] Delete `classification_engine.py`
-- [ ] Delete `recovered_gdrive_librarian.py`
-- [ ] Delete `enhanced_librarian.py`
-- [ ] Delete `unified_classifier_backup.py`
-- [ ] Archive CLI tools to `tools/legacy/` or delete
+- [x] Delete `classification_engine.py`
+- [x] Delete `recovered_gdrive_librarian.py`
+- [x] Delete `enhanced_librarian.py`
+- [x] Delete `unified_classifier_backup.py`
+- [x] Archive CLI tools to `tools/legacy/` or delete
 
 ## Risks
 

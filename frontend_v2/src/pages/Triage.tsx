@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { CheckCircle, XCircle, RefreshCw, FileText, AlertTriangle, Sparkles, FolderOpen, Clock } from 'lucide-react'
 import { api } from '../services/api'
-import { taxonomyService, Category } from '../services/taxonomy'
+import { taxonomyService } from '../services/taxonomy'
 import { toast } from 'sonner'
 import FilePreview from '../components/triage/FilePreview'
 import { formatPath } from '../lib/utils'
@@ -452,7 +452,7 @@ export default function Triage() {
                           const curProj = projectInput[file.file_id]
                           if (!curProj || !knownProjects?.projects) return null
                           const projData = knownProjects.projects.find((p: any) => p.name === curProj)
-                          return projData?.subfolders?.map((sub: string) => (
+                          return (projData as any)?.subfolders?.map((sub: string) => (
                             <option key={sub} value={sub} />
                           ))
                         })()}
