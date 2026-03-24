@@ -3,7 +3,7 @@ import ApiKeyDialog from '../components/veo/ApiKeyDialog';
 import LoadingIndicator from '../components/veo/LoadingIndicator';
 import ProjectSetupForm from '../components/veo/VeoProjectForm';
 import ShotBookDisplay from '../components/veo/ShotBookDisplay';
-import { StopCircleIcon, KeyIcon, CheckCircle2Icon, UploadCloudIcon } from '../components/veo/icons';
+import { StopCircleIcon, KeyIcon } from '../components/veo/icons';
 import {
   generateKeyframeImage,
   generateKeyframePromptText,
@@ -27,21 +27,20 @@ import {
   fetchSecretKey,
   listProjectsFromVault,
   vaultAssetToLibrary,
-  legacyProjectInstaller,
   updateWorldRegistry,
   proxyVeoToVault,
   DEFAULT_BUCKET
 } from '../services/cloudService';
 import {
   AppState,
-  IngredientImage,
+  type IngredientImage,
   LogType,
-  Shot,
-  ShotBook,
+  type Shot,
+  type ShotBook,
   ShotStatus,
-  ProjectAsset,
+  type ProjectAsset,
   VeoStatus,
-  VeoShotWrapper
+  type VeoShotWrapper
 } from '../types';
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -49,7 +48,7 @@ const API_CALL_DELAY_MS = 1200;
 const ownerEmail = 'director@aether.studio';
 
 const safeB64Encode = (str: string) => {
-  return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (match, p1) => {
+  return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (_match, p1) => {
     return String.fromCharCode(parseInt(p1, 16));
   }));
 };
@@ -68,7 +67,6 @@ const App: React.FC = () => {
   const [projectName, setProjectName] = useState<string | null>(null);
   const [veoApiKey, setVeoApiKey] = useState<string>('');
   const [gcpToken, setGcpToken] = useState<string>('');
-  const [vaultProjects, setVaultProjects] = useState<string[]>([]);
   const [assets, setAssets] = useState<ProjectAsset[]>([]);
   const [isAnalyzingAssets, setIsAnalyzingAssets] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -94,7 +92,7 @@ const App: React.FC = () => {
       handleFetchVeoSecret();
     }
     if (gcpToken) {
-      listProjectsFromVault(gcpToken).then(setVaultProjects).catch(console.error);
+      listProjectsFromVault(gcpToken).catch(console.error);
     }
   }, [gcpToken]);
 
@@ -173,21 +171,6 @@ const App: React.FC = () => {
     }
   };
 
-  const handleInstallLegacyProject = async (slug: string) => {
-    if (!gcpToken) return;
-    setAppState(AppState.LOADING);
-    try {
-      const state = await legacyProjectInstaller(slug, gcpToken);
-      setShotBook(state.shotBook);
-      setProjectName(state.projectName);
-      setAssets(state.assets || []);
-      setAppState(AppState.SUCCESS);
-    } catch (e) {
-      setAppState(AppState.IDLE);
-      addLogEntry(`Installation failed: ${(e as Error).message}`, LogType.ERROR);
-    }
-  };
-
   const handleLoadProject = (jsonString: string) => {
     try {
       const state = JSON.parse(jsonString);
@@ -212,7 +195,7 @@ const App: React.FC = () => {
       const summary = await generateProjectSummary(pName, state.assets || [], state.shotBook || []);
       await uploadToGCS(`projects/${pName}/state.json`, safeB64Encode(jsonString), 'application/json', gcpToken);
       await updateWorldRegistry(gcpToken, { projects: [pName], summaries: { [pName]: summary }, last_sync: new Date().toISOString() });
-      listProjectsFromVault(gcpToken).then(setVaultProjects).catch(console.error);
+      listProjectsFromVault(gcpToken).catch(console.error);
       addLogEntry(`Vault: ${pName} ingested successfully.`, LogType.SUCCESS);
     } catch (e) {
       addLogEntry(`Ingest Failed: ${(e as Error).message}`, LogType.ERROR);
@@ -273,7 +256,7 @@ const App: React.FC = () => {
       shot.status = ShotStatus.GENERATING_IMAGE;
       const promptData = await generateKeyframePromptText(shot.veoJson.veo_shot);
       const libIngredients = shot.selectedAssetIds.map(id => assets.find(a => a.id === id)?.image).filter(Boolean) as IngredientImage[];
-      const adHocIngredients = shot.adHocAssets || [];
+      const adHocIngredients = (shot as any).adHocAssets || [];
       const allIngredients = [...libIngredients, ...adHocIngredients];
       const aspectRatio = shot.veoJson?.veo_shot?.scene?.aspect_ratio || "16:9";
       const imageData = await generateKeyframeImage(promptData.result, allIngredients, aspectRatio);
@@ -351,25 +334,6 @@ const App: React.FC = () => {
     setIsProcessing(false);
   };
 
-  const handleGenerateAllMissingKeyframes = async () => {
-    if (!shotBook) return;
-    setIsProcessing(true);
-    stopGenerationRef.current = false;
-    addLogEntry(`Imaging Agent: Initializing bulk development sequence...`, LogType.STEP);
-    const updatedShots = [...shotBook];
-    for (let i = 0; i < updatedShots.length; i++) {
-      if (stopGenerationRef.current) break;
-      const s = updatedShots[i];
-      if (!s.keyframeImage && s.veoJson?.veo_shot && s.veoJson?.unit_type !== 'extend') {
-        updatedShots[i].selectedAssetIds = findAssetIdsForShot(updatedShots[i], updatedShots[i].veoJson, assets);
-        await performKeyframeGeneration(updatedShots, i);
-        setShotBook([...updatedShots]);
-        await delay(API_CALL_DELAY_MS);
-      }
-    }
-    addLogEntry(`Development sequence complete.`, LogType.SUCCESS);
-    setIsProcessing(false);
-  };
 
   const handleGenerateVideo = async (shotId: string, useKeyframe: boolean) => {
     if (!veoApiKey) {
@@ -420,7 +384,7 @@ const App: React.FC = () => {
       const base64 = await fileToBase64(file);
       setShotBook(prev => prev?.map(s => s.id === shotId ? {
         ...s,
-        adHocAssets: [...(s.adHocAssets || []), { base64, mimeType: file.type }]
+        adHocAssets: [...((s as any).adHocAssets || []), { base64, mimeType: file.type }]
       } : s) || null);
       addLogEntry(`Ad-hoc asset added to unit ${shotId}.`, LogType.INFO);
     } catch (e) {
@@ -431,7 +395,7 @@ const App: React.FC = () => {
   const handleRemoveAdHocAsset = (shotId: string, index: number) => {
     setShotBook(prev => prev?.map(s => s.id === shotId ? {
       ...s,
-      adHocAssets: s.adHocAssets?.filter((_, i) => i !== index)
+      adHocAssets: (s as any).adHocAssets?.filter((_: any, i: number) => i !== index)
     } : s) || null);
     addLogEntry(`Ad-hoc asset removed from unit ${shotId}.`, LogType.INFO);
   };
@@ -448,25 +412,6 @@ const App: React.FC = () => {
     addLogEntry("Project Workspace Snapshot saved to local disk.", LogType.SUCCESS);
   };
 
-  const handleDownloadKeyframesZip = async () => {
-    if (!shotBook || !projectName) return;
-    setIsProcessing(true);
-    addLogEntry("Packaging Agent: Zipping keyframe still set...", LogType.STEP);
-    try {
-      const zip = new (window as any).JSZip();
-      shotBook.forEach(shot => {
-        if (shot.keyframeImage) {
-          zip.file(`${shot.id}.png`, shot.keyframeImage, { base64: true });
-        }
-      });
-      const content = await zip.generateAsync({ type: "blob" });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(content);
-      link.download = `${projectName}_keyframes.zip`;
-      link.click();
-    } catch (e) { addLogEntry("Keyframe zip failed.", LogType.ERROR); }
-    finally { setIsProcessing(false); }
-  };
 
   const handleExportPackage = async () => {
     if (!shotBook || !projectName) return;
@@ -559,22 +504,22 @@ const App: React.FC = () => {
                 </div>
               </div>
             </div>
-            <ProjectSetupForm onGenerate={handleGenerate} isGenerating={false} onLoadProject={handleLoadProject} onArchiveProject={handleArchiveExternalProject} assets={assets} onAnalyzeScriptForAssets={handleAnalyzeScriptForAssets} isAnalyzingAssets={isAnalyzingAssets} onAddAsset={(a) => setAssets(prev => [...prev, a])} onRemoveAsset={(id) => setAssets(prev => prev.filter(a => a.id !== id))} onUpdateAssetImage={handleUpdateAssetImage} onAddLogEntry={addLogEntry} />
+            <ProjectSetupForm onGenerate={handleGenerate} isGenerating={false} onLoadProject={handleLoadProject} onArchiveProject={handleArchiveExternalProject} assets={assets} onAnalyzeScriptForAssets={handleAnalyzeScriptForAssets} isAnalyzingAssets={isAnalyzingAssets} onAddAsset={(a) => setAssets(prev => [...prev, a])} onRemoveAsset={(id) => setAssets(prev => prev.filter(a => a.id !== id))} onUpdateAssetImage={handleUpdateAssetImage} />
           </div>
         )}
         {appState !== AppState.IDLE && shotBook && (
           <ShotBookDisplay
-            shotBook={shotBook} logEntries={logEntries} projectName={projectName} scenePlans={[]} apiCallSummary={{ pro: 0, flash: 0, image: 0, proTokens: { input: 0, output: 0 }, flashTokens: { input: 0, output: 0 } }} appVersion="0.2.0"
+            shotBook={shotBook} logEntries={logEntries} projectName={projectName}
             onNewProject={() => setAppState(AppState.IDLE)} onUpdateShot={(s) => setShotBook(prev => prev?.map(sh => sh.id === s.id ? s : sh) || null)}
             onGenerateSpecificKeyframe={handleGenerateSpecificKeyframe} onRefineShot={handleRefineShot} allAssets={assets} onToggleAssetForShot={(shotId, assetId) => setShotBook(prev => prev?.map(s => s.id === shotId ? { ...s, selectedAssetIds: s.selectedAssetIds.includes(assetId) ? s.selectedAssetIds.filter(id => id !== assetId) : [...s.selectedAssetIds, assetId] } : s) || null)}
-            allIngredientImages={[]} onUpdateShotIngredients={() => { }} onExportAllJsons={() => { }} onExportHtmlReport={() => { }} onSaveProject={handleSaveProject} onDownloadKeyframesZip={handleDownloadKeyframesZip} onExportPackage={handleExportPackage} onShowStorageInfo={() => { }} isProcessing={isProcessing}
-            onStopGeneration={() => { stopGenerationRef.current = true; }} veoApiKey={veoApiKey} onSetVeoApiKey={setVeoApiKey}
+            onSaveProject={handleSaveProject} onExportPackage={handleExportPackage} isProcessing={isProcessing}
+            onStopGeneration={() => { stopGenerationRef.current = true; }}
             onGenerateVideo={handleGenerateVideo}
             onExtendVeoVideo={() => { }}
             onUploadAdHocAsset={handleUploadAdHocAsset}
             onRemoveAdHocAsset={handleRemoveAdHocAsset}
             onApproveShot={(shotId, approved) => setShotBook(prev => prev?.map(s => s.id === shotId ? { ...s, isApproved: approved } : s) || null)}
-            gcpToken={gcpToken} onSetGcpToken={setGcpToken} onFetchVeoSecret={handleFetchVeoSecret} onCloudSync={handleCloudSync} ownerEmail={ownerEmail} onGenerateAllKeyframes={handleGenerateAllMissingKeyframes}
+            isServiceAccountActive={!!gcpToken} onCloudSync={handleCloudSync} onPushToResolve={() => { }} ownerEmail={ownerEmail}
           />
         )}
       </main>

@@ -43,37 +43,37 @@ export const getFileContent = async (fileName: string, accessToken: string, buck
 };
 
 
-export const uploadToGCS = async (path: string, contentBase64: string, contentType: string, token: string) => {
+export const uploadToGCS = async (path: string, _contentBase64: string, contentType: string, __token: string) => {
     console.log(`[CloudService] Uploading to ${path} (${contentType})`);
     // Mock upload - TODO: Implement real upload
     return `https://storage.googleapis.com/${DEFAULT_BUCKET}/${path}`;
 };
 
-export const getAccessTokenFromServiceAccount = async (key: any) => {
+export const getAccessTokenFromServiceAccount = async (_key: any) => {
     return { access_token: "mock_gcp_token", expires_in: 3600 };
 };
 
-export const fetchSecretKey = async (token: string) => {
+export const fetchSecretKey = async (_token: string) => {
     // Return a mock API key or instruct user to use env
     return "mock_api_key_use_env_instead";
 };
 
-export const listProjectsFromVault = async (token: string) => {
+export const listProjectsFromVault = async (_token: string) => {
     return ["Mock Project A", "Mock Project B"];
 };
 
-export const vaultAssetToLibrary = async (type: string, name: string, base64: string, metadata: any, token: string) => {
+export const vaultAssetToLibrary = async (_type: string, name: string, _base64: string, _metadata: any, _token: string) => {
     console.log(`[CloudService] Vaulting asset: ${name}`);
 };
 
-export const legacyProjectInstaller = async (slug: string, token: string) => {
+export const legacyProjectInstaller = async (_slug: string, _token: string) => {
     throw new Error("Legacy installer not supported in local mode.");
 };
 
-export const updateWorldRegistry = async (token: string, data: any) => {
+export const updateWorldRegistry = async (_token: string, data: any) => {
     console.log(`[CloudService] Updating World Registry:`, data);
 };
 
-export const proxyVeoToVault = async (url: string, projectName: string, shotId: string, token: string) => {
+export const proxyVeoToVault = async (url: string, _projectName: string, _shotId: string, _token: string) => {
     return url;
 };

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import { useMemo } from 'react'
 import MediaPreview from './MediaPreview'
 import DocumentPreview from './DocumentPreview'
 import JsonSidecarViewer from './JsonSidecarViewer'
