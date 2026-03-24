@@ -13,7 +13,7 @@ Basic boilerplate for a FastAPI web application
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Query, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
+from fastapi.responses import JSONResponse, FileResponse, StreamingResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import uvicorn
@@ -55,6 +55,7 @@ class ClassificationRequest(BaseModel):
     confirmed_category: str
     project: Optional[str] = None  # Optional hierarchical organization
     episode: Optional[str] = None  # Optional episode-level organization
+    suggested_filename: Optional[str] = None
 
 class ScanFolderRequest(BaseModel):
     folder_path: str
@@ -412,10 +413,37 @@ if os.path.exists("frontend_v2/dist/assets"):
 @app.get("/")
 async def serve_spa():
     """Serve the React App"""
-    # Verify build exists
-    if not os.path.exists("frontend_v2/dist/index.html"):
-        return {"error": "Frontend build not found. Please run 'cd frontend_v2 && npm run build'"}
-    return FileResponse("frontend_v2/dist/index.html")
+    if os.path.exists("frontend_v2/dist/index.html"):
+        return FileResponse("frontend_v2/dist/index.html")
+        
+    html_content = """
+    <html>
+        <head>
+            <title>AI File Organizer - Development Mode</title>
+            <style>
+                body { font-family: -apple-system, system-ui, sans-serif; padding: 40px; line-height: 1.6; max-width: 800px; margin: 0 auto; color: #333; }
+                .card { background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px; padding: 30px; }
+                h1 { color: #2c3e50; margin-top: 0; }
+                a { color: #0066cc; text-decoration: none; font-weight: 500; }
+                a:hover { text-decoration: underline; }
+                .port { background: #e9ecef; padding: 4px 8px; border-radius: 4px; font-family: monospace; }
+            </style>
+        </head>
+        <body>
+            <div class="card">
+                <h1>🛠️ Development Mode Active</h1>
+                <p>The backend API is running successfully on port <span class="port">8000</span>.</p>
+                <p>However, the production frontend build was not found (<code>frontend_v2/dist/index.html</code>).</p>
+                <p>If you are developing locally, you should access the Vite development server instead:</p>
+                <h2>👉 <a href="http://localhost:5173">Go to Frontend (http://localhost:5173)</a></h2>
+                <p style="color: #666; font-size: 0.9em; margin-top: 30px;">
+                    To fix this message in production, build the frontend by running <code>npm run build</code> inside the <code>frontend_v2</code> directory.
+                </p>
+            </div>
+        </body>
+    </html>
+    """
+    return HTMLResponse(content=html_content, status_code=404)
 
 
 
@@ -465,14 +493,13 @@ async def emergency_cleanup():
     return result
 
 @app.get("/api/system/monitor-status")
-async def get_monitor_status():
+async def get_monitor_status(request: Request):
     """
         JSON matching MonitorStatus interface for frontend
     """
-    global background_monitor
-
     try:
-        if not background_monitor:
+        monitor = getattr(request.app.state, 'background_monitor', None)
+        if not monitor:
             return {
                 "status": "paused",
                 "paths": [],
@@ -482,12 +509,12 @@ async def get_monitor_status():
             }
         
         # Get real status from the monitor
-        status = background_monitor.status()
+        status = monitor.status()
         
         # Get list of monitored paths
         paths = []
-        if hasattr(background_monitor, 'watch_directories'):
-            for info in background_monitor.watch_directories.values():
+        if hasattr(monitor, 'watch_directories'):
+            for info in monitor.watch_directories.values():
                 if 'path' in info:
                     paths.append(str(info['path']))
         
@@ -498,7 +525,7 @@ async def get_monitor_status():
             "last_event": status.get('last_scan').isoformat() if status.get('last_scan') else None,
             "events_processed": status.get('files_processed_24h', 0),
             "uptime_seconds": status.get('uptime_seconds', 0),
-            "rules_count": len(getattr(background_monitor, "adaptive_rules", []))
+            "rules_count": len(getattr(monitor, "adaptive_rules", []))
         }
     except Exception as e:
         logger.error(f"Error getting monitor status: {e}")
@@ -1262,7 +1289,8 @@ async def classify_file(request: ClassificationRequest):
             file_path=request.file_path,
             confirmed_category=request.confirmed_category,
             project=request.project,
-            episode=request.episode
+            episode=request.episode,
+            filename=request.suggested_filename
         )
         return result
     except Exception as e:
@@ -1444,7 +1472,35 @@ async def catch_all(full_path: str):
     # Serve index.html for any other route to let React handle it
     if os.path.exists("frontend_v2/dist/index.html"):
         return FileResponse("frontend_v2/dist/index.html")
-    return {"error": "Frontend build not found"}
+        
+    html_content = """
+    <html>
+        <head>
+            <title>AI File Organizer - Development Mode</title>
+            <style>
+                body { font-family: -apple-system, system-ui, sans-serif; padding: 40px; line-height: 1.6; max-width: 800px; margin: 0 auto; color: #333; }
+                .card { background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px; padding: 30px; }
+                h1 { color: #2c3e50; margin-top: 0; }
+                a { color: #0066cc; text-decoration: none; font-weight: 500; }
+                a:hover { text-decoration: underline; }
+                .port { background: #e9ecef; padding: 4px 8px; border-radius: 4px; font-family: monospace; }
+            </style>
+        </head>
+        <body>
+            <div class="card">
+                <h1>🛠️ Development Mode Active</h1>
+                <p>The backend API is running successfully on port <span class="port">8000</span>.</p>
+                <p>However, the production frontend build was not found (<code>frontend_v2/dist/index.html</code>).</p>
+                <p>If you are developing locally, you should access the Vite development server instead:</p>
+                <h2>👉 <a href="http://localhost:5173">Go to Frontend (http://localhost:5173)</a></h2>
+                <p style="color: #666; font-size: 0.9em; margin-top: 30px;">
+                    To fix this message in production, build the frontend by running <code>npm run build</code> inside the <code>frontend_v2</code> directory.
+                </p>
+            </div>
+        </body>
+    </html>
+    """
+    return HTMLResponse(content=html_content, status_code=404)
 
 
 # End of file

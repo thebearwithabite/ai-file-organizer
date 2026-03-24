@@ -102,7 +102,7 @@ class ADHDFriendlyConfidenceSystem:
         
         # Emergency prevention triggers
         self.emergency_triggers = {
-            "disk_space_critical": 0.95,    # 95% disk usage
+            "disk_space_critical": 0.99,    # 99% disk usage (raised from 0.95 — APFS purgeable space causes false positives)
             "duplicate_crisis": 50,         # 50+ duplicates detected
             "downloads_overflow": 100,      # 100+ files in downloads
             "staging_overflow": 200,        # 200+ files in staging
@@ -280,9 +280,8 @@ class ADHDFriendlyConfidenceSystem:
     def _check_disk_space_emergency(self, file_path: str) -> bool:
         """Check if disk space is critically low"""
         try:
-            import shutil
-            total, used, free = shutil.disk_usage(Path(file_path).parent)
-            usage_ratio = used / total
+            from disk_space_utils import get_real_disk_usage
+            usage_ratio = get_real_disk_usage()
             
             return usage_ratio >= self.emergency_triggers["disk_space_critical"]
         except:

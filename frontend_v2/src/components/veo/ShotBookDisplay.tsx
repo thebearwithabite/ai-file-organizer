@@ -2,7 +2,7 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
-import React, { useState } from 'react';
+import React from 'react';
 import type {
     LogEntry,
     ProjectAsset,
@@ -14,7 +14,6 @@ import ShotCard from './ShotCard';
 import {
     SaveIcon,
     UploadCloudIcon,
-    XMarkIcon,
     KeyIcon,
 } from './icons';
 
@@ -37,6 +36,10 @@ interface ShotBookDisplayProps {
     onCloudSync: () => void;
     onPushToResolve: () => void;
     ownerEmail: string;
+    onGenerateVideo?: any;
+    onExtendVeoVideo?: any;
+    onUploadAdHocAsset?: any;
+    onRemoveAdHocAsset?: any;
 }
 
 const ShotBookDisplay: React.FC<ShotBookDisplayProps> = ({
@@ -44,8 +47,6 @@ const ShotBookDisplay: React.FC<ShotBookDisplayProps> = ({
     onSaveProject: _, onExportPackage: __, isProcessing: ___, onStopGeneration: ____, onGenerateVideo, onExtendVeoVideo, onUploadAdHocAsset, onRemoveAdHocAsset, onApproveShot,
     isServiceAccountActive, onCloudSync, onPushToResolve, ownerEmail: ______,
 }) => {
-    const [showSettings, setShowSettings] = useState(false);
-
     const groupedShots = shotBook.reduce((acc, shot) => {
         const sceneId = shot.id.substring(0, shot.id.lastIndexOf('_')) || 'SEQUENCE_OVERVIEW';
         if (!acc[sceneId]) acc[sceneId] = [];
