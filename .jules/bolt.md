@@ -33,3 +33,7 @@
 ## 2025-05-27 - [Bulk SQLite Inserts and Connection Reuse for Tagging]
 **Learning:** Sequential `.execute` calls for `INSERT OR REPLACE` inside nested loops over large arrays (like tags) coupled with opening independent DB connections per method creates a severe N+1 problem. Benchmarks showed replacing it with a single shared connection and `executemany` arrays resulted in an ~2x speedup on typical batch tagging workloads.
 **Action:** Always batch related SQL records using `.executemany()` and pass an optional `db_connection` downstream to nested operations instead of establishing a new database connection every time.
+
+## 2024-05-28 - SQLite LIKE for JSON Array Pre-filtering
+**Learning:** In `tagging_system.py`, `find_files_by_tags` fetched all rows and deserialized `auto_tags` and `user_tags` JSON fields to memory to filter by tags, which caused an O(N) full-table JSON deserialization bottleneck.
+**Action:** Use an SQLite `LIKE` operator (`auto_tags LIKE ? OR user_tags LIKE ?`) with safely escaped tags (`json.dumps(tag)[1:-1]`) to pre-filter rows before parsing JSON in Python, resolving the bottleneck and dramatically improving performance.
