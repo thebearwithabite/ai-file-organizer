@@ -1358,20 +1358,34 @@ class InteractiveBatchProcessor:
         """Record user decision for learning"""
         try:
             with sqlite3.connect(self.batch_db_path) as conn:
+                # OPTIMIZATION: Use executemany for batch database inserts to eliminate N+1 query bottleneck
+                # Instead of executing an INSERT statement for each file preview in the group,
+                # we prepare all rows and execute them in a single database transaction.
+                # This reduces SQLite connection overhead and improves batch processing performance significantly.
+                feedback_rows = []
+                current_time = datetime.now().isoformat()
+                user_action = user_decision.get("action", "unknown")
+                comments_json = json.dumps(user_decision)
+
                 for fp in group.file_previews:
-                    conn.execute("""
-                        INSERT INTO user_feedback
-                        (feedback_id, session_id, file_path, predicted_action, user_action, feedback_time, comments)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)
-                    """, (
-                        hashlib.md5(f"{session_id}_{fp.file_path}_{datetime.now().isoformat()}".encode()).hexdigest()[:12],
+                    feedback_id = hashlib.md5(f"{session_id}_{fp.file_path}_{current_time}".encode()).hexdigest()[:12]
+                    feedback_rows.append((
+                        feedback_id,
                         session_id,
                         fp.file_path,
                         fp.predicted_category,
-                        user_decision.get("action", "unknown"),
-                        datetime.now().isoformat(),
-                        json.dumps(user_decision)
+                        user_action,
+                        current_time,
+                        comments_json
                     ))
+
+                if feedback_rows:
+                    conn.executemany("""
+                        INSERT INTO user_feedback
+                        (feedback_id, session_id, file_path, predicted_action, user_action, feedback_time, comments)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """, feedback_rows)
+
                 conn.commit()
         except Exception as e:
             self.logger.error(f"Error recording user decision: {e}")
