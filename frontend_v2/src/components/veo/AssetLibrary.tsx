@@ -237,8 +237,9 @@ const AssetCard = ({ asset, onRemove, onUpload }: AssetCardProps) => {
             <button
                 onClick={onRemove}
                 type="button"
-                className="absolute top-2 right-2 z-20 bg-black/60 backdrop-blur-md text-white/60 hover:text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-all border border-white/10 scale-90 group-hover:scale-100">
-                <XMarkIcon className="w-3 h-3" />
+                aria-label="Remove asset"
+                className="absolute top-2 right-2 z-20 bg-black/60 backdrop-blur-md text-white/60 hover:text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-background/50 focus-visible:outline-none transition-all border border-white/10 scale-90 group-hover:scale-100">
+                <XMarkIcon className="w-3 h-3" aria-hidden="true" />
             </button>
 
             <div className="aspect-[4/3] bg-black/40 relative overflow-hidden">
@@ -261,11 +262,12 @@ const AssetCard = ({ asset, onRemove, onUpload }: AssetCardProps) => {
                     </label>
                 )}
                 {asset.image && (
-                    <label className="absolute bottom-2 right-2 bg-black/60 backdrop-blur-md p-2 rounded-full cursor-pointer hover:bg-indigo-600 border border-white/10 opacity-0 group-hover:opacity-100 transition-all scale-75 group-hover:scale-100">
-                        <UploadCloudIcon className="w-3 h-3 text-white" />
+                    <label className="absolute bottom-2 right-2 bg-black/60 backdrop-blur-md p-2 rounded-full cursor-pointer hover:bg-indigo-600 border border-white/10 opacity-0 group-hover:opacity-100 focus-within:opacity-100 focus-within:ring-2 focus-within:ring-background/50 focus-within:outline-none focus-within:scale-100 transition-all scale-75 group-hover:scale-100">
+                        <UploadCloudIcon className="w-3 h-3 text-white" aria-hidden="true" />
+                        <span className="sr-only">Upload new image for {asset.name}</span>
                         <input
                             type="file"
-                            className="hidden"
+                            className="opacity-0 absolute inset-0 cursor-pointer w-full h-full"
                             onChange={onUpload}
                             accept="image/png, image/jpeg, image/webp"
                         />
