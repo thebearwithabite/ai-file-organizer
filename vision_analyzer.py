@@ -222,7 +222,7 @@ Return a valid JSON object with this structure:
         self.remote_enabled = False
         self.remote_ip = ""
         self.remote_ollama_port = 11434
-        self.remote_model = "qwen2.5vl:7b" # Verified in user's ollama list
+        self.remote_model = "max-after-dark:latest"
         self._load_remote_config()
 
         # Learning System Integration
@@ -761,6 +761,104 @@ Return a valid JSON object with this structure:
             self.logger.error(f"Remote analysis failed: {e}")
             return {"success": False, "error": str(e)}
 
+    def _analyze_video_remote(self, video_path: Path, project_context: Optional[str] = None, allowed_categories: Optional[List[Dict[str, str]]] = None) -> Dict[str, Any]:
+        """Dispatch video analysis to remote Ollama server by extracting frames"""
+        import requests
+        import base64
+        import tempfile
+        import ffmpeg
+        import os
+
+        try:
+            self.logger.info(f"🛰️ Dispatching video analysis to remote 5090 ({self.remote_ip})")
+            
+            with tempfile.TemporaryDirectory() as tmpdir:
+                try:
+                    probe = ffmpeg.probe(str(video_path))
+                    duration = float(probe['format']['duration'])
+                except Exception as e:
+                    self.logger.warning(f"Could not probe video duration: {e}, defaulting to 10s")
+                    duration = 10.0
+
+                img_data_list = []
+                frame_count = min(4, int(duration / 2) + 1)
+                
+                for i in range(frame_count):
+                    timestamp = duration * (i + 1) / (frame_count + 1)
+                    out_path = os.path.join(tmpdir, f"frame_{i}.jpg")
+                    try:
+                        (
+                            ffmpeg
+                            .input(str(video_path), ss=timestamp)
+                            .output(out_path, vframes=1, format='image2', vcodec='mjpeg')
+                            .overwrite_output()
+                            .run(capture_stdout=True, capture_stderr=True)
+                        )
+                        if os.path.exists(out_path):
+                            with open(out_path, "rb") as f:
+                                img_data_list.append(base64.b64encode(f.read()).decode("utf-8"))
+                    except Exception as e:
+                        self.logger.warning(f"Failed to extract frame {i}: {e}")
+
+            if not img_data_list:
+                return {"success": False, "error": "Failed to extract frames for remote analysis"}
+
+            identity_context = ""
+            if self.identity_service:
+                identity_context = self.identity_service.generate_prompt_context()
+            
+            full_context = identity_context
+            if project_context:
+                full_context += f"\nPROJECT CONTEXT: {project_context}"
+
+            cat_list_str = ""
+            if allowed_categories:
+                cat_list_str = "ALLOWED CATEGORIES:\n" + "\n".join([f"- {c['id']}: {c['name']}" for c in allowed_categories])
+
+            prompt = self.VIDEO_ANALYSIS_PROMPT.format(
+                identity_context=full_context,
+                category_list_str=cat_list_str
+            )
+            prompt = "These are sequential frames from a video. " + prompt
+
+            url = f"http://{self.remote_ip}:{self.remote_ollama_port}/api/generate"
+            payload = {
+                "model": self.remote_model,
+                "prompt": prompt,
+                "images": img_data_list,
+                "stream": False,
+                "format": "json"
+            }
+
+            self.logger.debug(f"Sending video frames to {url} with model={self.remote_model}")
+            response = requests.post(url, json=payload, timeout=120)
+            response.raise_for_status()
+            
+            response_data = response.json()
+            analysis_text = response_data.get("response", "")
+            
+            if not analysis_text:
+                return {"success": False, "error": "Empty response from Ollama"}
+            
+            result = self._parse_video_analysis(analysis_text, video_path)
+            result['source'] = f"Remote Powerhouse ({self.remote_model})"
+            result['success'] = True
+            
+            if self.learning_enabled and self.learning_system:
+                self.learning_system.record_classification(
+                    file_path=str(video_path),
+                    predicted_category=result.get('category', 'unknown'),
+                    confidence=result.get('confidence', 0.0),
+                    features=result,
+                    media_type='video'
+                )
+
+            return result
+
+        except Exception as e:
+            self.logger.error(f"Remote video analysis failed: {e}")
+            return {"success": False, "error": str(e)}
+
     def extract_screenshot_text(self, image_path: str) -> str:
         """
         Extract text from a screenshot using Gemini OCR capabilities.
@@ -873,6 +971,17 @@ Return a valid JSON object with this structure:
         cached_result = self._load_from_cache(cache_key)
         if cached_result:
             return cached_result
+
+        # Check if Remote Powerhouse should handle this (OFFLOADING)
+        if self.remote_enabled and self.remote_ip:
+            remote_result = self._analyze_video_remote(video_path_obj, project_context, allowed_categories)
+            if remote_result and remote_result.get('success'):
+                # Cache the result
+                cache_key = self._get_cache_key(str(video_path_obj))
+                self._save_to_cache(cache_key, remote_result)
+                return remote_result
+            else:
+                self.logger.warning("Remote video analysis failed or unavailable, falling back to local Gemini/Vertex.")
 
         # Ensure initialized (Lazy)
         self._ensure_initialized()

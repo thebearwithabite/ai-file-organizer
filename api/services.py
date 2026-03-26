@@ -444,14 +444,18 @@ class TriageService:
         user_home = Path.home()
 
         for area in self.staging_areas:
-            # Validate each staging area is within either user home or base_dir
-            is_in_home = validate_path_within_base(area, user_home)
-            is_in_base = validate_path_within_base(area, self.base_dir) if self.base_dir else False
+            # Validate each staging area is within either user home or base_dir without triggering warnings
+            try:
+                area_res = Path(area).resolve()
+                is_in_home = area_res.is_relative_to(user_home.resolve())
+                is_in_base = area_res.is_relative_to(Path(self.base_dir).resolve()) if self.base_dir else False
 
-            if is_in_home or is_in_base:
-                validated_staging_areas.append(area)
-            else:
-                logger.warning(f"Skipping invalid staging area (outside safe directories): {area}")
+                if is_in_home or is_in_base:
+                    validated_staging_areas.append(area)
+                else:
+                    logger.warning(f"Skipping invalid staging area (outside safe directories): {area}")
+            except Exception as e:
+                logger.error(f"Error validating staging area {area}: {e}")
 
         self.staging_areas = validated_staging_areas
         logger.info(f"TriageService initialized with {len(self.staging_areas)} validated staging areas")
@@ -498,7 +502,9 @@ class TriageService:
                                         "category": item.get("current_category", "unknown"),
                                         "confidence": item.get("confidence", 0.0),
                                         "reasoning": item.get("reasoning", "Flagged for review by Adaptive System"),
-                                        "needs_review": True
+                                        "needs_review": True,
+                                        "suggested_filename": item.get("suggested_filename"),
+                                        "project": item.get("project")
                                     },
                                     "status": "pending_review",
                                     "source": "queue"
@@ -539,10 +545,14 @@ class TriageService:
                                     conf = result.get('confidence', 0.0)
                                     cat = result.get('category', 'unknown')
                                     rsn = result.get('reasoning', [])
+                                    sugg_fn = result.get('suggested_filename')
+                                    proj = result.get('project')
                                 else:
                                     conf = getattr(result, 'confidence', 0.0)
                                     cat = getattr(result, 'category', 'unknown')
                                     rsn = getattr(result, 'reasoning', [])
+                                    sugg_fn = getattr(result, 'suggested_filename', None)
+                                    proj = getattr(result, 'project', None)
 
                                 # If low confidence, add to review list
                                 if conf < confidence_threshold:
@@ -554,7 +564,9 @@ class TriageService:
                                             "category": cat,
                                             "confidence": round(conf, 2),
                                             "reasoning": str(rsn),
-                                            "needs_review": True
+                                            "needs_review": True,
+                                            "suggested_filename": sugg_fn,
+                                            "project": proj
                                         },
                                         "status": "pending_review",
                                         "source": "scan"
@@ -701,6 +713,8 @@ class TriageService:
                     confidence = result.get('confidence', 0.0) if isinstance(result, dict) else getattr(result, 'confidence', 0.0)
                     category = result.get('category', 'unknown') if isinstance(result, dict) else getattr(result, 'category', 'unknown')
                     reasoning = result.get('reasoning', []) if isinstance(result, dict) else getattr(result, 'reasoning', [])
+                    sugg_fn = result.get('suggested_filename') if isinstance(result, dict) else getattr(result, 'suggested_filename', None)
+                    proj = result.get('project') if isinstance(result, dict) else getattr(result, 'project', None)
 
                     # Include ALL files (not just low confidence) for custom folder scan
                     # This allows user to review and organize entire folders
@@ -712,7 +726,9 @@ class TriageService:
                             "category": category,
                             "confidence": round(confidence, 2),
                             "reasoning": reasoning if isinstance(reasoning, str) else str(reasoning),
-                            "needs_review": confidence < confidence_threshold
+                            "needs_review": confidence < confidence_threshold,
+                            "suggested_filename": sugg_fn,
+                            "project": proj
                         },
                         "status": "pending_review" if confidence < confidence_threshold else "ready"
                     })
@@ -811,7 +827,7 @@ class TriageService:
             return self.hierarchical_organizer.known_projects
         return {}
 
-    def classify_file(self, file_path: str, confirmed_category: str, project: str = None, episode: str = None) -> Dict[str, Any]:
+    def classify_file(self, file_path: str, confirmed_category: str, project: str = None, episode: str = None, filename: str = None) -> Dict[str, Any]:
         """
         Classify a file with user-confirmed category, learn from the decision, and move the file
         with intelligent hierarchical organization (project → episode → media type).
@@ -884,8 +900,10 @@ class TriageService:
             # Create the directory if it doesn't exist
             destination_dir.mkdir(parents=True, exist_ok=True)
 
-            # Use intelligent filename suggestion or keep original name
-            if suggested_filename and suggested_filename != file_obj.name:
+            # Use provided filename override, OR intelligent filename suggestion, or keep original name
+            if filename:
+                new_file_path = destination_dir / filename
+            elif suggested_filename and suggested_filename != file_obj.name:
                 new_file_path = destination_dir / suggested_filename
             else:
                 new_file_path = destination_dir / file_obj.name

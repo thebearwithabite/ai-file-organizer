@@ -60,7 +60,8 @@ class HybridLibrarian:
         self.classifier = UnifiedClassificationService()
         
         # Semantic search setup
-        self.embeddings_db_path = self.base_dir / "embeddings.db"
+        from gdrive_integration import get_metadata_root
+        self.embeddings_db_path = get_metadata_root() / "databases" / "embeddings.db"
         self.model = None
         self.remote_enabled = False
         self.remote_ip = ""
