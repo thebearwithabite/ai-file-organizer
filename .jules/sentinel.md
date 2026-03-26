@@ -19,3 +19,12 @@
 **Prevention:**
 1. Always convert `pathlib.Path` objects to absolute strings using `str(path.absolute())` before passing them as arguments to `subprocess.run`.
 2. Absolute paths always begin with a directory separator (`/` on Unix) or a drive letter (`C:\` on Windows), guaranteeing the command-line tool parses them as file paths rather than flags or options.
+
+## 2024-05-30 - System Script Argument Injection Vulnerability
+
+**Vulnerability:** Several system scripts (`system_storage_cleanup.py`, `gdrive_staging.py`, `dev-archive/repair_mislabeled_jsons.py`) were passing unvalidated `pathlib.Path` objects directly to `subprocess.run` calls without resolving them to absolute strings. For commands like `rm`, `du`, and `file`, this left the system vulnerable to argument injection if a directory or file name started with a hyphen (e.g., `-rf`).
+
+**Learning:** Argument injection vulnerabilities are not limited to core application code; maintenance, cleanup, and utility scripts that interact with the file system via external binaries are equally susceptible. Using `str(path)` is unsafe for system calls because relative path components or filenames starting with a hyphen can be misinterpreted as command-line flags by the executing tool.
+
+**Prevention:**
+1. System utility scripts invoking external binaries must enforce `.absolute()` on all `pathlib.Path` objects before string conversion (e.g., `str(path.absolute())`) to guarantee paths begin with a root slash (`/`) or drive letter, neutralizing argument injection vectors.
