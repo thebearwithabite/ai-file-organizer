@@ -229,7 +229,7 @@ export const api = {
     return await response.json()
   },
 
-  classifyFile: async (filePath: string, confirmedCategory: string, project?: string, episode?: string) => {
+  classifyFile: async (filePath: string, confirmedCategory: string, project?: string, episode?: string, filename?: string) => {
     const response = await fetch(`${API_BASE}/api/triage/classify`, {
       method: 'POST',
       headers: {
@@ -240,6 +240,7 @@ export const api = {
         confirmed_category: confirmedCategory,
         project: project || null,
         episode: episode || null,
+        suggested_filename: filename || null,
       }),
     })
 
@@ -336,7 +337,7 @@ export const api = {
     const response = await fetch(`${API_BASE}/api/veo-studio/analyze-script`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
+      body: JSON.stringify({
         script_content: scriptContent,
         project_name: projectName
       }),

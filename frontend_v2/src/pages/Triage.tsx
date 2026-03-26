@@ -17,6 +17,8 @@ interface TriageFile {
     confidence: number
     reasoning: string
     needs_review: boolean
+    suggested_filename?: string
+    project?: string
   }
   status: string
 }
@@ -31,6 +33,7 @@ export default function Triage() {
   const [selectedCategory, setSelectedCategory] = useState<Record<string, string>>({})
   const [projectInput, setProjectInput] = useState<Record<string, string>>({})
   const [episodeInput, setEpisodeInput] = useState<Record<string, string>>({})
+  const [filenameInput, setFilenameInput] = useState<Record<string, string>>({})
   const [customFolderPath, setCustomFolderPath] = useState('')
   const [recentFolders, setRecentFolders] = useState<string[]>([])
   const [currentScanMode, setCurrentScanMode] = useState<'downloads' | 'custom'>('downloads')
@@ -109,12 +112,13 @@ export default function Triage() {
   }
 
   const classifyMutation = useMutation({
-    mutationFn: ({ filePath, category, project, episode }: {
+    mutationFn: ({ filePath, category, project, episode, filename }: {
       filePath: string;
       category: string;
       project?: string;
       episode?: string;
-    }) => api.classifyFile(filePath, category, project, episode),
+      filename?: string;
+    }) => api.classifyFile(filePath, category, project, episode, filename),
     onSuccess: (_, variables) => {
       toast.success('File organized successfully')
 
@@ -181,14 +185,16 @@ export default function Triage() {
 
   const handleClassify = (file: TriageFile) => {
     const category = selectedCategory[file.file_id] || file.classification.category
-    const project = projectInput[file.file_id] || undefined
+    const project = projectInput[file.file_id] ?? (file.classification.project || undefined)
     const episode = episodeInput[file.file_id] || undefined
+    const filename = filenameInput[file.file_id] ?? (file.classification.suggested_filename || undefined)
 
     classifyMutation.mutate({
       filePath: file.file_path,
       category,
       project,
       episode,
+      filename,
     })
   }
 
@@ -396,8 +402,9 @@ export default function Triage() {
                           {(() => {
                             const curCatVal = selectedCategory[file.file_id] || file.classification.category
                             const catData = taxonomyData?.[curCatVal]
-                            const curProj = projectInput[file.file_id] || ''
+                            const curProj = projectInput[file.file_id] ?? (file.classification.project || '')
                             const curEp = episodeInput[file.file_id] || ''
+                            const curFn = filenameInput[file.file_id] ?? (file.classification.suggested_filename || file.file_name)
 
                             if (!catData) return "Unknown Destination"
 
@@ -406,10 +413,45 @@ export default function Triage() {
                             if (curProj) parts.push(curProj)
                             if (curEp) parts.push(curEp)
                             parts.push(catData.folder_name)
-                            parts.push(file.file_name)
+                            parts.push(curFn)
                             return parts.join(' / ')
                           })()}
                         </span>
+                      </div>
+
+                      {file.classification.suggested_filename && file.classification.suggested_filename !== file.file_name && (
+                        <div className="mt-3 text-sm flex flex-col gap-2 p-2 bg-black/20 rounded-lg border border-primary/20">
+                          <div className="flex items-center justify-between">
+                            <span className="text-primary/90 font-medium flex items-center gap-1">
+                              <span>📝 Suggested rename:</span>
+                              <span className="text-white break-all">{file.classification.suggested_filename}</span>
+                            </span>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => setFilenameInput({ ...filenameInput, [file.file_id]: file.classification.suggested_filename as string })}
+                                className="text-xs bg-primary/20 hover:bg-primary/40 px-2 py-1 rounded text-primary transition-colors"
+                              >
+                                Use
+                              </button>
+                              <button
+                                onClick={() => setFilenameInput({ ...filenameInput, [file.file_id]: file.file_name })}
+                                className="text-xs bg-white/10 hover:bg-white/20 px-2 py-1 rounded text-white/70 transition-colors"
+                              >
+                                Keep Original
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="mt-2">
+                        <label className="text-xs text-white/40 mb-1 block">Filename Override (Optional)</label>
+                        <input
+                          type="text"
+                          value={filenameInput[file.file_id] ?? (file.classification.suggested_filename || file.file_name)}
+                          onChange={(e) => setFilenameInput({ ...filenameInput, [file.file_id]: e.target.value })}
+                          className="w-full px-2 py-1 bg-black/20 border border-white/10 rounded text-xs text-white focus:outline-none focus:border-white/30"
+                        />
                       </div>
                     </div>
                   </div>
@@ -425,7 +467,7 @@ export default function Triage() {
                       <input
                         type="text"
                         list={`projects-${file.file_id}`}
-                        value={projectInput[file.file_id] || ''}
+                        value={projectInput[file.file_id] ?? (file.classification.project || '')}
                         onChange={(e) => setProjectInput({ ...projectInput, [file.file_id]: e.target.value })}
                         placeholder="e.g., The_Papers_That_Dream, VEO_Prompt_Machine"
                         className="w-full px-3 py-2 bg-white/5 border border-white/20 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 placeholder:text-white/30"
@@ -449,7 +491,7 @@ export default function Triage() {
                       />
                       <datalist id={`episodes-${file.file_id}`}>
                         {(() => {
-                          const curProj = projectInput[file.file_id]
+                          const curProj = projectInput[file.file_id] ?? (file.classification.project || '')
                           if (!curProj || !knownProjects?.projects) return null
                           const projData = knownProjects.projects.find((p: any) => p.name === curProj)
                           return (projData as any)?.subfolders?.map((sub: string) => (
