@@ -34,7 +34,7 @@ def get_actual_mime(file_path):
     import time
     for attempt in range(2):
         try:
-            result = subprocess.run(['file', '--mime-type', '-b', str(file_path)], 
+            result = subprocess.run(['file', '--mime-type', '-b', str(file_path.absolute())],
                                    capture_output=True, text=True, check=True)
             return result.stdout.strip()
         except:
