@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from collections import defaultdict
 
 from content_extractor import ContentExtractor
-from classification_engine import FileClassificationEngine
+from unified_classifier import UnifiedClassificationService
 from staging_monitor import StagingMonitor
 from gdrive_integration import get_ai_organizer_root
 
@@ -42,7 +42,7 @@ class QueryProcessor:
         
         # Initialize components
         self.content_extractor = ContentExtractor(base_dir)
-        self.classifier = FileClassificationEngine(base_dir)
+        self.classifier = UnifiedClassificationService(base_dir)
         self.staging_monitor = StagingMonitor(base_dir)
         
         # Query patterns and entity extraction
@@ -336,7 +336,9 @@ class QueryProcessor:
         """Quick file classification for search results"""
         try:
             classification = self.classifier.classify_file(file_path)
-            return classification.category
+            if isinstance(classification, dict):
+                return classification.get('category', 'unknown')
+            return getattr(classification, 'category', 'unknown')
         except:
             # Fallback to extension-based classification
             ext = file_path.suffix.lower()

@@ -1,4 +1,5 @@
-import { useMemo } from 'react'
+import { useState, useMemo } from 'react'
+import { ChevronDown, ChevronRight } from 'lucide-react'
 import MediaPreview from './MediaPreview'
 import DocumentPreview from './DocumentPreview'
 import JsonSidecarViewer from './JsonSidecarViewer'
@@ -22,6 +23,8 @@ export default function FilePreview({ filePath, fileName }: FilePreviewProps) {
 
         return 'unknown'
     }, [fileName])
+
+    const [isOpen, setIsOpen] = useState(fileType === 'image')
 
     // Basic fallback for opening files we don't preview natively
     const handleOpenFile = async () => {
@@ -51,28 +54,42 @@ export default function FilePreview({ filePath, fileName }: FilePreviewProps) {
     }
 
     return (
-        <div className="mb-6 mt-2">
-            <div className="mb-4">
-                {fileType === 'image' ? (
-                    <div className="bg-black/20 rounded-xl overflow-hidden border border-white/10 max-w-sm">
-                        <img
-                            src={`/api/files/content?path=${encodeURIComponent(filePath)}`}
-                            alt={fileName}
-                            className="w-full h-auto max-h-64 object-contain"
-                            loading="lazy"
-                        />
-                    </div>
-                ) : fileType === 'video' || fileType === 'audio' ? (
-                    <MediaPreview filePath={filePath} fileType={fileType} />
-                ) : (
-                    <DocumentPreview
-                        filePath={filePath}
-                        fileType={fileType as 'pdf' | 'text' | 'office' | 'code'}
-                    />
-                )}
-            </div>
+        <div className="mb-6 mt-2 border border-white/10 bg-black/20 rounded-xl overflow-hidden">
+            <button
+                onClick={() => setIsOpen(!isOpen)}
+                className="w-full flex items-center justify-between p-3 bg-white/5 hover:bg-white/10 transition-colors text-sm font-medium text-white/80"
+            >
+                <div className="flex items-center gap-2">
+                    {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                    {fileType === 'image' ? '🖼️ Image Preview' : fileType === 'pdf' ? '📄 PDF Preview' : 'Preview Document'}
+                </div>
+            </button>
 
-            <JsonSidecarViewer filePath={filePath} />
+            {isOpen && (
+                <div className="p-4 border-t border-white/10">
+                    <div className="mb-4">
+                        {fileType === 'image' ? (
+                            <div className="bg-black/20 rounded-xl overflow-hidden border border-white/10 max-w-sm">
+                                <img
+                                    src={`/api/files/content?path=${encodeURIComponent(filePath)}`}
+                                    alt={fileName}
+                                    className="w-full h-auto max-h-64 object-contain"
+                                    loading="lazy"
+                                />
+                            </div>
+                        ) : fileType === 'video' || fileType === 'audio' ? (
+                            <MediaPreview filePath={filePath} fileType={fileType} />
+                        ) : (
+                            <DocumentPreview
+                                filePath={filePath}
+                                fileType={fileType as 'pdf' | 'text' | 'office' | 'code'}
+                            />
+                        )}
+                    </div>
+
+                    <JsonSidecarViewer filePath={filePath} />
+                </div>
+            )}
         </div>
     )
 }

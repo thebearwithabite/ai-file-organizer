@@ -101,9 +101,9 @@ class UnifiedClassificationService:
                     self._vision_analyzer.learning_enabled = True
                     self._vision_analyzer.learning_system = self.learning_system
                 
-                self.vision_enabled = self._vision_analyzer.api_initialized
+                self.vision_enabled = getattr(self._vision_analyzer, 'api_initialized', False) or getattr(self._vision_analyzer, 'remote_enabled', False)
                 if self.vision_enabled:
-                    print("✅ Vision analysis enabled with Gemini API")
+                    print("✅ Vision analysis enabled (Gemini and/or Remote Powerhouse)")
                 else:
                     print("⚠️  Vision analysis enabled (fallback mode only)")
             except Exception as e:
@@ -119,9 +119,9 @@ class UnifiedClassificationService:
             try:
                 print("📖 Loading semantic text analyzer...")
                 self._semantic_text_analyzer = SemanticTextAnalyzer(base_dir=str(self.base_dir))
-                self.semantic_text_enabled = self._semantic_text_analyzer.api_initialized
+                self.semantic_text_enabled = getattr(self._semantic_text_analyzer, 'api_initialized', False) or getattr(self._semantic_text_analyzer, 'remote_enabled', False)
                 if self.semantic_text_enabled:
-                    print("✅ Semantic text analysis enabled with Gemini API")
+                    print("✅ Semantic text analysis enabled (Gemini and/or Remote Powerhouse)")
                 else:
                     print("⚠️  Semantic text analysis disabled (API key missing)")
             except Exception as e:
@@ -508,16 +508,10 @@ class UnifiedClassificationService:
             content_data = self.text_analyzer.extract_content(file_path)
 
             if not content_data or not content_data.get('text'):
-                print("DEBUG: Failed to extract content or content is empty.")
-                return {
-                    'source': 'Text Classifier',
-                    'category': 'unknown',
-                    'confidence': 0.10,
-                    'reasoning': ['Failed to extract document content'],
-                    'suggested_filename': file_path.name
-                }
-
-            full_text = content_data['text']  # Keep original case for AI, lower for keywords
+                print("DEBUG: Failed to extract content or content is empty. Falling back to filename-based AI inference.")
+                full_text = f"Document Title/Filename: {file_path.name}"
+            else:
+                full_text = content_data['text']  # Keep original case for AI, lower for keywords
             full_text_lower = full_text.lower()
             filename = file_path.name.lower()
             print(f"DEBUG: Content length: {len(full_text)} chars")
