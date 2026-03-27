@@ -169,38 +169,40 @@ export default function ClassificationPreview({ result, onClose }: Classificatio
         <button
           onClick={handleConfirm}
           disabled={isConfirming}
-          className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-success hover:bg-success/90 rounded-xl font-medium transition-colors text-white disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-success hover:bg-success/90 rounded-xl font-medium transition-colors text-white disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-background/50 focus-visible:outline-none"
         >
           {isConfirming ? (
             <>
-              <Loader2 size={20} className="animate-spin" />
+              <Loader2 size={20} className="animate-spin" aria-hidden="true" />
               Organizing...
             </>
           ) : (
             <>
-              <Check size={20} />
+              <Check size={20} aria-hidden="true" />
               Confirm & Organize
             </>
           )}
         </button>
         <button
           onClick={handleReclassify}
-          className="flex items-center justify-center gap-2 px-4 py-3 bg-white/10 hover:bg-white/20 rounded-xl font-medium transition-colors text-white"
+          className="flex items-center justify-center gap-2 px-4 py-3 bg-white/10 hover:bg-white/20 rounded-xl font-medium transition-colors text-white focus-visible:ring-2 focus-visible:ring-background/50 focus-visible:outline-none"
         >
-          <RefreshCw size={20} />
+          <RefreshCw size={20} aria-hidden="true" />
           Reclassify
         </button>
         <button
           onClick={handleSkip}
-          className="p-3 bg-white/10 hover:bg-white/20 rounded-xl transition-colors text-white"
+          className="p-3 bg-white/10 hover:bg-white/20 rounded-xl transition-colors text-white focus-visible:ring-2 focus-visible:ring-background/50 focus-visible:outline-none"
+          aria-label="Skip classification"
+          title="Skip classification"
         >
-          <X size={20} />
+          <X size={20} aria-hidden="true" />
         </button>
       </div>
 
       <button
         onClick={handleSkip}
-        className="w-full mt-3 text-sm text-white/60 hover:text-white transition-colors"
+        className="w-full mt-3 text-sm text-white/60 hover:text-white transition-colors focus-visible:ring-2 focus-visible:ring-background/50 focus-visible:outline-none focus-visible:rounded-lg"
       >
         Skip (organize later)
       </button>
