@@ -467,9 +467,20 @@ class MetadataGenerator:
         
         try:
             with sqlite3.connect(self.db_path) as conn:
+                # Security: prevent SQL injection by validating column names against schema
+                cursor = conn.execute("PRAGMA table_info(file_metadata)")
+                valid_columns = {row[1] for row in cursor.fetchall()}
+
+                # Filter metadata to only include valid columns
+                safe_metadata = {k: v for k, v in metadata.items() if k in valid_columns}
+
+                if not safe_metadata:
+                    print("Warning: No valid columns found in metadata to save.")
+                    return False
+
                 # Convert to database format
-                columns = list(metadata.keys())
-                values = list(metadata.values())
+                columns = list(safe_metadata.keys())
+                values = list(safe_metadata.values())
                 placeholders = ', '.join(['?' for _ in values])
                 column_names = ', '.join(columns)
                 
