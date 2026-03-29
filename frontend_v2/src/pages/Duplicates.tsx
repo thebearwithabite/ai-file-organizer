@@ -209,9 +209,11 @@ export default function Duplicates() {
                     </div>
                   </div>
                 </div>
-                <div className="group relative">
-                  <Info size={16} className="text-white/40 hover:text-white/60 cursor-help transition-colors" />
-                  <div className="invisible group-hover:visible absolute right-0 top-6 w-64 p-3 bg-black/90 backdrop-blur-xl border border-white/20 rounded-lg text-xs text-white/80 z-10 shadow-xl">
+                <div className="relative">
+                  <button type="button" className="peer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-full flex" aria-label="Duplicate cleaning info">
+                    <Info size={16} className="text-white/40 hover:text-white/60 cursor-help transition-colors" aria-hidden="true" />
+                  </button>
+                  <div role="tooltip" className="invisible peer-hover:visible peer-focus:visible absolute right-0 top-6 w-64 p-3 bg-black/90 backdrop-blur-xl border border-white/20 rounded-lg text-xs text-white/80 z-10 shadow-xl">
                     Select which file to keep, then clean the rest. All operations can be undone via Settings → Rollback.
                   </div>
                 </div>
