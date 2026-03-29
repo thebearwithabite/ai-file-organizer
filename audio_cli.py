@@ -203,9 +203,21 @@ def show_audio_stats():
         import sqlite3
         
         with sqlite3.connect(analyzer.db_path) as conn:
-            # Total files analyzed
-            cursor = conn.execute("SELECT COUNT(*) FROM audio_analysis")
-            total_files = cursor.fetchone()[0]
+            # Combined stats query (total, duration, recent activity) to prevent N+1 full table scans
+            cursor = conn.execute("""
+                SELECT
+                    COUNT(*),
+                    COALESCE(AVG(duration_seconds), 0),
+                    COALESCE(MIN(duration_seconds), 0),
+                    COALESCE(MAX(duration_seconds), 0),
+                    COALESCE(SUM(duration_seconds), 0),
+                    COALESCE(SUM(CASE WHEN analyzed_date > datetime('now', '-7 days') THEN 1 ELSE 0 END), 0)
+                FROM audio_analysis
+            """)
+            stats = cursor.fetchone()
+            total_files = stats[0]
+            duration_stats = (stats[1], stats[2], stats[3], stats[4])
+            recent_count = stats[5]
             
             if total_files == 0:
                 print("❌ No audio files analyzed yet")
@@ -243,16 +255,6 @@ def show_audio_stats():
                 print(f"   {quality}: {count} ({percentage:.1f}%)")
             
             # Duration stats
-            cursor = conn.execute("""
-                SELECT 
-                    AVG(duration_seconds) as avg_duration,
-                    MIN(duration_seconds) as min_duration,
-                    MAX(duration_seconds) as max_duration,
-                    SUM(duration_seconds) as total_duration
-                FROM audio_analysis
-            """)
-            duration_stats = cursor.fetchone()
-            
             print(f"\n⏱️  Duration Statistics:")
             print(f"   Average: {duration_stats[0]/60:.1f} minutes")
             print(f"   Shortest: {duration_stats[1]:.1f} seconds")
@@ -275,12 +277,6 @@ def show_audio_stats():
                     print(f"   {project}: {count} files")
             
             # Recent activity
-            cursor = conn.execute("""
-                SELECT COUNT(*) FROM audio_analysis 
-                WHERE analyzed_date > datetime('now', '-7 days')
-            """)
-            recent_count = cursor.fetchone()[0]
-            
             print(f"\n📅 Recent Activity:")
             print(f"   Files analyzed in last 7 days: {recent_count}")
             
