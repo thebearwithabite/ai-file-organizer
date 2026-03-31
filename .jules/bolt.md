@@ -33,3 +33,6 @@
 ## 2025-05-27 - [Bulk SQLite Inserts and Connection Reuse for Tagging]
 **Learning:** Sequential `.execute` calls for `INSERT OR REPLACE` inside nested loops over large arrays (like tags) coupled with opening independent DB connections per method creates a severe N+1 problem. Benchmarks showed replacing it with a single shared connection and `executemany` arrays resulted in an ~2x speedup on typical batch tagging workloads.
 **Action:** Always batch related SQL records using `.executemany()` and pass an optional `db_connection` downstream to nested operations instead of establishing a new database connection every time.
+## 2025-03-05 - Consolidated multiple COUNT aggregates
+**Learning:** Using `COALESCE(SUM(CASE WHEN ... THEN 1 ELSE 0 END), 0)` consolidates multiple sequential `SELECT` aggregate queries (`COUNT`, `AVG`, `SUM`) on the same table into a single query.
+**Action:** When aggregating data from multiple criteria on the same table, write one query using conditional aggregation to eliminate redundant full table scans and reduce database round-trips.
