@@ -102,9 +102,15 @@ export default function DiskSpaceWidget() {
       <div className="flex items-center gap-2 mb-4">
         <HardDrive size={20} className="text-purple-400" />
         <h2 className="text-xl font-semibold text-white">Disk Space Protection</h2>
-        <div className="group relative ml-auto">
-          <Info size={16} className="text-white/40 hover:text-white/60 cursor-help transition-colors" />
-          <div className="invisible group-hover:visible absolute right-0 top-6 w-72 p-3 bg-black/90 backdrop-blur-xl border border-white/20 rounded-lg text-xs text-white/80 z-10 shadow-xl">
+        <div className="relative ml-auto flex items-center">
+          <button
+            type="button"
+            className="peer text-white/40 hover:text-white/60 transition-colors focus-visible:ring-2 focus-visible:ring-background/50 focus-visible:outline-none rounded-full cursor-help"
+            aria-label="Disk space protection info"
+          >
+            <Info size={16} aria-hidden="true" />
+          </button>
+          <div role="tooltip" className="invisible peer-hover:visible peer-focus:visible absolute right-0 top-6 w-72 p-3 bg-black/90 backdrop-blur-xl border border-white/20 rounded-lg text-xs text-white/80 z-10 shadow-xl">
             Monitors disk space and prevents "disk full" crises. Automatically protects against space issues before they happen. ADHD-friendly: eliminates panic moments from sudden space issues.
           </div>
         </div>
