@@ -33,3 +33,7 @@
 ## 2025-05-27 - [Bulk SQLite Inserts and Connection Reuse for Tagging]
 **Learning:** Sequential `.execute` calls for `INSERT OR REPLACE` inside nested loops over large arrays (like tags) coupled with opening independent DB connections per method creates a severe N+1 problem. Benchmarks showed replacing it with a single shared connection and `executemany` arrays resulted in an ~2x speedup on typical batch tagging workloads.
 **Action:** Always batch related SQL records using `.executemany()` and pass an optional `db_connection` downstream to nested operations instead of establishing a new database connection every time.
+
+## 2025-10-24 - [Combine Database Aggregation Queries]
+**Learning:** Performing multiple sequential `COUNT` queries on the same table causes unnecessary N+1 full table or index scans, reducing I/O throughput. However, combining them using `COALESCE(SUM(CASE WHEN...))` reduces readability without performance gains over `COUNT` with conditionals in SQLite. Combining multiple metric gatherings into a single query using `COUNT(CASE WHEN ... THEN 1 END)` is both performant and readable.
+**Action:** When gathering multiple metrics (total count, conditional counts) from the same table, combine them into a single `SELECT` statement using `COUNT(CASE WHEN condition THEN 1 END)`.
