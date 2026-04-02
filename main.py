@@ -106,7 +106,7 @@ def validate_path_is_safe(file_path: Path) -> bool:
     allowed root directories.
     Also prevents argument injection (e.g., passing "-rf" to system commands).
     """
-    if file_path.name.startswith('-'):
+    if file_path.name.startswith('-') or str(file_path).startswith('-'):
         logger.warning(f"Security: Blocked argument injection attempt in path: {file_path}")
         return False
 
@@ -1318,7 +1318,7 @@ async def open_file(request: OpenFileRequest):
                  raise HTTPException(status_code=403, detail="Access denied: Path is outside allowed directories or contains illegal characters")
 
             # Ensure we use the absolute resolved path to prevent any ambiguity
-            safe_target = str(path_obj.resolve())
+            safe_target = str(path_obj.resolve().absolute())
 
             # Check if file exists (for local files)
             if not path_obj.exists():

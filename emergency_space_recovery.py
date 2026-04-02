@@ -54,7 +54,7 @@ class EmergencySpaceRecovery:
     def get_disk_usage(self) -> Dict[str, float]:
         """Get current disk usage in GB"""
         try:
-            result = subprocess.run(['df', '-H', str(Path.home())], 
+            result = subprocess.run(['df', '-H', str(Path.home().absolute())],
                                  capture_output=True, text=True)
             lines = result.stdout.strip().split('\n')
             if len(lines) >= 2:

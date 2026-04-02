@@ -77,7 +77,7 @@ class SystemStorageCleanup:
             if info['path'].exists():
                 try:
                     # Get actual size
-                    result = subprocess.run(['du', '-sh', str(info['path'])], 
+                    result = subprocess.run(['du', '-sh', str(info['path'].absolute())],
                                          capture_output=True, text=True)
                     if result.stdout:
                         size_str = result.stdout.split()[0]
@@ -188,12 +188,12 @@ class SystemStorageCleanup:
             else:
                 try:
                     # Get size before deletion for verification
-                    result = subprocess.run(['du', '-sh', str(docker_path)], 
+                    result = subprocess.run(['du', '-sh', str(docker_path.absolute())],
                                          capture_output=True, text=True)
                     size_before = result.stdout.split()[0] if result.stdout else "unknown"
                     
                     # Delete Docker data (safe since Docker isn't running)
-                    subprocess.run(['rm', '-rf', str(docker_path)], check=True)
+                    subprocess.run(['rm', '-rf', str(docker_path.absolute())], check=True)
                     print(f"   ✅ Deleted Docker data ({size_before})")
                     
                     # Recreate empty directory structure so Docker can start later
@@ -223,7 +223,7 @@ class SystemStorageCleanup:
                     total_freed += 1.0  # Estimated per path
                 else:
                     try:
-                        subprocess.run(['rm', '-rf', str(cache_path)], check=True)
+                        subprocess.run(['rm', '-rf', str(cache_path.absolute())], check=True)
                         print(f"   ✅ Cleaned: {cache_path}")
                         total_freed += 1.0
                     except Exception as e:
@@ -266,7 +266,7 @@ class SystemStorageCleanup:
                     for temp_dir in ['temp', 'AutoSave']:
                         temp_path = audacity_path / temp_dir
                         if temp_path.exists():
-                            subprocess.run(['rm', '-rf', str(temp_path)], check=True)
+                            subprocess.run(['rm', '-rf', str(temp_path.absolute())], check=True)
                     print(f"   ✅ Audacity temp files cleaned")
                     return 1.3
                 except Exception as e:
