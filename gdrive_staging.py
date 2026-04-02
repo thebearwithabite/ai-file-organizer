@@ -22,7 +22,7 @@ def stage_directory_to_gdrive(source_dir: Path, staging_name: str = None) -> boo
         return False
     
     # Get directory size
-    result = subprocess.run(['du', '-sh', str(source_dir)], capture_output=True, text=True)
+    result = subprocess.run(['du', '-sh', str(source_dir.absolute())], capture_output=True, text=True)
     dir_size = result.stdout.split()[0] if result.stdout else "unknown"
     
     print(f"📦 Staging Directory to Google Drive")
