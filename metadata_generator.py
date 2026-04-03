@@ -231,9 +231,12 @@ class MetadataGenerator:
             migration_count = 0
             for col_name, col_type in gdrive_columns.items():
                 if col_name not in existing_columns:
-                    conn.execute(f"ALTER TABLE file_metadata ADD COLUMN {col_name} {col_type}")
-                    migration_count += 1
-                    print(f"   ✅ Added column: {col_name}")
+                    if col_name.isidentifier():
+                        conn.execute(f"ALTER TABLE file_metadata ADD COLUMN {col_name} {col_type}")
+                        migration_count += 1
+                        print(f"   ✅ Added column: {col_name}")
+                    else:
+                        print(f"   ⚠️ Skipping invalid column name: {col_name}")
             
             # Step 6: Commit all changes atomically
             conn.commit()
@@ -467,9 +470,21 @@ class MetadataGenerator:
         
         try:
             with sqlite3.connect(self.db_path) as conn:
+                # Get valid columns from schema to prevent SQL injection
+                cursor = conn.execute("PRAGMA table_info(file_metadata)")
+                allowed_columns = {row[1] for row in cursor.fetchall()}
+
+                safe_metadata = {}
+                for k, v in metadata.items():
+                    if k in allowed_columns and k.isidentifier():
+                        safe_metadata[k] = v
+
+                if not safe_metadata:
+                    return False
+
                 # Convert to database format
-                columns = list(metadata.keys())
-                values = list(metadata.values())
+                columns = list(safe_metadata.keys())
+                values = list(safe_metadata.values())
                 placeholders = ', '.join(['?' for _ in values])
                 column_names = ', '.join(columns)
                 
