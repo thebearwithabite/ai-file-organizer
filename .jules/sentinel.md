@@ -19,3 +19,8 @@
 **Prevention:**
 1. Always convert `pathlib.Path` objects to absolute strings using `str(path.absolute())` before passing them as arguments to `subprocess.run`.
 2. Absolute paths always begin with a directory separator (`/` on Unix) or a drive letter (`C:\` on Windows), guaranteeing the command-line tool parses them as file paths rather than flags or options.
+
+## 2024-05-30 - SQL Injection via Dictionary Keys in Dynamic SQL Updates
+**Vulnerability:** In `metadata_generator.py:476`, dynamic SQL `INSERT` statements were constructed directly from dictionary keys representing file metadata (`metadata.keys()`). If an attacker could inject arbitrary keys into the metadata dictionary, they could perform SQL injection, breaking out of the statement and executing arbitrary SQL (e.g., `DROP TABLE`).
+**Learning:** When generating SQL dynamically from dictionary keys, traditional parameterization (`?`) only protects the values, not the column names. Without validating the keys against a schema allowlist, any user-controlled dictionary input can lead to critical SQL injection vulnerabilities.
+**Prevention:** Always validate dynamic column names against an explicit schema allowlist. Use `PRAGMA table_info` to fetch allowed columns from the database dynamically and verify that dictionary keys are both in the allowlist and pass Python's `str.isidentifier()` check before constructing the query.
