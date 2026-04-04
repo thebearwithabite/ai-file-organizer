@@ -19,3 +19,19 @@
 **Prevention:**
 1. Always convert `pathlib.Path` objects to absolute strings using `str(path.absolute())` before passing them as arguments to `subprocess.run`.
 2. Absolute paths always begin with a directory separator (`/` on Unix) or a drive letter (`C:\` on Windows), guaranteeing the command-line tool parses them as file paths rather than flags or options.
+
+## 2024-05-30 - Widespread Argument Injection Vulnerability in File Operations
+
+**Vulnerability:** Several modules (`system_storage_cleanup.py`, `dev-archive/emergency_bulk_staging.py`, `dev-archive/repair_mislabeled_jsons.py`) passed unvalidated `pathlib.Path` strings directly to `subprocess.run` calls (e.g., for `du`, `rm`, `file`). If an attacker controlled the filename, they could name a file starting with `-` (e.g., `-rf`), leading to argument injection.
+
+**Learning:** The argument injection vulnerability found in `vision_content_extractor.py` and `main.py` is a widespread pattern in this codebase. Any invocation of external command-line tools using `subprocess.run` with user-controlled file paths must use absolute paths to prevent the tool from interpreting the filename as an option.
+
+**Prevention:** Always convert `pathlib.Path` objects to absolute strings using `str(path.absolute())` before passing them as arguments to `subprocess.run`.
+
+## 2024-05-30 - SQL Injection via unvalidated dynamic column names
+
+**Vulnerability:** The `_migrate_database_schema` function in `metadata_generator.py` uses an f-string to construct an `ALTER TABLE` query. The variables are hardcoded keys in a dictionary, however if the keys in the dictionary are user-controlled in the future, it is an avenue for SQL injection.
+
+**Learning:** When dynamically generating SQL `ALTER TABLE` statements to add columns, standard `?` parameterization does not protect column keys. You must validate the column name to prevent SQL injection.
+
+**Prevention:** Use Python's `str.isidentifier()` to validate column names and prevent SQL injection.

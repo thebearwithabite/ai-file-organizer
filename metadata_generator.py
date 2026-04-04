@@ -231,6 +231,8 @@ class MetadataGenerator:
             migration_count = 0
             for col_name, col_type in gdrive_columns.items():
                 if col_name not in existing_columns:
+                    if not col_name.isidentifier():
+                        raise ValueError(f"Invalid column name: {col_name}")
                     conn.execute(f"ALTER TABLE file_metadata ADD COLUMN {col_name} {col_type}")
                     migration_count += 1
                     print(f"   ✅ Added column: {col_name}")
