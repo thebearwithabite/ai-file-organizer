@@ -315,11 +315,11 @@ class SafeFileMover:
                     print(f"   ✅ Moved successfully")
             else:
                 print(f"   ❌ Failed: {operation.error_message}")
-            
-            # Save operation to database
-            if not dry_run:
-                self._save_move_operation(session_id, operation, interaction_mode)
         
+        # Save all operations to database in batch
+        if not dry_run:
+            self._save_move_operations(session_id, operations, interaction_mode)
+
         # Create result summary
         result = MoveResult(
             total_operations=len(operations),
@@ -346,18 +346,18 @@ class SafeFileMover:
         
         return result
     
-    def _save_move_operation(self, session_id: str, operation: MoveOperation, 
+    def _save_move_operations(self, session_id: str, operations: List[MoveOperation],
                            interaction_mode: str):
-        """Save move operation to database"""
+        """Save multiple move operations to database in batch"""
         
-        with sqlite3.connect(self.db_path) as conn:
-            conn.execute("""
-                INSERT INTO file_moves
-                (move_session_id, source_path, target_path, final_path, backup_path,
-                 move_strategy, success, skipped, error_message, file_size,
-                 source_checksum, move_date, interaction_mode)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
+        if not operations:
+            return
+
+        data = []
+        now = datetime.now().isoformat()
+
+        for operation in operations:
+            data.append((
                 session_id,
                 str(operation.source_path),
                 str(operation.target_path),
@@ -369,9 +369,18 @@ class SafeFileMover:
                 operation.error_message,
                 operation.source_path.stat().st_size if operation.source_path.exists() else 0,
                 self.calculate_file_checksum(operation.source_path) if operation.source_path.exists() else "",
-                datetime.now().isoformat(),
+                now,
                 interaction_mode
             ))
+
+        with sqlite3.connect(self.db_path) as conn:
+            conn.executemany("""
+                INSERT INTO file_moves
+                (move_session_id, source_path, target_path, final_path, backup_path,
+                 move_strategy, success, skipped, error_message, file_size,
+                 source_checksum, move_date, interaction_mode)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, data)
             conn.commit()
     
     def _save_move_session(self, session_id: str, result: MoveResult, 
