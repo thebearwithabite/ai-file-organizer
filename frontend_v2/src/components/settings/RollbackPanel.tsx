@@ -143,9 +143,11 @@ export default function RollbackPanel() {
       <div className="flex items-center gap-2 mb-4">
         <RotateCcw size={20} className="text-warning" />
         <h2 className="text-xl font-semibold text-white">Rollback History</h2>
-        <div className="group relative ml-auto">
-          <Info size={16} className="text-white/40 hover:text-white/60 cursor-help transition-colors" />
-          <div className="invisible group-hover:visible absolute right-0 top-6 w-72 p-3 bg-black/90 backdrop-blur-xl border border-white/20 rounded-lg text-xs text-white/80 z-10 shadow-xl">
+        <div className="relative ml-auto flex items-center">
+          <button type="button" className="peer focus-visible:ring-2 focus-visible:ring-background/50 focus-visible:outline-none rounded-full" aria-label="More information">
+            <Info size={16} className="text-white/40 hover:text-white/60 cursor-help transition-colors" aria-hidden="true" />
+          </button>
+          <div role="tooltip" className="invisible peer-hover:visible peer-focus:visible absolute right-0 top-6 w-72 p-3 bg-black/90 backdrop-blur-xl border border-white/20 rounded-lg text-xs text-white/80 z-10 shadow-xl">
             Complete safety net for all file operations. Every move, rename, or deletion can be undone. ADHD-friendly: eliminates anxiety about making mistakes.
           </div>
         </div>
