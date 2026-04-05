@@ -19,3 +19,8 @@
 **Prevention:**
 1. Always convert `pathlib.Path` objects to absolute strings using `str(path.absolute())` before passing them as arguments to `subprocess.run`.
 2. Absolute paths always begin with a directory separator (`/` on Unix) or a drive letter (`C:\` on Windows), guaranteeing the command-line tool parses them as file paths rather than flags or options.
+
+## 2024-05-24 - Prevent SQL Injection in Dynamic ALTER TABLE
+**Vulnerability:** Constructing `ALTER TABLE` queries with dynamic column names using f-strings (e.g., `f"ALTER TABLE table ADD COLUMN {col_name} {col_type}"`) allows SQL injection if the column name is derived from untrusted input.
+**Learning:** Standard SQL parameterized queries (`?`) cannot be used to supply table or column names.
+**Prevention:** Always validate dynamic column names using Python's `str.isidentifier()` to ensure they contain only valid identifier characters before formatting them into the SQL string.
