@@ -27,9 +27,18 @@ def generate_report():
             conn.row_factory = sqlite3.Row
             
             # 1. High Level Stats
-            total_events = conn.execute("SELECT COUNT(*) FROM learning_events").fetchone()[0]
-            verified_events = conn.execute("SELECT COUNT(*) FROM learning_events WHERE event_type IN ('user_correction', 'manual_move', 'preference_update', 'user_confirmed')").fetchone()[0]
-            observations = conn.execute("SELECT COUNT(*) FROM learning_events WHERE event_type = 'ai_observation'").fetchone()[0]
+            # Bolt: Combine multiple COUNT queries into a single pass using conditional aggregation
+            row = conn.execute("""
+                SELECT
+                    COUNT(*) as total_events,
+                    COUNT(CASE WHEN event_type IN ('user_correction', 'manual_move', 'preference_update', 'user_confirmed') THEN 1 END) as verified_events,
+                    COUNT(CASE WHEN event_type = 'ai_observation' THEN 1 END) as observations
+                FROM learning_events
+            """).fetchone()
+
+            total_events = row['total_events']
+            verified_events = row['verified_events']
+            observations = row['observations']
             
             print(f"📈 Knowledge Base Stats:")
             print(f"   Total Learning Events:  {total_events}")
