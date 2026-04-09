@@ -27,9 +27,14 @@ def generate_report():
             conn.row_factory = sqlite3.Row
             
             # 1. High Level Stats
-            total_events = conn.execute("SELECT COUNT(*) FROM learning_events").fetchone()[0]
-            verified_events = conn.execute("SELECT COUNT(*) FROM learning_events WHERE event_type IN ('user_correction', 'manual_move', 'preference_update', 'user_confirmed')").fetchone()[0]
-            observations = conn.execute("SELECT COUNT(*) FROM learning_events WHERE event_type = 'ai_observation'").fetchone()[0]
+            row = conn.execute("""
+                SELECT
+                    COUNT(*),
+                    COUNT(CASE WHEN event_type IN ('user_correction', 'manual_move', 'preference_update', 'user_confirmed') THEN 1 END),
+                    COUNT(CASE WHEN event_type = 'ai_observation' THEN 1 END)
+                FROM learning_events
+            """).fetchone()
+            total_events, verified_events, observations = row[0], row[1], row[2]
             
             print(f"📈 Knowledge Base Stats:")
             print(f"   Total Learning Events:  {total_events}")
