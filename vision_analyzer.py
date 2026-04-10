@@ -720,7 +720,7 @@ Return a valid JSON object with this structure:
             }
 
             self.logger.debug(f"Sending to {url} with model={self.remote_model}")
-            response = requests.post(url, json=payload, timeout=60)
+            response = requests.post(url, json=payload, timeout=120)
             
             # Log response details for debugging
             if response.status_code != 200:
