@@ -1091,24 +1091,16 @@ class UnifiedClassificationService:
 
             url = f"http://{self.vision_analyzer.remote_ip}:{self.vision_analyzer.remote_ollama_port}/api/generate"
             payload = {
-                "model": getattr(self.vision_analyzer, 'remote_model', 'max-after-dark:latest'),
+                "model": "qwen2.5:7b", # Using standard Qwen 2.5 for text
                 "prompt": prompt,
                 "stream": False,
                 "format": "json"
             }
 
-            response = requests.post(url, json=payload, timeout=120)
+            response = requests.post(url, json=payload, timeout=30)
             response.raise_for_status()
             
-            raw_text = response.text
-            import re
-            
-            # Ollama (especially Qwen) routinely wraps JSON in markdown blocks. Strip them.
-            json_match = re.search(r'```(?:json)?\s*([\s\S]*?)\s*```', raw_text)
-            if json_match:
-                raw_text = json_match.group(1)
-                
-            result = json.loads(raw_text)
+            result = response.json()
             response_text = result.get("response", "{}")
             
             import json
