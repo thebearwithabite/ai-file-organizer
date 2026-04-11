@@ -33,3 +33,6 @@
 ## 2025-05-27 - [Bulk SQLite Inserts and Connection Reuse for Tagging]
 **Learning:** Sequential `.execute` calls for `INSERT OR REPLACE` inside nested loops over large arrays (like tags) coupled with opening independent DB connections per method creates a severe N+1 problem. Benchmarks showed replacing it with a single shared connection and `executemany` arrays resulted in an ~2x speedup on typical batch tagging workloads.
 **Action:** Always batch related SQL records using `.executemany()` and pass an optional `db_connection` downstream to nested operations instead of establishing a new database connection every time.
+## 2024-05-24 - SQLite Pragma Silent Failures
+**Learning:** In SQLite configurations, providing an invalid string to a PRAGMA command (like `PRAGMA mmap_size=XXXXXXXXX`) fails silently rather than throwing an error, which silently disables the performance feature (like memory-mapped I/O).
+**Action:** Always verify PRAGMA values are valid integer byte sizes (e.g., `268435456` for 256MB) and don't rely on exceptions to catch configuration syntax errors.
