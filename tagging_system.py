@@ -578,18 +578,38 @@ class ComprehensiveTaggingSystem:
         """Find files that match specified tags"""
         
         with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.execute("SELECT * FROM file_tags")
+            if not tags:
+                cursor = conn.execute("SELECT * FROM file_tags")
+            else:
+                query = "SELECT * FROM file_tags WHERE "
+                params = []
+                conditions = []
+
+                for tag in tags:
+                    # Safely escape tags for LIKE query over JSON strings
+                    escaped_tag = json.dumps(tag)[1:-1]
+                    conditions.append("(auto_tags LIKE ? OR user_tags LIKE ?)")
+                    params.extend([f"%\"{escaped_tag}\"%", f"%\"{escaped_tag}\"%"])
+
+                if match_all:
+                    query += " AND ".join(conditions)
+                else:
+                    query += " OR ".join(conditions)
+
+                cursor = conn.execute(query, params)
+
             columns = [desc[0] for desc in cursor.description]
             results = []
             
             for row in cursor.fetchall():
                 file_data = dict(zip(columns, row))
                 
-                file_auto_tags = json.loads(file_data['auto_tags'])
-                file_user_tags = json.loads(file_data['user_tags'])
+                # Only parse JSON for rows that passed the DB-level LIKE filter
+                file_auto_tags = json.loads(file_data['auto_tags']) if file_data.get('auto_tags') else []
+                file_user_tags = json.loads(file_data['user_tags']) if file_data.get('user_tags') else []
                 all_file_tags = file_auto_tags + file_user_tags
                 
-                # Check tag matching
+                # Exact validation matching in Python since LIKE might be over-inclusive
                 if match_all:
                     # All specified tags must be present
                     if all(tag in all_file_tags for tag in tags):
@@ -605,7 +625,7 @@ class ComprehensiveTaggingSystem:
                         results.append(file_data)
             
             # Sort by number of matching tags (descending)
-            results.sort(key=lambda x: len(x['matching_tags']), reverse=True)
+            results.sort(key=lambda x: len(x.get('matching_tags', [])), reverse=True)
             
             return results[:limit]
     
