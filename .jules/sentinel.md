@@ -19,3 +19,7 @@
 **Prevention:**
 1. Always convert `pathlib.Path` objects to absolute strings using `str(path.absolute())` before passing them as arguments to `subprocess.run`.
 2. Absolute paths always begin with a directory separator (`/` on Unix) or a drive letter (`C:\` on Windows), guaranteeing the command-line tool parses them as file paths rather than flags or options.
+## 2024-05-24 - Fix SQL injection in metadata generator
+**Vulnerability:** A SQL injection vulnerability existed in `save_file_metadata` where untrusted dictionary keys were directly formatted into the `INSERT OR REPLACE` query via f-strings.
+**Learning:** Standard `?` parameterization does not protect column keys. When constructing dynamic SQL queries (e.g., `INSERT` or `UPDATE` with dynamically generated column names), an explicit schema allowlist is required.
+**Prevention:** Always fetch the schema via `PRAGMA table_info` and filter the input keys against it before dynamically building query structures.
