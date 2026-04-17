@@ -33,3 +33,6 @@
 ## 2025-05-27 - [Bulk SQLite Inserts and Connection Reuse for Tagging]
 **Learning:** Sequential `.execute` calls for `INSERT OR REPLACE` inside nested loops over large arrays (like tags) coupled with opening independent DB connections per method creates a severe N+1 problem. Benchmarks showed replacing it with a single shared connection and `executemany` arrays resulted in an ~2x speedup on typical batch tagging workloads.
 **Action:** Always batch related SQL records using `.executemany()` and pass an optional `db_connection` downstream to nested operations instead of establishing a new database connection every time.
+## 2025-05-15 - Batched Inserts with executemany() in SQLite
+**Learning:** Sequential `execute()` statements in a loop for database inserts create an N+1 performance bottleneck due to excessive database round-trips and individual transaction overheads.
+**Action:** Always consolidate loops of database inserts into a single `executemany()` call, constructing the argument list outside the database connection context to minimize locking time and eliminate the N+1 problem.

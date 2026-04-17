@@ -1357,22 +1357,32 @@ class InteractiveBatchProcessor:
     def _record_user_decision(self, session_id: str, group: BatchGroup, user_decision: Dict[str, Any], result: Dict[str, Any]):
         """Record user decision for learning"""
         try:
-            with sqlite3.connect(self.batch_db_path) as conn:
-                for fp in group.file_previews:
-                    conn.execute("""
+            now_iso = datetime.now().isoformat()
+            user_action = user_decision.get("action", "unknown")
+            user_decision_json = json.dumps(user_decision)
+
+            # ⚡ Bolt: Batch database inserts to fix N+1 performance bottleneck
+            records = [
+                (
+                    hashlib.md5(f"{session_id}_{fp.file_path}_{now_iso}".encode()).hexdigest()[:12],
+                    session_id,
+                    fp.file_path,
+                    fp.predicted_category,
+                    user_action,
+                    now_iso,
+                    user_decision_json
+                )
+                for fp in group.file_previews
+            ]
+
+            if records:
+                with sqlite3.connect(self.batch_db_path) as conn:
+                    conn.executemany("""
                         INSERT INTO user_feedback
                         (feedback_id, session_id, file_path, predicted_action, user_action, feedback_time, comments)
                         VALUES (?, ?, ?, ?, ?, ?, ?)
-                    """, (
-                        hashlib.md5(f"{session_id}_{fp.file_path}_{datetime.now().isoformat()}".encode()).hexdigest()[:12],
-                        session_id,
-                        fp.file_path,
-                        fp.predicted_category,
-                        user_decision.get("action", "unknown"),
-                        datetime.now().isoformat(),
-                        json.dumps(user_decision)
-                    ))
-                conn.commit()
+                    """, records)
+                    conn.commit()
         except Exception as e:
             self.logger.error(f"Error recording user decision: {e}")
 
