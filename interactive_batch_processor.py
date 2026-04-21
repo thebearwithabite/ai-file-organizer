@@ -1358,20 +1358,28 @@ class InteractiveBatchProcessor:
         """Record user decision for learning"""
         try:
             with sqlite3.connect(self.batch_db_path) as conn:
-                for fp in group.file_previews:
-                    conn.execute("""
-                        INSERT INTO user_feedback
-                        (feedback_id, session_id, file_path, predicted_action, user_action, feedback_time, comments)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)
-                    """, (
-                        hashlib.md5(f"{session_id}_{fp.file_path}_{datetime.now().isoformat()}".encode()).hexdigest()[:12],
+                now_str = datetime.now().isoformat()
+                user_action = user_decision.get("action", "unknown")
+                comments_str = json.dumps(user_decision)
+
+                rows = [
+                    (
+                        hashlib.md5(f"{session_id}_{fp.file_path}_{now_str}".encode()).hexdigest()[:12],
                         session_id,
                         fp.file_path,
                         fp.predicted_category,
-                        user_decision.get("action", "unknown"),
-                        datetime.now().isoformat(),
-                        json.dumps(user_decision)
-                    ))
+                        user_action,
+                        now_str,
+                        comments_str
+                    )
+                    for fp in group.file_previews
+                ]
+
+                conn.executemany("""
+                    INSERT INTO user_feedback
+                    (feedback_id, session_id, file_path, predicted_action, user_action, feedback_time, comments)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, rows)
                 conn.commit()
         except Exception as e:
             self.logger.error(f"Error recording user decision: {e}")
