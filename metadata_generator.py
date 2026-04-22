@@ -463,14 +463,19 @@ class MetadataGenerator:
         
         return multimedia_data
     
+    @staticmethod
+    def _quote_identifier(name: str) -> str:
+        """Return a safely double-quoted SQLite identifier."""
+        return '"' + name.replace('"', '""') + '"'
+
     def save_file_metadata(self, metadata: Dict[str, Any]) -> bool:
         """Save file metadata to database safely, preventing SQL injection"""
         
         try:
             with sqlite3.connect(self.db_path) as conn:
                 # Validate column names to prevent SQL injection using a
-                # cached schema allowlist (refreshed once per connection).
-                if not hasattr(self, '_valid_columns_cache') or self._valid_columns_cache is None:
+                # cached schema allowlist (populated once, lazily).
+                if self._valid_columns_cache is None:
                     cursor = conn.execute("PRAGMA table_info(file_metadata)")
                     self._valid_columns_cache = {row[1] for row in cursor.fetchall()}
 
@@ -485,14 +490,13 @@ class MetadataGenerator:
                 columns = list(safe_metadata.keys())
                 values = list(safe_metadata.values())
                 placeholders = ', '.join(['?' for _ in values])
-                # Double-quote each column name and escape embedded quotes
-                column_names = ', '.join(f'"{c.replace(chr(34), chr(34)*2)}"' for c in columns)
+                column_names = ', '.join(self._quote_identifier(c) for c in columns)
                 
                 # Use UPSERT (ON CONFLICT DO UPDATE) instead of INSERT OR REPLACE
                 # so existing column values are preserved for columns not present
                 # in safe_metadata (INSERT OR REPLACE deletes and re-inserts the row).
                 update_clause = ', '.join(
-                    f'"{c.replace(chr(34), chr(34)*2)}" = excluded."{c.replace(chr(34), chr(34)*2)}"'
+                    f'{self._quote_identifier(c)} = excluded.{self._quote_identifier(c)}'
                     for c in columns
                 )
                 conn.execute(f"""
