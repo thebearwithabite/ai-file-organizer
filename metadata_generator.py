@@ -463,13 +463,24 @@ class MetadataGenerator:
         return multimedia_data
     
     def save_file_metadata(self, metadata: Dict[str, Any]) -> bool:
-        """Save file metadata to database"""
+        """Save file metadata to database safely, preventing SQL injection"""
         
         try:
             with sqlite3.connect(self.db_path) as conn:
+                # Validate column names to prevent SQL injection
+                cursor = conn.execute("PRAGMA table_info(file_metadata)")
+                valid_columns = {row[1] for row in cursor.fetchall()}
+
+                # Filter metadata to only include valid columns
+                safe_metadata = {k: v for k, v in metadata.items() if k in valid_columns}
+
+                if not safe_metadata:
+                    print("Warning: No valid metadata fields to save")
+                    return False
+
                 # Convert to database format
-                columns = list(metadata.keys())
-                values = list(metadata.values())
+                columns = list(safe_metadata.keys())
+                values = list(safe_metadata.values())
                 placeholders = ', '.join(['?' for _ in values])
                 column_names = ', '.join(columns)
                 
