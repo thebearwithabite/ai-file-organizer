@@ -19,13 +19,8 @@
 **Prevention:**
 1. Always convert `pathlib.Path` objects to absolute strings using `str(path.absolute())` before passing them as arguments to `subprocess.run`.
 2. Absolute paths always begin with a directory separator (`/` on Unix) or a drive letter (`C:\` on Windows), guaranteeing the command-line tool parses them as file paths rather than flags or options.
-## 2024-05-30 - SQL Injection via Dictionary Keys in Dynamic Queries
 
-**Vulnerability:** The `save_file_metadata` function in `metadata_generator.py` accepted an untrusted dictionary of metadata and dynamically constructed an `INSERT` statement using the dictionary's keys as column names (`column_names = ', '.join(columns)`). This allowed SQL injection if an attacker supplied a malformed key (e.g., `invalid_column) VALUES (?); DROP TABLE files; --`).
-
-**Learning:** While parameterization (`?`) protects against SQL injection in values, it does not protect against injection in table or column names. When dynamically building queries where column names are derived from user input or external dictionaries, the keys must be strictly validated against an explicit schema allowlist.
-
-**Prevention:**
-1. Never use untrusted input directly as column names or table names in SQL queries.
-2. Fetch valid columns dynamically using `PRAGMA table_info(table_name)` in SQLite (or hardcode an allowlist).
-3. Pre-filter dictionaries to only include keys that match the explicitly validated schema allowlist before building dynamic queries.
+## 2024-05-31 - SQL Injection Vulnerability in Dynamic Column Names
+**Vulnerability:** The `save_file_metadata` method in `metadata_generator.py` dynamically generated `INSERT` column names directly from dictionary keys using an f-string, allowing SQL injection if keys were maliciously crafted.
+**Learning:** When constructing dynamic SQL queries (e.g., `INSERT` or `UPDATE` with dynamically generated column names), standard `?` parameterization does not protect column keys. You must use an explicit schema allowlist.
+**Prevention:** Use `PRAGMA table_info(table_name)` to fetch valid column names from the database schema and filter the dictionary keys against this allowlist before generating the dynamic SQL query.
