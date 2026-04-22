@@ -1,3 +1,6 @@
 ## 2024-03-16 - Make hover-only actions keyboard accessible
 **Learning:** Actions hidden behind `opacity-0` and revealed with `group-hover:opacity-100` are completely inaccessible to keyboard-only users navigating via Tab. This is a common pattern for "secondary" actions like undo/delete buttons in lists.
 **Action:** When using `opacity-0 group-hover:opacity-100` to hide secondary actions, always pair it with `focus-visible:opacity-100`, `focus-visible:ring-2`, and `focus-visible:outline-none` to ensure the action becomes visible and clearly highlighted when focused via keyboard navigation.
+## 2024-04-12 - Sidebar Navigation Accessibility
+**Learning:** React Router Links used for navigation items without `aria-current` lack semantic indication of the active page for screen readers, while visible text is sufficient without additional `aria-label`. Redundant `aria-hidden="true"` on decorative icons inside the link improves screen reader experience.
+**Action:** Always add `aria-current={isActive ? 'page' : undefined}` to active navigation links, apply explicit `focus-visible:ring-2 focus-visible:ring-background/50 focus-visible:outline-none` classes for keyboard accessibility, and hide decorative inner icons with `aria-hidden="true"`.
