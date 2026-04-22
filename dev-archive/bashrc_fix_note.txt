@@ -1,0 +1,9 @@
+Fix for .bashrc: The error suggests a syntax error in the ai-status() function definition. Ensure it looks like:
+ai-status() {
+    # commands
+}
+and not:
+ai-status () {
+    # commands
+}
+or similar spacing issues that might confuse bash.

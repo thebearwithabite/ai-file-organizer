@@ -648,17 +648,29 @@ class AutomatedDeduplicationService:
         return duplicates
 
     def _find_duplicates_in_common_locations(self, file_hash: str, original_file: Path) -> List[Path]:
-        """Find duplicates in common locations"""
+        """Find duplicates in common locations including all monitored paths"""
         duplicates = []
         
-        # Common locations to check
-        search_locations = [
+        # Start with base search locations
+        search_locations = {
             Path.home() / "Downloads",
             Path.home() / "Desktop",
             Path.home() / "Documents",
             original_file.parent
-        ]
+        }
         
+        # Add monitored paths from staging config
+        try:
+            config_path = get_metadata_root() / "staging_config.json"
+            if config_path.exists():
+                with open(config_path, 'r') as f:
+                    config = json.load(f)
+                    monitored_paths = config.get("monitored_paths", [])
+                    for path_str in monitored_paths:
+                        search_locations.add(Path(os.path.expanduser(path_str)))
+        except Exception as e:
+            self.logger.error(f"Error loading monitored paths for deduplication: {e}")
+            
         for location in search_locations:
             if location.exists():
                 location_duplicates = self._find_duplicates_in_directory(file_hash, location)

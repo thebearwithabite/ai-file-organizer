@@ -21,9 +21,18 @@ client = TestClient(app)
 
 
 @pytest.fixture
-def temp_learning_system():
+def temp_learning_system(monkeypatch):
     """Create a temporary learning system for testing"""
     temp_dir = tempfile.mkdtemp()
+    temp_path = Path(temp_dir)
+
+    # Patch get_metadata_root to point to temp_dir
+    def mock_get_metadata_root():
+        return temp_path
+
+    # We need to patch where it's imported in universal_adaptive_learning.py
+    monkeypatch.setattr("universal_adaptive_learning.get_metadata_root", mock_get_metadata_root)
+
     learning_system = UniversalAdaptiveLearning(base_dir=temp_dir)
     yield learning_system
     # Cleanup
@@ -126,6 +135,9 @@ class TestLearningStatisticsMethod:
             )
             temp_learning_system.learning_events.append(event)
 
+        # Save data to disk so get_learning_statistics() can reload it
+        temp_learning_system.save_all_data(force=True)
+
         stats = temp_learning_system.get_learning_statistics()
 
         assert stats["total_learning_events"] == 5
@@ -159,6 +171,9 @@ class TestLearningStatisticsMethod:
             )
             temp_learning_system.learning_events.append(event)
 
+        # Save data to disk so get_learning_statistics() can reload it
+        temp_learning_system.save_all_data(force=True)
+
         stats = temp_learning_system.get_learning_statistics()
 
         assert stats["total_learning_events"] == 3
@@ -189,6 +204,9 @@ class TestLearningStatisticsMethod:
                 context={"media_type": media_type, "source": "test"}
             )
             temp_learning_system.learning_events.append(event)
+
+        # Save data to disk so get_learning_statistics() can reload it
+        temp_learning_system.save_all_data(force=True)
 
         stats = temp_learning_system.get_learning_statistics()
 
@@ -244,6 +262,9 @@ class TestLearningStatisticsMethod:
         )
         temp_learning_system.learning_events.append(event_no_category)
 
+        # Save data to disk so get_learning_statistics() can reload it
+        temp_learning_system.save_all_data(force=True)
+
         # Should not crash
         stats = temp_learning_system.get_learning_statistics()
 
@@ -272,6 +293,9 @@ class TestLearningStatisticsMethod:
             )
             temp_learning_system.learning_events.append(event)
 
+        # Save data to disk so get_learning_statistics() can reload it
+        temp_learning_system.save_all_data(force=True)
+
         stats = temp_learning_system.get_learning_statistics()
 
         # Top 10 should be: 0.95, 0.92, 0.90, 0.88, 0.85, 0.82, 0.80, 0.78, 0.75, 0.72
@@ -296,6 +320,9 @@ class TestLearningStatisticsMethod:
                 context={"media_type": "image"}
             )
             temp_learning_system.learning_events.append(event)
+
+        # Save data to disk so get_learning_statistics() can reload it
+        temp_learning_system.save_all_data(force=True)
 
         stats = temp_learning_system.get_learning_statistics()
 

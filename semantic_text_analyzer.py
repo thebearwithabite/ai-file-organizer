@@ -56,6 +56,7 @@ class SemanticTextAnalyzer:
         try:
             # 1. Try provided key
             if api_key:
+                logger.info("Using provided API key for Gemini")
                 genai.configure(api_key=api_key)
                 self.api_initialized = True
                 return
@@ -63,6 +64,7 @@ class SemanticTextAnalyzer:
             # 2. Try environment variable
             env_key = os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY')
             if env_key:
+                logger.info("Using API key from environment (GEMINI_API_KEY/GOOGLE_API_KEY)")
                 genai.configure(api_key=env_key)
                 self.api_initialized = True
                 return
@@ -79,10 +81,12 @@ class SemanticTextAnalyzer:
                     with open(user_config_path, 'r') as f:
                         key = f.read().strip()
                         if key:
+                            logger.info(f"Using API key from config file: {user_config_path}")
                             genai.configure(api_key=key)
                             self.api_initialized = True
                             return
-                except Exception:
+                except Exception as e:
+                    logger.warning(f"Error reading config file {user_config_path}: {e}")
                     pass
 
             # Check B: Project Config
@@ -150,11 +154,13 @@ class SemanticTextAnalyzer:
         3. Extract 3-5 key topics/entities.
         4. Suggest the BEST category ID from the list above. If NO category fits, suggest a new slug.
         5. Suggest a descriptive filename (e.g., "Contract_VendorName_Date.pdf").
+           IMPORTANT: You MUST preserve the original file extension: "{Path(filename).suffix}".
         
         Rules:
         - If it's an NDA, confidence must be > 0.9.
         - If it's a Script/Screenplay, use "audio_vox" or "tech_scripts" if appropriate.
         - If it's an Invoice/Receipt, use "biz_financials" or "fin_receipts".
+        - Do NOT change the file format. A .docx must remain a .docx.
         
         Text Content:
         \"\"\"

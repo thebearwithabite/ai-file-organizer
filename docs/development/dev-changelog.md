@@ -65,7 +65,7 @@
    - Created `veo_prompts` table in correct Google Drive database
    - Migrated 1 VEO prompt entry from local → Google Drive
    - Verified data integrity and accessibility
-   - Database now at: `04_METADATA_SYSTEM/metadata.db`
+   - Database now at: `AI_METADATA_SYSTEM/metadata.db` (formerly `04_METADATA_SYSTEM`)
 
 2. **Orphaned Databases Removed** ✅
    - Deleted: `metadata_tracking.db` (36KB - data migrated)
@@ -308,8 +308,8 @@ deactivate
 - BPM detection range: 60-180 BPM
 - Mood categories: energetic, calm, mysterious, bright, dark, neutral
 - Audio types: music, voice, ambient, podcast, sound_effect
-- Cache stored in `04_METADATA_SYSTEM/audio_cache/`
-- Patterns stored in `04_METADATA_SYSTEM/adaptive_learning/audio_patterns.pkl`
+- Cache stored in `AI_METADATA_SYSTEM/audio_cache/`
+- Patterns stored in `AI_METADATA_SYSTEM/adaptive_learning/audio_patterns.pkl`
 
 **Integration Points**:
 - AudioAnalyzer → UnifiedClassificationService: Automatic routing for audio files
@@ -451,8 +451,8 @@ deactivate
 - Supports 6 image formats: jpg, jpeg, png, gif, bmp, webp
 - Supports 5 video formats: mp4, mov, avi, mkv, webm
 - 12 predefined visual categories with keyword matching
-- Vision patterns stored in `04_METADATA_SYSTEM/adaptive_learning/vision_patterns.pkl`
-- Cache stored in `04_METADATA_SYSTEM/vision_cache/`
+- Vision patterns stored in `AI_METADATA_SYSTEM/adaptive_learning/vision_patterns.pkl`
+- Cache stored in `AI_METADATA_SYSTEM/vision_cache/`
 - API calls tracked with cache hit rate monitoring
 
 **Category Detection**:

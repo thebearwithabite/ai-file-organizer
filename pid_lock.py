@@ -56,7 +56,11 @@ def enforce_single_instance(lock_file: str = "server.lock"):
     """
     lock = PIDLock(lock_file)
     if not lock.acquire():
-        print(f"❌ Error: Another instance is already running (Lock: {lock_file})")
-        print("   Please stop the existing process before starting a new one.")
+        print(f"\n❌ Error: Another instance of AI File Organizer is already running.")
+        print(f"   (Lock file active: {lock_file})")
+        print("\n💡 TROUBLESHOOTING:")
+        print("   1. Check if the app is already running in another terminal or background.")
+        print("   2. If you recently used Ctrl+Z, the process is SUSPENDED but still alive.")
+        print("   3. To fix: Run 'killall python' or 'rm server.lock' and try again.\n")
         sys.exit(1)
     return lock

@@ -1,7 +1,9 @@
 import { Outlet } from 'react-router-dom'
+import { Suspense } from 'react'
 import Sidebar from './Sidebar'
 import Header from './Header'
 import SystemStateStrip from './SystemStateStrip'
+import LoadingSpinner from '../ui/LoadingSpinner'
 
 export default function Layout() {
   return (
@@ -22,7 +24,9 @@ export default function Layout() {
 
           {/* Page content (routes render here) */}
           <main className="flex-1 overflow-y-auto p-6">
-            <Outlet />
+            <Suspense fallback={<LoadingSpinner />}>
+              <Outlet />
+            </Suspense>
           </main>
         </div>
       </div>

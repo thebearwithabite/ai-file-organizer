@@ -1,0 +1,58 @@
+# Database files
+*.db
+*.db-wal
+*.db-shm
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Content cache
+content_cache/
+
+# Log files
+*.log
+
+# Configuration files with sensitive data
+*config*.json
+gdrive_credentials.json
+.env.local
+
+# macOS
+.DS_Store
+
+# Virtual environments
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+
+# AI Organizer local config
+.ai_organizer_config/
+*.pkl
+
+# Personal/dev utility scripts (not for public repo)
+audacity_gdrive_uploader.py
+scrub_personal_info.py
+validate_pii_scrubbing.py
+test_audacity_upload_setup.py
+audacity_upload_report_*.json
+
+# Test output directories
+test_veo_output/
+
+# Claude Code local settings
+.claude/settings.local.json
+2025-11-23-start-message-to-claude.txt
+
+# Legacy audio organizer source
+audio_organizer_source/
+.ai_organizer_config/google_drive_token.json
+
+# Virtual Environments
+.venv/
+
+docs/veopromptmachine-*.json

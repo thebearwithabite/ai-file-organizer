@@ -63,7 +63,7 @@ export default function QuickActionPanel() {
               onClick={action.onClick}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              className={`w-full flex items-center gap-4 p-4 rounded-xl ${action.color} transition-colors text-white`}
+              className={`w-full flex items-center gap-4 p-4 rounded-xl ${action.color} transition-colors text-white focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900`}
             >
               <Icon size={24} />
               <div className="flex-1 text-left">

@@ -174,7 +174,7 @@ UniversalAdaptiveLearning (stores patterns)
 
 ### File Organization Structure
 ```
-04_METADATA_SYSTEM/
+04_METADATA_SYSTEM/ (DEPRECATED - now at ~/Documents/AI_METADATA_SYSTEM)
 ├── adaptive_learning/
 │   ├── audio_patterns.pkl          # Audio-specific patterns
 │   ├── visual_patterns.pkl         # Image/video patterns (Phase 2a/2b)

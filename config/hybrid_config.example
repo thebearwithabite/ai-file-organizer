@@ -1,0 +1,19 @@
+{
+  "remote_powerhouse": {
+    "enabled": true,
+    "ip": "192.168.86.26",
+    "description": "RTX 5090 Powerhouse - Ollama vision + embeddings",
+    "services": {
+      "ollama": {
+        "ip": "192.168.86.26",
+        "port": 11434,
+        "models": {
+          "vision": "qwen2.5vl:7b",
+          "embeddings": "nomic-embed-text",
+          "text": "qwen2.5:7b"
+        }
+      }
+    }
+  },
+  "_note": "Copy this to ~/AI_METADATA_SYSTEM/config/hybrid_config.json on your Mac"
+}
