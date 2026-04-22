@@ -26,8 +26,7 @@ export default function Sidebar() {
               to={item.to}
               aria-current={isActive ? 'page' : undefined}
               className={cn(
-                "flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-300",
-                "focus-visible:ring-2 focus-visible:ring-background/50 focus-visible:outline-none",
+                "flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-300 focus-visible:ring-2 focus-visible:ring-background/50 focus-visible:outline-none",
                 isActive
                   ? "bg-primary text-white"
                   : "text-white/60 hover:bg-white/10 hover:text-white",
