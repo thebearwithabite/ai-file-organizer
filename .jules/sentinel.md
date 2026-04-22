@@ -19,7 +19,16 @@
 **Prevention:**
 1. Always convert `pathlib.Path` objects to absolute strings using `str(path.absolute())` before passing them as arguments to `subprocess.run`.
 2. Absolute paths always begin with a directory separator (`/` on Unix) or a drive letter (`C:\` on Windows), guaranteeing the command-line tool parses them as file paths rather than flags or options.
-## 2024-05-24 - Fix SQL injection in metadata generation
-**Vulnerability:** SQL injection vulnerability via untrusted column names in dynamically generated INSERT/UPDATE query.
-**Learning:** Standard ? parameterization does not protect column keys; using `join` directly on untrusted keys allows arbitrary SQL strings to execute.
-**Prevention:** Always use an explicit schema allowlist via PRAGMA table_info to filter dictionary keys for dynamic SQL queries.
+
+## 2024-05-30 - SQL Injection via Dictionary Keys in Dynamic Queries
+
+**Vulnerability:** The `save_file_metadata` function in `metadata_generator.py` accepted an untrusted dictionary of metadata and dynamically constructed an `INSERT` statement using the dictionary's keys as column names (`column_names = ', '.join(columns)`). This allowed SQL injection if an attacker supplied a malformed key (e.g., `invalid_column) VALUES (?); DROP TABLE files; --`).
+
+**Learning:** While parameterization (`?`) protects against SQL injection in values, it does not protect against injection in table or column names. When dynamically building queries where column names are derived from user input or external dictionaries, the keys must be strictly validated against an explicit schema allowlist. Additionally, even valid column names should be quoted (double-quoted in SQLite) to guard against reserved words and future schema changes. Using `INSERT ... ON CONFLICT DO UPDATE SET` (UPSERT) rather than `INSERT OR REPLACE` also preserves existing column values when only a subset of columns is supplied.
+
+**Prevention:**
+1. Never use untrusted input directly as column names or table names in SQL queries.
+2. Fetch valid columns dynamically using `PRAGMA table_info(table_name)` in SQLite (or hardcode an allowlist).
+3. Pre-filter dictionaries to only include keys that match the explicitly validated schema allowlist before building dynamic queries.
+4. Always double-quote SQL identifiers (e.g., `"column_name"`) and escape embedded double-quotes to handle reserved words and special characters.
+5. Cache the schema allowlist on the instance rather than re-querying it on every call to avoid unnecessary overhead in batch scenarios.

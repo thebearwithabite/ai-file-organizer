@@ -42,6 +42,7 @@ class MetadataGenerator:
         
         # Database for tracking processed files
         self.db_path = paths.get_path('metadata_db')
+        self._valid_columns_cache = None  # Populated lazily in save_file_metadata
         self._init_tracking_db()
         
         # File type classifications
@@ -463,29 +464,41 @@ class MetadataGenerator:
         return multimedia_data
     
     def save_file_metadata(self, metadata: Dict[str, Any]) -> bool:
-        """Save file metadata to database"""
+        """Save file metadata to database safely, preventing SQL injection"""
         
         try:
             with sqlite3.connect(self.db_path) as conn:
-                # Fetch allowed columns from database schema
-                cursor = conn.execute("PRAGMA table_info(file_metadata)")
-                allowed_columns = {row[1] for row in cursor.fetchall()}
+                # Validate column names to prevent SQL injection using a
+                # cached schema allowlist (refreshed once per connection).
+                if not hasattr(self, '_valid_columns_cache') or self._valid_columns_cache is None:
+                    cursor = conn.execute("PRAGMA table_info(file_metadata)")
+                    self._valid_columns_cache = {row[1] for row in cursor.fetchall()}
 
-                # Filter metadata to only include allowed columns
-                filtered_metadata = {k: v for k, v in metadata.items() if k in allowed_columns}
+                # Filter metadata to only include valid columns
+                safe_metadata = {k: v for k, v in metadata.items() if k in self._valid_columns_cache}
 
-                if not filtered_metadata:
+                if not safe_metadata:
+                    print("Warning: No valid metadata fields to save")
                     return False
 
-                # Convert to database format
-                columns = list(filtered_metadata.keys())
-                values = list(filtered_metadata.values())
+                # Convert to database format; quote identifiers for safety
+                columns = list(safe_metadata.keys())
+                values = list(safe_metadata.values())
                 placeholders = ', '.join(['?' for _ in values])
-                column_names = ', '.join(columns)
+                # Double-quote each column name and escape embedded quotes
+                column_names = ', '.join(f'"{c.replace(chr(34), chr(34)*2)}"' for c in columns)
                 
+                # Use UPSERT (ON CONFLICT DO UPDATE) instead of INSERT OR REPLACE
+                # so existing column values are preserved for columns not present
+                # in safe_metadata (INSERT OR REPLACE deletes and re-inserts the row).
+                update_clause = ', '.join(
+                    f'"{c.replace(chr(34), chr(34)*2)}" = excluded."{c.replace(chr(34), chr(34)*2)}"'
+                    for c in columns
+                )
                 conn.execute(f"""
-                    INSERT OR REPLACE INTO file_metadata ({column_names})
+                    INSERT INTO file_metadata ({column_names})
                     VALUES ({placeholders})
+                    ON CONFLICT(file_path) DO UPDATE SET {update_clause}
                 """, values)
                 
                 conn.commit()
