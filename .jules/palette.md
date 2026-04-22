@@ -1,0 +1,6 @@
+## 2024-03-16 - Make hover-only actions keyboard accessible
+**Learning:** Actions hidden behind `opacity-0` and revealed with `group-hover:opacity-100` are completely inaccessible to keyboard-only users navigating via Tab. This is a common pattern for "secondary" actions like undo/delete buttons in lists.
+**Action:** When using `opacity-0 group-hover:opacity-100` to hide secondary actions, always pair it with `focus-visible:opacity-100`, `focus-visible:ring-2`, and `focus-visible:outline-none` to ensure the action becomes visible and clearly highlighted when focused via keyboard navigation.
+## 2024-05-23 - Accessible Icon-Only Buttons in Custom Design System
+**Learning:** In the liquid glass design system, visually hidden icon-only buttons (like remove buttons on hover) require specific focus-visible utility classes (`focus-visible:opacity-100 focus-visible:scale-100`) combined with standard focus rings to remain keyboard accessible.
+**Action:** Always pair `group-hover:opacity-100` on hidden icon buttons with explicit `focus-visible:opacity-100` and standard focus ring utilities (`focus-visible:ring-2 focus-visible:ring-background/50 focus-visible:outline-none`) to ensure keyboard users can discover and interact with them. Apply `aria-hidden="true"` to the inner SVGs and `aria-label` to the buttons.

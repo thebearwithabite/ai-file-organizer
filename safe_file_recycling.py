@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """
+Safe File Recycling System
+Creates a temporary "recycling box" for file organization operations
+Allows easy undo of file moves with automatic cleanup after 7 days
+ADHD-friendly with simple recovery commands
+
 ARCHITECTURAL LAW:
 - base_dir = monitored filesystem location (may be remote)
 - metadata_root = internal state (MUST be local)
 - metadata_root MUST come from get_metadata_root()
 - NEVER derive metadata paths from base_dir
-
-Safe File Recycling System
-Creates a temporary "recycling box" for file organization operations
-Allows easy undo of file moves with automatic cleanup after 7 days
-ADHD-friendly with simple recovery commands
 """
 
 import sys
@@ -155,6 +155,200 @@ class SafeFileRecycling:
                 recycled_file.reason
             ))
             conn.commit()
+    
+    def list_recycled_files(self, limit: int = 50) -> List[Dict]:
+        """List recently recycled files"""
+        with sqlite3.connect(self.metadata_file) as conn:
+            cursor = conn.execute("""
+                SELECT * FROM recycled_files 
+                WHERE restored = FALSE AND can_restore = TRUE
+                ORDER BY recycled_time DESC 
+                LIMIT ?
+            """, (limit,))
+            
+            columns = [description[0] for description in cursor.description]
+            return [dict(zip(columns, row)) for row in cursor.fetchall()]
+    
+    def restore_file(self, recycled_name: str) -> bool:
+        """Restore a recycled file to its original location"""
+        
+        recycled_path = self.recycling_dir / recycled_name
+        if not recycled_path.exists():
+            print(f"❌ Recycled file not found: {recycled_name}")
+            return False
+        
+        # Find in database
+        with sqlite3.connect(self.metadata_file) as conn:
+            cursor = conn.execute("""
+                SELECT * FROM recycled_files 
+                WHERE recycled_path = ? AND restored = FALSE
+            """, (str(recycled_path),))
+            
+            record = cursor.fetchone()
+            if not record:
+                print(f"❌ No restore record found for: {recycled_name}")
+                return False
+            
+            columns = [description[0] for description in cursor.description]
+            file_record = dict(zip(columns, record))
+        
+        original_path = Path(file_record['original_path'])
+        
+        try:
+            # Ensure parent directory exists
+            original_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            # Handle name conflicts
+            restore_path = original_path
+            if restore_path.exists():
+                # Add suffix to avoid overwriting
+                counter = 1
+                while restore_path.exists():
+                    restore_path = original_path.with_name(
+                        f"{original_path.stem}_restored_{counter}{original_path.suffix}"
+                    )
+                    counter += 1
+                print(f"⚠️  Original location occupied, restoring as: {restore_path.name}")
+            
+            # Move file back
+            shutil.move(str(recycled_path), str(restore_path))
+            
+            # Mark as restored
+            with sqlite3.connect(self.metadata_file) as conn:
+                conn.execute("""
+                    UPDATE recycled_files 
+                    SET restored = TRUE 
+                    WHERE recycled_path = ?
+                """, (str(recycled_path),))
+                conn.commit()
+            
+            print(f"✅ Restored: {recycled_name} → {restore_path}")
+            return True
+        
+        except Exception as e:
+            print(f"❌ Failed to restore {recycled_name}: {e}")
+            return False
+    
+    def complete_organization(self, recycled_name: str) -> bool:
+        """Complete the organization by moving recycled file to its intended destination"""
+        
+        recycled_path = self.recycling_dir / recycled_name
+        if not recycled_path.exists():
+            print(f"❌ Recycled file not found: {recycled_name}")
+            return False
+        
+        # Find intended destination
+        with sqlite3.connect(self.metadata_file) as conn:
+            cursor = conn.execute("""
+                SELECT destination_path FROM recycled_files 
+                WHERE recycled_path = ? AND restored = FALSE
+            """, (str(recycled_path),))
+            
+            result = cursor.fetchone()
+            if not result:
+                print(f"❌ No destination found for: {recycled_name}")
+                return False
+            
+            destination_path = Path(result[0])
+        
+        try:
+            # Ensure destination directory exists
+            destination_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            # Handle name conflicts
+            final_path = destination_path
+            if final_path.exists():
+                counter = 1
+                while final_path.exists():
+                    final_path = destination_path.with_name(
+                        f"{destination_path.stem}_{counter}{destination_path.suffix}"
+                    )
+                    counter += 1
+                print(f"⚠️  Destination occupied, saving as: {final_path.name}")
+            
+            # Move to final destination
+            shutil.move(str(recycled_path), str(final_path))
+            
+            # Mark as completed
+            with sqlite3.connect(self.metadata_file) as conn:
+                conn.execute("""
+                    UPDATE recycled_files 
+                    SET restored = TRUE, can_restore = FALSE 
+                    WHERE recycled_path = ?
+                """, (str(recycled_path),))
+                conn.commit()
+            
+            print(f"✅ Organized: {recycled_name} → {final_path}")
+            return True
+        
+        except Exception as e:
+            print(f"❌ Failed to complete organization for {recycled_name}: {e}")
+            return False
+    
+    def auto_cleanup_old_files(self):
+        """Automatically clean up old recycled files"""
+        cutoff_date = datetime.now() - timedelta(days=self.auto_cleanup_days)
+        
+        with sqlite3.connect(self.metadata_file) as conn:
+            cursor = conn.execute("""
+                SELECT recycled_path FROM recycled_files 
+                WHERE recycled_time < ? AND auto_cleanup_eligible = TRUE AND restored = FALSE
+            """, (cutoff_date.isoformat(),))
+            
+            old_files = [row[0] for row in cursor.fetchall()]
+        
+        cleaned_count = 0
+        for file_path_str in old_files:
+            file_path = Path(file_path_str)
+            if file_path.exists():
+                try:
+                    file_path.unlink()
+                    cleaned_count += 1
+                    
+                    # Mark as cleaned
+                    with sqlite3.connect(self.metadata_file) as conn:
+                        conn.execute("""
+                            UPDATE recycled_files 
+                            SET restored = TRUE, can_restore = FALSE 
+                            WHERE recycled_path = ?
+                        """, (file_path_str,))
+                        conn.commit()
+                
+                except Exception as e:
+                    print(f"⚠️  Failed to cleanup {file_path.name}: {e}")
+        
+        if cleaned_count > 0:
+            print(f"🧹 Auto-cleaned {cleaned_count} old recycled files")
+        
+        return cleaned_count
+    
+    def show_status(self):
+        """Show recycling status"""
+        recycled_files = self.list_recycled_files(100)
+        
+        print(f"♻️  FILE RECYCLING STATUS")
+        print(f"=" * 50)
+        print(f"📂 Recycling directory: {self.recycling_dir}")
+        print(f"📄 Currently recycled: {len(recycled_files)} files")
+        
+        if recycled_files:
+            total_size = sum(f['file_size'] for f in recycled_files)
+            print(f"💾 Total size: {total_size / (1024**2):.1f} MB")
+            
+            print(f"\n📋 Recent files:")
+            for file_record in recycled_files[:10]:
+                recycled_time = datetime.fromisoformat(file_record['recycled_time'])
+                age = datetime.now() - recycled_time
+                
+                print(f"   {Path(file_record['recycled_path']).name}")
+                print(f"     From: {file_record['original_path']}")
+                print(f"     Age: {age.days} days, {age.seconds // 3600} hours")
+        
+        print(f"\n💡 Commands:")
+        print(f"   --list: Show all recycled files")
+        print(f"   --restore <filename>: Restore file to original location") 
+        print(f"   --complete <filename>: Complete organization to intended destination")
+        print(f"   --cleanup: Remove files older than {self.auto_cleanup_days} days")
 
 def main():
     """Interactive recycling management"""
@@ -163,18 +357,35 @@ def main():
     parser = argparse.ArgumentParser(description="Safe File Recycling System")
     parser.add_argument('--list', action='store_true', help='List recycled files')
     parser.add_argument('--restore', help='Restore specific file')
+    parser.add_argument('--complete', help='Complete organization for specific file')
+    parser.add_argument('--cleanup', action='store_true', help='Clean up old files')
     parser.add_argument('--status', action='store_true', help='Show recycling status')
     
     args = parser.parse_args()
     
     recycling = SafeFileRecycling()
     
-    if args.status or len(sys.argv) == 1:
-        print("♻️  Safe File Recycling System")
-        print("==============================")
-        print("Files are moved here before organization for safety.")
-        print("Use --restore <filename> to undo file moves.")
-
+    if args.list:
+        recycled_files = recycling.list_recycled_files(50)
+        if not recycled_files:
+            print("✅ No files currently in recycling")
+        else:
+            print(f"📋 {len(recycled_files)} files in recycling:")
+            for file_record in recycled_files:
+                name = Path(file_record['recycled_path']).name
+                print(f"   {name} ({file_record['operation_type']}) - {file_record['reason']}")
+    
+    elif args.restore:
+        recycling.restore_file(args.restore)
+    
+    elif args.complete:
+        recycling.complete_organization(args.complete)
+    
+    elif args.cleanup:
+        recycling.auto_cleanup_old_files()
+    
+    elif args.status or len(sys.argv) == 1:
+        recycling.show_status()
 
 if __name__ == "__main__":
     main()
