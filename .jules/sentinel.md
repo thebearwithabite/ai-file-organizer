@@ -19,3 +19,8 @@
 **Prevention:**
 1. Always convert `pathlib.Path` objects to absolute strings using `str(path.absolute())` before passing them as arguments to `subprocess.run`.
 2. Absolute paths always begin with a directory separator (`/` on Unix) or a drive letter (`C:\` on Windows), guaranteeing the command-line tool parses them as file paths rather than flags or options.
+
+## 2024-05-30 - SQL Injection via Dynamic Dictionary Keys in SQLite
+**Vulnerability:** The `save_file_metadata` method dynamically constructed SQL `INSERT` statements by directly extracting keys from an unvalidated `metadata` dictionary. This allowed an attacker to inject arbitrary SQL statements (e.g., `SELECT` subqueries) as fake column names.
+**Learning:** When constructing dynamic SQL queries (e.g., `INSERT` or `UPDATE` with dynamically generated column names), standard `?` parameterization does not protect column keys. Relying on unvalidated external dictionary keys introduces critical SQL injection vulnerabilities.
+**Prevention:** Always use an explicit schema allowlist by fetching `PRAGMA table_info(table_name)` from the database to filter dynamic dictionary keys before constructing the SQL query.
