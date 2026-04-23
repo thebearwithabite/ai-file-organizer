@@ -467,7 +467,7 @@ class MetadataGenerator:
         
         try:
             with sqlite3.connect(self.db_path) as conn:
-                # Validate column names to prevent SQL injection
+                # Security: Validate columns against database schema to prevent SQL injection
                 cursor = conn.execute("PRAGMA table_info(file_metadata)")
                 valid_columns = {row[1] for row in cursor.fetchall()}
 
