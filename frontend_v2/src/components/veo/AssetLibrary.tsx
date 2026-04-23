@@ -237,8 +237,9 @@ const AssetCard = ({ asset, onRemove, onUpload }: AssetCardProps) => {
             <button
                 onClick={onRemove}
                 type="button"
-                className="absolute top-2 right-2 z-20 bg-black/60 backdrop-blur-md text-white/60 hover:text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-all border border-white/10 scale-90 group-hover:scale-100">
-                <XMarkIcon className="w-3 h-3" />
+                aria-label="Remove asset"
+                className="absolute top-2 right-2 z-20 bg-black/60 backdrop-blur-md text-white/60 hover:text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 focus-visible:scale-100 transition-all border border-white/10 scale-90 group-hover:scale-100 focus-visible:ring-2 focus-visible:ring-background/50 focus-visible:outline-none">
+                <XMarkIcon className="w-3 h-3" aria-hidden="true" />
             </button>
 
             <div className="aspect-[4/3] bg-black/40 relative overflow-hidden">
@@ -289,9 +290,10 @@ const AssetCard = ({ asset, onRemove, onUpload }: AssetCardProps) => {
                     <button
                         type="button"
                         onClick={handleCopyDescription}
-                        className="text-white/20 hover:text-white transition-colors flex-shrink-0 mt-0.5"
+                        aria-label="Copy description"
+                        className="text-white/20 hover:text-white transition-colors flex-shrink-0 mt-0.5 focus-visible:ring-2 focus-visible:ring-background/50 focus-visible:outline-none"
                         title="Copy Name & Description">
-                        {copied ? <CheckCircle2Icon className="w-3 h-3 text-green-400" /> : <ClipboardDocumentIcon className="w-3 h-3" />}
+                        {copied ? <CheckCircle2Icon className="w-3 h-3 text-green-400" aria-hidden="true" /> : <ClipboardDocumentIcon className="w-3 h-3" aria-hidden="true" />}
                     </button>
                 </div>
             </div>

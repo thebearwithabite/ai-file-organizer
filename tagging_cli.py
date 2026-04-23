@@ -122,28 +122,41 @@ def tag_directory(directory: str, recursive: bool = True, file_pattern: str = "*
     successful = 0
     failed = 0
     
-    for i, file_path in enumerate(files_to_tag, 1):
-        print(f"\n📄 [{i}/{len(files_to_tag)}] {file_path.name}")
+    # Process in batches
+    batch_size = 100
+    for i in range(0, len(files_to_tag), batch_size):
+        batch_files = files_to_tag[i:i + batch_size]
+        tagged_batch = []
         
-        try:
-            tagged_file = tagger.tag_file(file_path)
-            success = tagger.save_tagged_file(tagged_file)
-            
-            if success:
-                successful += 1
-                top_tags = sorted([(tag, tagged_file.confidence_scores.get(tag, 0)) 
-                                 for tag in tagged_file.auto_tags], 
-                                key=lambda x: x[1], reverse=True)[:3]
-                
-                print(f"   ✅ Tagged with {len(tagged_file.auto_tags)} auto tags")
-                print(f"      Top: {', '.join([f'{tag}({conf:.0%})' for tag, conf in top_tags])}")
-            else:
+        for j, file_path in enumerate(batch_files, 1):
+            print(f"\n📄 [{i+j}/{len(files_to_tag)}] {file_path.name}")
+            try:
+                tagged_file = tagger.tag_file(file_path)
+                if tagged_file:
+                    tagged_batch.append(tagged_file)
+
+                    top_tags = sorted([(tag, tagged_file.confidence_scores.get(tag, 0))
+                                     for tag in tagged_file.auto_tags],
+                                    key=lambda x: x[1], reverse=True)[:3]
+
+                    print(f"   ✅ Processed with {len(tagged_file.auto_tags)} auto tags")
+                    print(f"      Top: {', '.join([f'{tag}({conf:.0%})' for tag, conf in top_tags])}")
+                else:
+                    failed += 1
+                    print(f"   ❌ Failed to generate tags")
+            except Exception as e:
                 failed += 1
-                print(f"   ❌ Failed to save tags")
-        
-        except Exception as e:
-            failed += 1
-            print(f"   ❌ Error: {str(e)[:50]}...")
+                print(f"   ❌ Error processing: {str(e)[:50]}...")
+                
+        # Save batch
+        if tagged_batch:
+            success = tagger.save_tagged_files(tagged_batch)
+            if success:
+                successful += len(tagged_batch)
+                print(f"\n💾 Successfully saved batch of {len(tagged_batch)} files")
+            else:
+                failed += len(tagged_batch)
+                print(f"\n❌ Failed to save batch")
     
     print(f"\n📊 Tagging Summary:")
     print(f"   ✅ Successful: {successful}")

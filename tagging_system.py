@@ -475,6 +475,47 @@ class ComprehensiveTaggingSystem:
             print(f"❌ Error saving tagged file: {e}")
             return False
     
+    def save_tagged_files(self, tagged_files: List[TaggedFile]) -> bool:
+        """Save multiple tagged files to database efficiently"""
+        if not tagged_files:
+            return True
+
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                params = [
+                    (
+                        str(tf.file_path),
+                        tf.file_path.name,
+                        tf.file_path.suffix.lower(),
+                        tf.file_hash,
+                        json.dumps(tf.auto_tags),
+                        json.dumps(tf.user_tags),
+                        json.dumps(tf.confidence_scores),
+                        json.dumps(tf.tag_sources),
+                        tf.last_tagged.isoformat(),
+                        datetime.now().isoformat()
+                    )
+                    for tf in tagged_files
+                ]
+
+                conn.executemany("""
+                    INSERT OR REPLACE INTO file_tags
+                    (file_path, file_name, file_extension, file_hash, auto_tags, user_tags,
+                     confidence_scores, tag_sources, last_tagged, created_date)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, params)
+
+                # Update relationships and statistics
+                for tf in tagged_files:
+                    self._update_tag_relationships(tf, conn)
+                    self._update_tag_statistics(tf, conn)
+
+                conn.commit()
+            return True
+        except Exception as e:
+            print(f"❌ Error saving tagged files: {e}")
+            return False
+
     def _update_tag_relationships(self, tagged_file: TaggedFile, db_connection=None):
         """Update co-occurrence relationships between tags"""
         

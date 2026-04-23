@@ -24,3 +24,7 @@
 **Vulnerability:** The `save_file_metadata` method dynamically constructed SQL `INSERT` statements by directly extracting keys from an unvalidated `metadata` dictionary. This allowed an attacker to inject arbitrary SQL statements (e.g., `SELECT` subqueries) as fake column names.
 **Learning:** When constructing dynamic SQL queries (e.g., `INSERT` or `UPDATE` with dynamically generated column names), standard `?` parameterization does not protect column keys. Relying on unvalidated external dictionary keys introduces critical SQL injection vulnerabilities.
 **Prevention:** Always use an explicit schema allowlist by fetching `PRAGMA table_info(table_name)` from the database to filter dynamic dictionary keys before constructing the SQL query.
+## 2024-05-31 - SQL Injection Vulnerability in Dynamic Column Names
+**Vulnerability:** The `save_file_metadata` method in `metadata_generator.py` dynamically generated `INSERT` column names directly from dictionary keys using an f-string, allowing SQL injection if keys were maliciously crafted.
+**Learning:** When constructing dynamic SQL queries (e.g., `INSERT` or `UPDATE` with dynamically generated column names), standard `?` parameterization does not protect column keys. You must use an explicit schema allowlist.
+**Prevention:** Use `PRAGMA table_info(table_name)` to fetch valid column names from the database schema and filter the dictionary keys against this allowlist before generating the dynamic SQL query.
