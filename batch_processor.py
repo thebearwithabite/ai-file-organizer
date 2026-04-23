@@ -330,15 +330,49 @@ class BatchProcessor:
                 
                 self.current_progress.questions_asked += result.questions_asked
             
-            # Save result to database
-            self._save_file_result(job.job_id, result)
+            # Result saving is now deferred to batch
             
+            # Batch save periodically to prevent data loss on crash
+            if i > 0 and i % 50 == 0:
+                self._save_file_results_batch(job.job_id, results[-50:])
+
             # Show progress periodically
             if i % 10 == 0 or i == len(job.files) - 1:
                 self._show_progress()
         
+
+        # Save remaining results that weren't caught in the periodic batch saves
+        remainder = len(results) % 50
+        if results and remainder > 0:
+            self._save_file_results_batch(job.job_id, results[-remainder:])
+        elif results and len(results) < 50:
+            self._save_file_results_batch(job.job_id, results)
+
         return results
     
+
+    def _save_file_results_batch(self, job_id: str, results: List[FileResult]):
+        """Save multiple file processing results to database efficiently"""
+        if not results:
+            return
+
+        with sqlite3.connect(self.db_path) as conn:
+            params = [
+                (
+                    job_id, str(r.file_path), r.success, r.action_taken,
+                    r.error_message, r.classification, r.confidence,
+                    r.processing_time, r.questions_asked, datetime.now().isoformat()
+                )
+                for r in results
+            ]
+            conn.executemany("""
+                INSERT INTO file_results
+                (job_id, file_path, success, action_taken, error_message,
+                 classification, confidence, processing_time, questions_asked, processed_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, params)
+            conn.commit()
+
     def _process_parallel(self, job: BatchJob, max_workers: int) -> List[FileResult]:
         """Process files in parallel (for automatic modes only)"""
         results = []
@@ -374,9 +408,13 @@ class BatchProcessor:
                         if result.action_taken == "skipped":
                             self.current_progress.skipped += 1
                     
-                    # Save result
-                    self._save_file_result(job.job_id, result)
+                    # Result saving is now deferred to batch
                     
+                    # Batch save periodically to prevent data loss on crash
+                    if self.current_progress.processed % 50 == 0:
+                        # Save the last 50 results
+                        self._save_file_results_batch(job.job_id, results[-50:])
+
                     # Update progress display
                     if self.current_progress.processed % 10 == 0:
                         self._show_progress()
@@ -396,6 +434,14 @@ class BatchProcessor:
                         self.current_progress.processed += 1
                         self.current_progress.failed += 1
         
+
+        # Save remaining results that weren't caught in the periodic batch saves
+        remainder = len(results) % 50
+        if results and remainder > 0:
+            self._save_file_results_batch(job.job_id, results[-remainder:])
+        elif results and len(results) < 50:
+            self._save_file_results_batch(job.job_id, results)
+
         return results
     
     def _process_single_file(self, file_path: Path, job: BatchJob) -> FileResult:
