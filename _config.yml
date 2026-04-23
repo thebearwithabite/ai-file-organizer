@@ -1,0 +1,12 @@
+# Jekyll configuration for GitHub Pages
+# Exclude the GoogleDrive symlink (local macOS path) so Jekyll doesn't
+# try to follow it during the CI build.
+exclude:
+  - GoogleDrive
+  - "*.py"
+  - requirements.txt
+  - mkdocs.yml
+  - "*.applescript"
+  - venv/
+  - node_modules/
+  - frontend_v2/node_modules/
