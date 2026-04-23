@@ -4,3 +4,7 @@
 ## 2024-05-23 - Accessible Icon-Only Buttons in Custom Design System
 **Learning:** In the liquid glass design system, visually hidden icon-only buttons (like remove buttons on hover) require specific focus-visible utility classes (`focus-visible:opacity-100 focus-visible:scale-100`) combined with standard focus rings to remain keyboard accessible.
 **Action:** Always pair `group-hover:opacity-100` on hidden icon buttons with explicit `focus-visible:opacity-100` and standard focus ring utilities (`focus-visible:ring-2 focus-visible:ring-background/50 focus-visible:outline-none`) to ensure keyboard users can discover and interact with them. Apply `aria-hidden="true"` to the inner SVGs and `aria-label` to the buttons.
+## 2024-04-23 - Accessible Skip Button in Triage
+
+**Learning:** Icon-only buttons used for secondary actions (like skipping a file) are easily overlooked for accessibility, and default browser focus styles are often invisible on custom design system components lacking explicit `focus-visible` styling. Screen readers need a clear, action-oriented `aria-label`, and the inner SVG must be explicitly hidden (`aria-hidden="true"`) to prevent redundancy.
+**Action:** When adding or auditing icon-only utility buttons, consistently enforce the triad: `aria-label` on the button, `aria-hidden="true"` on the SVG, and explicit `focus-visible:ring-2 focus-visible:outline-none` styles for keyboard navigability.
