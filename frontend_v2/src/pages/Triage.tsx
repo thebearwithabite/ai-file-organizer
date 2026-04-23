@@ -440,10 +440,11 @@ export default function Triage() {
                     </button>
                     <button
                       onClick={() => handleSkip(file)}
-                      className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors"
+                      className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none"
                       title="Skip this file"
+                      aria-label="Skip this file"
                     >
-                      <XCircle size={18} className="text-white/60" />
+                      <XCircle size={18} className="text-white/60" aria-hidden="true" />
                     </button>
                   </div>
                 </div>
