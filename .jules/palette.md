@@ -8,3 +8,6 @@
 
 **Learning:** Icon-only buttons used for secondary actions (like skipping a file) are easily overlooked for accessibility, and default browser focus styles are often invisible on custom design system components lacking explicit `focus-visible` styling. Screen readers need a clear, action-oriented `aria-label`, and the inner SVG must be explicitly hidden (`aria-hidden="true"`) to prevent redundancy.
 **Action:** When adding or auditing icon-only utility buttons, consistently enforce the triad: `aria-label` on the button, `aria-hidden="true"` on the SVG, and explicit `focus-visible:ring-2 focus-visible:outline-none` styles for keyboard navigability.
+## 2024-05-18 - Forensic Vault Accessibility Improvements
+**Learning:** Icon-only interactive elements in the Forensic Vault component and list buttons frequently lacked distinct focus rings, hindering keyboard navigation for audit workflows.
+**Action:** Always apply explicit focus-visible states (`focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none`) and descriptive `aria-label`s to custom interactive list items.
