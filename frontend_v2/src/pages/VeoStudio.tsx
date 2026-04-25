@@ -308,7 +308,7 @@ const App: React.FC = () => {
       const sceneNamesData = await generateSceneNames(shotListData.result, scriptInput);
       const sceneMap = sceneNamesData.result.names;
 
-      let finalShots = [...initialShots];
+      const finalShots = [...initialShots];
       for (let i = 0; i < finalShots.length; i++) {
         if (stopGenerationRef.current) break;
         const shot = finalShots[i];
