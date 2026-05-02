@@ -40,7 +40,7 @@ export default function ConnectionStatus() {
             <button
                 onClick={checkConnection}
                 disabled={isChecking}
-                className="text-xs bg-background/20 hover:bg-background/30 px-2 py-1 rounded flex items-center gap-1 transition-colors"
+                className="text-xs bg-background/20 hover:bg-background/30 px-2 py-1 rounded flex items-center gap-1 transition-colors focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none"
             >
                 <RefreshCw className={`h-3 w-3 ${isChecking ? 'animate-spin' : ''}`} />
                 Retry Now
