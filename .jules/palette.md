@@ -8,3 +8,7 @@
 
 **Learning:** Icon-only buttons used for secondary actions (like skipping a file) are easily overlooked for accessibility, and default browser focus styles are often invisible on custom design system components lacking explicit `focus-visible` styling. Screen readers need a clear, action-oriented `aria-label`, and the inner SVG must be explicitly hidden (`aria-hidden="true"`) to prevent redundancy.
 **Action:** When adding or auditing icon-only utility buttons, consistently enforce the triad: `aria-label` on the button, `aria-hidden="true"` on the SVG, and explicit `focus-visible:ring-2 focus-visible:outline-none` styles for keyboard navigability.
+
+## 2024-05-02 - Ensure Focus Visibility in Error Banners
+**Learning:** Error states and persistent disconnected banners (like `ConnectionStatus.tsx`) often utilize standalone or ad-hoc button components that bypass standard design system components. These elements are easily missed during standard accessibility checks but are critically important during degraded system states when users rely heavily on keyboard navigation.
+**Action:** Whenever introducing or modifying non-standard error banners, always manually verify and inject explicit `focus-visible` styles (e.g., `focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none`) to interactive elements.
