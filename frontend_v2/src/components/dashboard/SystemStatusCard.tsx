@@ -107,7 +107,7 @@ export default function SystemStatusCard() {
             <button
               onClick={() => cleanupMutation.mutate()}
               disabled={cleanupMutation.isPending}
-              className="w-full flex items-center justify-center gap-2 px-3 py-2 mt-2 bg-warning/20 hover:bg-warning/30 border border-warning/30 rounded-lg text-xs font-medium text-warning transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center gap-2 px-3 py-2 mt-2 bg-warning/20 hover:bg-warning/30 border border-warning/30 rounded-lg text-xs font-medium text-warning transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-warning focus-visible:outline-none focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900"
             >
               <Trash2 size={14} />
               {cleanupMutation.isPending ? 'Freeing space...' : 'Free Up Space (Move to Google Drive)'}
