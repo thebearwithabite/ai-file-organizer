@@ -12,3 +12,6 @@
 ## 2024-05-02 - Ensure Focus Visibility in Error Banners
 **Learning:** Error states and persistent disconnected banners (like `ConnectionStatus.tsx`) often utilize standalone or ad-hoc button components that bypass standard design system components. These elements are easily missed during standard accessibility checks but are critically important during degraded system states when users rely heavily on keyboard navigation.
 **Action:** Whenever introducing or modifying non-standard error banners, always manually verify and inject explicit `focus-visible` styles (e.g., `focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none`) to interactive elements.
+## 2024-05-24 - Mocking API Responses for Visual Testing
+**Learning:** When using Playwright to test state-dependent frontend components (like error banners or disk space warnings that only appear when the API returns a critical state), the mock route pattern must exactly match the frontend's fetch path (e.g., `**/api/system/status` instead of `**/api/v1/system/status`). If the mock fails to intercept the request, the dependent UI elements will not render, and Playwright locators will time out.
+**Action:** Always verify the exact API path used by the frontend application before configuring Playwright route intercepts to ensure reliable visual testing of degraded or conditional UI states.

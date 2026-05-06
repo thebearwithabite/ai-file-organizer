@@ -177,7 +177,7 @@ export default function DiskSpaceWidget() {
           <button
             onClick={handleFreeUpSpace}
             disabled={isCleaning}
-            className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-all duration-200 ${status?.threshold_95
+            className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-all duration-200 focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 ${status?.threshold_95
               ? 'bg-destructive hover:bg-destructive/80 text-white shadow-lg'
               : 'bg-warning hover:bg-warning/80 text-black shadow-lg'
               } disabled:opacity-50 disabled:cursor-not-allowed`}
