@@ -12,3 +12,6 @@
 ## 2024-05-02 - Ensure Focus Visibility in Error Banners
 **Learning:** Error states and persistent disconnected banners (like `ConnectionStatus.tsx`) often utilize standalone or ad-hoc button components that bypass standard design system components. These elements are easily missed during standard accessibility checks but are critically important during degraded system states when users rely heavily on keyboard navigation.
 **Action:** Whenever introducing or modifying non-standard error banners, always manually verify and inject explicit `focus-visible` styles (e.g., `focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none`) to interactive elements.
+## 2024-05-20 - Icon-only buttons accessibility in TaxonomySettings
+**Learning:** Icon-only buttons for editing, renaming, and closing modals in the TaxonomySettings component lacked explicit `aria-label`s, focus indicators, and `aria-hidden` on inner SVGs. Custom UI often strips browser defaults, requiring explicit `focus-visible` classes.
+**Action:** Added `aria-label`s, `aria-hidden="true"` to inner SVGs, and explicit `focus-visible:ring-2 focus-visible:outline-none` classes to these buttons to ensure keyboard navigability and screen reader support.
