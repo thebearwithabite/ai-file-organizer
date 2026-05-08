@@ -96,21 +96,22 @@ export default function Search() {
       </div>
 
       {/* Search Form */}
-      <form onSubmit={handleSearch} className="relative">
+      <form onSubmit={handleSearch} className="relative" role="search">
         <div className="relative">
-          <SearchIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 text-white/40" size={20} />
+          <SearchIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 text-white/40" size={20} aria-hidden="true" />
           <input
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search for files... (e.g., 'Client Name contracts', 'creative project audio', 'payment terms')"
+            aria-label="Search for files"
             className="w-full pl-12 pr-4 py-4 bg-white/[0.07] backdrop-blur-xl border border-white/10 rounded-2xl text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary/50 shadow-glass"
           />
         </div>
         <button
           type="submit"
           disabled={query.trim().length === 0}
-          className="absolute right-2 top-1/2 transform -translate-y-1/2 px-6 py-2 bg-primary hover:bg-primary/90 rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="absolute right-2 top-1/2 transform -translate-y-1/2 px-6 py-2 bg-primary hover:bg-primary/90 rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none"
         >
           Search
         </button>

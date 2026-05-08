@@ -12,3 +12,6 @@
 ## 2024-05-02 - Ensure Focus Visibility in Error Banners
 **Learning:** Error states and persistent disconnected banners (like `ConnectionStatus.tsx`) often utilize standalone or ad-hoc button components that bypass standard design system components. These elements are easily missed during standard accessibility checks but are critically important during degraded system states when users rely heavily on keyboard navigation.
 **Action:** Whenever introducing or modifying non-standard error banners, always manually verify and inject explicit `focus-visible` styles (e.g., `focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none`) to interactive elements.
+## 2024-05-08 - Added Search Page Accessibility
+**Learning:** Isolated input fields in semantic forms without explicit `aria-label` attributes cause context loss for screen readers. Form tags acting as search need `role="search"`. Decorative elements need `aria-hidden="true"`.
+**Action:** Always ensure search inputs and isolated elements have explicit `aria-label` attributes and keyboard focus-visible styles, and ensure wrapper forms have `role="search"`.
