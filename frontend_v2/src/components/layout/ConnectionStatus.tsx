@@ -30,9 +30,13 @@ export default function ConnectionStatus() {
     if (isOnline) return null
 
     return (
-        <div className="bg-destructive text-destructive-foreground px-4 py-2 flex items-center justify-between shadow-md animate-in slide-in-from-top duration-300">
+        <div
+            className="bg-destructive text-destructive-foreground px-4 py-2 flex items-center justify-between shadow-md animate-in slide-in-from-top duration-300"
+            role="alert"
+            aria-live="assertive"
+        >
             <div className="flex items-center gap-2">
-                <AlertCircle className="h-4 w-4" />
+                <AlertCircle className="h-4 w-4" aria-hidden="true" />
                 <span className="text-sm font-medium">
                     Backend Disconnected. Trying to reconnect...
                 </span>
@@ -40,10 +44,11 @@ export default function ConnectionStatus() {
             <button
                 onClick={checkConnection}
                 disabled={isChecking}
-                className="text-xs bg-background/20 hover:bg-background/30 px-2 py-1 rounded flex items-center gap-1 transition-colors focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none"
+                aria-busy={isChecking}
+                className="text-xs bg-background/20 hover:bg-background/30 px-2 py-1 rounded flex items-center gap-1 transition-colors focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none disabled:opacity-70 disabled:cursor-not-allowed"
             >
-                <RefreshCw className={`h-3 w-3 ${isChecking ? 'animate-spin' : ''}`} />
-                Retry Now
+                <RefreshCw className={`h-3 w-3 ${isChecking ? 'animate-spin' : ''}`} aria-hidden="true" />
+                {isChecking ? 'Retrying...' : 'Retry Now'}
             </button>
         </div>
     )
