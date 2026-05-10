@@ -255,18 +255,18 @@ const AssetCard = ({ asset, onRemove, onUpload }: AssetCardProps) => {
                         <span className="text-[9px] font-black uppercase text-white/20 tracking-widest group-hover/upload:text-indigo-400">Upload Still</span>
                         <input
                             type="file"
-                            className="hidden"
+                            className="sr-only"
                             onChange={onUpload}
                             accept="image/png, image/jpeg, image/webp"
                         />
                     </label>
                 )}
                 {asset.image && (
-                    <label className="absolute bottom-2 right-2 bg-black/60 backdrop-blur-md p-2 rounded-full cursor-pointer hover:bg-indigo-600 border border-white/10 opacity-0 group-hover:opacity-100 transition-all scale-75 group-hover:scale-100">
+                    <label className="absolute bottom-2 right-2 bg-black/60 backdrop-blur-md p-2 rounded-full cursor-pointer hover:bg-indigo-600 border border-white/10 opacity-0 group-hover:opacity-100 focus-within:opacity-100 focus-within:scale-100 transition-all scale-75 group-hover:scale-100" aria-label="Upload replacement image">
                         <UploadCloudIcon className="w-3 h-3 text-white" />
                         <input
                             type="file"
-                            className="hidden"
+                            className="sr-only"
                             onChange={onUpload}
                             accept="image/png, image/jpeg, image/webp"
                         />
