@@ -131,6 +131,7 @@ export default function ForensicVault() {
                         onClick={loadFiles}
                         className="p-2.5 bg-white/5 border border-white/10 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-all"
                         title="Refresh Manifest"
+                        aria-label="Refresh Manifest"
                     >
                         <RefreshCw size={18} className={cn(loading && "animate-spin")} />
                     </button>
