@@ -126,6 +126,7 @@ export default function MediaPreview({ filePath, fileType }: MediaPreviewProps) 
                 <button
                     onClick={togglePlay}
                     className="p-2 hover:bg-white/10 rounded-full transition-colors text-white"
+                    aria-label={isPlaying ? "Pause" : "Play"}
                 >
                     {isPlaying ? <Pause size={20} /> : <Play size={20} />}
                 </button>
@@ -140,6 +141,7 @@ export default function MediaPreview({ filePath, fileType }: MediaPreviewProps) 
                 <button
                     onClick={toggleMute}
                     className="p-2 hover:bg-white/10 rounded-full transition-colors text-white/70"
+                    aria-label={isMuted ? "Unmute" : "Mute"}
                 >
                     {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
                 </button>
