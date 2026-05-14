@@ -12,3 +12,6 @@
 ## 2024-05-02 - Ensure Focus Visibility in Error Banners
 **Learning:** Error states and persistent disconnected banners (like `ConnectionStatus.tsx`) often utilize standalone or ad-hoc button components that bypass standard design system components. These elements are easily missed during standard accessibility checks but are critically important during degraded system states when users rely heavily on keyboard navigation.
 **Action:** Whenever introducing or modifying non-standard error banners, always manually verify and inject explicit `focus-visible` styles (e.g., `focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none`) to interactive elements.
+## 2024-05-24 - Accessible Custom File Upload Buttons
+**Learning:** Custom file upload buttons that use `<input type="file" className="hidden" />` wrapped in a `<label>` completely remove the input from the accessibility tree, making it impossible to focus via keyboard.
+**Action:** When creating custom file upload buttons, always use `className="sr-only"` on the input instead of `hidden`. Furthermore, apply `focus-within:ring-2` (and `focus-within:opacity-100` if the label is hidden behind hover states) to the wrapper `<label>` to ensure keyboard users receive clear focus indication.
