@@ -250,23 +250,23 @@ const AssetCard = ({ asset, onRemove, onUpload }: AssetCardProps) => {
                         className="w-full h-full object-cover opacity-60 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700"
                     />
                 ) : (
-                    <label className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 transition-all group/upload">
-                        <UploadCloudIcon className="w-8 h-8 text-white/10 mb-2 group-hover/upload:text-indigo-400 group-hover/upload:scale-110 transition-all duration-300" />
+                    <label className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 transition-all group/upload focus-within:bg-white/5 focus-within:ring-2 focus-within:ring-inset focus-within:ring-indigo-500">
+                        <UploadCloudIcon className="w-8 h-8 text-white/10 mb-2 group-hover/upload:text-indigo-400 group-hover/upload:scale-110 transition-all duration-300" aria-hidden="true" />
                         <span className="text-[9px] font-black uppercase text-white/20 tracking-widest group-hover/upload:text-indigo-400">Upload Still</span>
                         <input
                             type="file"
-                            className="hidden"
+                            className="sr-only"
                             onChange={onUpload}
                             accept="image/png, image/jpeg, image/webp"
                         />
                     </label>
                 )}
                 {asset.image && (
-                    <label className="absolute bottom-2 right-2 bg-black/60 backdrop-blur-md p-2 rounded-full cursor-pointer hover:bg-indigo-600 border border-white/10 opacity-0 group-hover:opacity-100 transition-all scale-75 group-hover:scale-100">
-                        <UploadCloudIcon className="w-3 h-3 text-white" />
+                    <label className="absolute bottom-2 right-2 bg-black/60 backdrop-blur-md p-2 rounded-full cursor-pointer hover:bg-indigo-600 border border-white/10 opacity-0 group-hover:opacity-100 focus-within:opacity-100 focus-within:scale-100 focus-within:ring-2 focus-within:ring-indigo-500 transition-all scale-75 group-hover:scale-100">
+                        <UploadCloudIcon className="w-3 h-3 text-white" aria-hidden="true" /><span className="sr-only">Upload replacement image</span>
                         <input
                             type="file"
-                            className="hidden"
+                            className="sr-only"
                             onChange={onUpload}
                             accept="image/png, image/jpeg, image/webp"
                         />
