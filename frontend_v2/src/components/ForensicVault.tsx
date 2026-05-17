@@ -129,10 +129,12 @@ export default function ForensicVault() {
                 <div className="flex items-center gap-3">
                     <button
                         onClick={loadFiles}
-                        className="p-2.5 bg-white/5 border border-white/10 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-all"
+                        disabled={loading}
+                        aria-label="Refresh Manifest"
+                        className="p-2.5 bg-white/5 border border-white/10 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-all focus-visible:ring-2 focus-visible:outline-none disabled:opacity-50"
                         title="Refresh Manifest"
                     >
-                        <RefreshCw size={18} className={cn(loading && "animate-spin")} />
+                        <RefreshCw size={18} aria-hidden="true" className={cn(loading && "animate-spin")} />
                     </button>
                 </div>
             </header>
@@ -141,16 +143,17 @@ export default function ForensicVault() {
                 {/* Sidebar: File List */}
                 <div className="w-80 border-r border-white/10 flex flex-col bg-black/20">
                     <div className="p-4 border-b border-white/5">
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                        <form role="search" onSubmit={(e) => e.preventDefault()} className="relative">
+                            <Search aria-hidden="true" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
                             <input
                                 type="text"
+                                aria-label="Search audit logs"
                                 placeholder="Search audit logs..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-2 text-sm text-white focus:outline-none focus:border-primary/50 transition-all"
+                                className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-2 text-sm text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 transition-all"
                             />
-                        </div>
+                        </form>
                     </div>
 
                     <div className="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar">
