@@ -15,3 +15,7 @@
 ## 2024-05-24 - Accessible Disconnected Banners
 **Learning:** Offline or disconnection warning banners (like `ConnectionStatus.tsx`) often bypass standard design system components and fail to announce themselves to screen readers upon mounting. Furthermore, their associated retry actions lack dynamic interaction text or explicit `aria-busy` state during asynchronous checks, leading to confusion during degraded system states.
 **Action:** Whenever introducing or modifying ad-hoc connection error banners, explicitly add `role="alert"` and `aria-live="assertive"` so screen readers announce them immediately. Any associated retry buttons must include `aria-busy`, explicit visual disabled states (`disabled:opacity-70`), and dynamic interaction text (e.g., "Retrying...") to provide clear feedback.
+
+## 2024-05-25 - Fix keyboard accessibility for hover-only "Copy JSON" button
+**Learning:** When a button is hidden using `opacity-0` and revealed on hover using `group-hover:opacity-100`, it remains invisible to users who rely on keyboard navigation (tabbing), making the action undiscoverable.
+**Action:** When using `opacity-0 group-hover:opacity-100` on a container to hide interactive children, always pair it with `focus-within:opacity-100` (and adjust any transform states like `focus-within:translate-y-0`) on the container. Additionally, ensure the child interactive element has explicit focus ring styles (e.g., `focus-visible:ring-2 focus-visible:outline-none`) to clearly indicate focus.
