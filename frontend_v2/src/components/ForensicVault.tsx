@@ -129,10 +129,11 @@ export default function ForensicVault() {
                 <div className="flex items-center gap-3">
                     <button
                         onClick={loadFiles}
-                        className="p-2.5 bg-white/5 border border-white/10 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-all"
+                        className="p-2.5 bg-white/5 border border-white/10 rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-all focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none"
                         title="Refresh Manifest"
+                        aria-label="Refresh Manifest"
                     >
-                        <RefreshCw size={18} className={cn(loading && "animate-spin")} />
+                        <RefreshCw size={18} className={cn(loading && "animate-spin")} aria-hidden="true" />
                     </button>
                 </div>
             </header>
