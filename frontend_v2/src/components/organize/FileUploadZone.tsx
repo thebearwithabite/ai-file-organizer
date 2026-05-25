@@ -1,7 +1,7 @@
 import { useCallback } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { useMutation } from '@tanstack/react-query'
-import { Upload, FileUp } from 'lucide-react'
+import { Upload, FileUp, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../../services/api'
 import { cn } from '../../lib/utils'
@@ -40,7 +40,7 @@ export default function FileUploadZone({ onClassificationComplete }: FileUploadZ
     <div
       {...getRootProps()}
       className={cn(
-        "border-2 border-dashed rounded-2xl p-12 text-center transition-all duration-300 cursor-pointer",
+        "border-2 border-dashed rounded-2xl p-12 text-center transition-all duration-300 cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900",
         isDragActive
           ? "border-primary bg-primary/10"
           : "border-white/20 hover:border-white/40",
@@ -50,24 +50,24 @@ export default function FileUploadZone({ onClassificationComplete }: FileUploadZ
       <input {...getInputProps()} />
 
       {isPending ? (
-        <>
-          <div className="text-5xl mb-4 animate-pulse">⏳</div>
+        <div aria-live="polite" aria-busy="true">
+          <Loader2 size={48} className="mx-auto mb-4 text-primary animate-spin" aria-hidden="true" />
           <p className="text-xl text-white/80 mb-2">Analyzing file...</p>
           <p className="text-sm text-white/40">AI is classifying your file</p>
-        </>
+        </div>
       ) : isDragActive ? (
         <>
-          <FileUp size={48} className="mx-auto mb-4 text-primary" />
+          <FileUp size={48} className="mx-auto mb-4 text-primary" aria-hidden="true" />
           <p className="text-xl text-primary font-semibold">Drop file here</p>
         </>
       ) : (
         <>
-          <Upload size={48} className="mx-auto mb-4 text-white/40" />
+          <Upload size={48} className="mx-auto mb-4 text-white/40" aria-hidden="true" />
           <p className="text-xl text-white mb-2 font-semibold">Drag & drop a file here</p>
           <p className="text-sm text-white/60 mb-4">or</p>
-          <button className="px-6 py-3 bg-primary hover:bg-primary-hover rounded-lg font-medium transition-colors">
+          <span className="inline-block px-6 py-3 bg-primary hover:bg-primary-hover rounded-lg font-medium transition-colors text-white">
             Browse Files
-          </button>
+          </span>
           <p className="text-xs text-white/40 mt-4">
             Supports: PDF, DOCX, Images, Audio, Video, and more
           </p>
