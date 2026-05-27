@@ -15,3 +15,6 @@
 ## 2024-05-24 - Accessible Disconnected Banners
 **Learning:** Offline or disconnection warning banners (like `ConnectionStatus.tsx`) often bypass standard design system components and fail to announce themselves to screen readers upon mounting. Furthermore, their associated retry actions lack dynamic interaction text or explicit `aria-busy` state during asynchronous checks, leading to confusion during degraded system states.
 **Action:** Whenever introducing or modifying ad-hoc connection error banners, explicitly add `role="alert"` and `aria-live="assertive"` so screen readers announce them immediately. Any associated retry buttons must include `aria-busy`, explicit visual disabled states (`disabled:opacity-70`), and dynamic interaction text (e.g., "Retrying...") to provide clear feedback.
+## 2024-05-27 - Keyboard Navigation in Custom Overlays
+**Learning:** Custom overlay UI components (like ClassificationPreview) often lack native browser focus rings and need explicit `focus-visible` definitions for primary interaction buttons, especially icon-only buttons which also omit `aria-label`s.
+**Action:** Always add explicit `focus-visible` utility classes and ensure icon-only control actions have a descriptive `aria-label` along with `aria-hidden="true"` on the SVG children in custom interactive panels.
