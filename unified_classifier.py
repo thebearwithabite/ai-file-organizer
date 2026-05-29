@@ -59,6 +59,50 @@ class UnifiedClassificationService:
         self.review_queue_path.parent.mkdir(parents=True, exist_ok=True)
 
         print("✅ Unified Classification Service Ready (lazy mode - analyzers will load on demand)")
+        
+        # Load exclusion rules
+        self.exclusion_rules = self._load_exclusion_rules()
+
+    def _load_exclusion_rules(self) -> Dict[str, Any]:
+        """Load exclusion rules from classification_rules.json"""
+        rules_file = Path(__file__).parent / "classification_rules.json"
+        if rules_file.exists():
+            try:
+                with open(rules_file, 'r') as f:
+                    data = json.load(f)
+                    return data.get('exclusion_rules', {})
+            except Exception as e:
+                print(f"⚠️ Failed to load exclusion rules: {e}")
+        return {}
+
+    def _is_excluded(self, file_path: Path) -> bool:
+        """Check if a file or its parent directories match exclusion patterns"""
+        path_str = str(file_path)
+        
+        # 1. Check directory patterns in any part of the path
+        dir_patterns = self.exclusion_rules.get('directory_patterns', [])
+        for part in file_path.parts:
+            for pattern in dir_patterns:
+                if pattern in part:
+                    return True
+
+        # 2. Check file patterns in the filename itself
+        file_patterns = self.exclusion_rules.get('file_patterns', [])
+        filename = file_path.name
+        for pattern in file_patterns:
+            if pattern in filename:
+                return True
+                
+        # 3. Check for marker files (.noai, .no_ai, _NOAI, _NO_AI) in parent directories
+        current = file_path.parent
+        # Root check: current.parent == current for root on Unix/Mac
+        while current and current != current.parent:
+            if (current / ".noai").exists() or (current / ".no_ai").exists() or \
+               (current / "_NOAI").exists() or (current / "_NO_AI").exists():
+                return True
+            current = current.parent
+            
+        return False
 
     @property
     def learning_system(self):
@@ -193,19 +237,7 @@ class UnifiedClassificationService:
         best_match = None
         
         for cat_id, meta in categories.items():
-            # Check Extension Match - BUT skip images (they MUST use vision)
-            if extension and extension.lower() in IMAGE_EXTENSIONS:
-                continue  # Force images through vision pipeline, not extension matching
-            if extension and extension in meta.get("extensions", []):
-                return {
-                    'source': f'Obvious Pattern ({meta.get("display_name")})',
-                    'category': cat_id, # Return ID as category
-                    'confidence': meta.get("confidence", 0.90),
-                    'reasoning': [f'Extension {extension} matches safe list'],
-                    'suggested_filename': file_path.name
-                }
-                
-            # Check Keyword Match
+            # Check Keyword Match First (Strong Signal)
             keywords = meta.get("keywords", [])
             for keyword in keywords:
                 if keyword and keyword.lower() in filename:
@@ -216,6 +248,23 @@ class UnifiedClassificationService:
                         'reasoning': [f'Filename contains "{keyword}"'],
                         'suggested_filename': file_path.name
                     }
+                    
+            # Check Extension Match (Weak Signal) - BUT skip images (they MUST use vision)
+            if extension and extension.lower() in IMAGE_EXTENSIONS:
+                continue  # Force images through vision pipeline
+            if extension and extension in meta.get("extensions", []):
+                # We store this as a fallback weak match, but keep searching for keyword matches
+                if best_match is None or best_match['confidence'] < 0.40:
+                    best_match = {
+                        'source': f'Obvious Pattern ({meta.get("display_name")})',
+                        'category': cat_id,
+                        'confidence': 0.40,  # Weak confidence so it requires review or AI confirmation
+                        'reasoning': [f'Extension {extension} matches safe list'],
+                        'suggested_filename': file_path.name
+                    }
+                    
+        if best_match:
+            return best_match
         
         return None
 
@@ -384,6 +433,18 @@ class UnifiedClassificationService:
             A dictionary containing the classification result with guaranteed 'confidence' field.
         """
         file_path = Path(file_path)
+        
+        # --- PHASE -1: Exclusion Check ---
+        if self._is_excluded(file_path):
+            print(f"🚫 File excluded by _NOAI or system boundary: {file_path.name}")
+            return {
+                "category": "excluded",
+                "confidence": 1.0,
+                "reasoning": ["File path matches exclusion rules (_NOAI, .noai, or system boundary)"],
+                "source": "Exclusion Engine",
+                "suggested_filename": file_path.name
+            }
+
         if not file_path.exists():
             return self._normalize_confidence(
                 {"error": "File not found", "category": "unknown", "confidence": 0.0},
@@ -474,7 +535,7 @@ class UnifiedClassificationService:
             return 'image'
         if extension in ['.mp4', '.mov', '.avi', '.mkv', '.webm', '.flv']:
             return 'video'
-        if extension in ['.pdf', '.docx', '.txt', '.md', '.html', '.htm', '.json', '.xml', '.py', '.js', '.ts', '.tsx', '.css']:
+        if extension in ['.pdf', '.docx', '.xlsx', '.xls', '.txt', '.md', '.html', '.htm', '.json', '.xml', '.py', '.js', '.ts', '.tsx', '.css']:
             return 'text'
         return 'generic'
 
@@ -593,17 +654,18 @@ class UnifiedClassificationService:
                         for cid, meta in all_cats.items()
                     ]
                 
-                # --- NEW: Offload to Remote Powerhouse (Ollama) if enabled ---
                 ai_result = None
+                
+                # --- Primary: Remote Powerhouse (Ollama) ---
                 if self.vision_analyzer and self.vision_analyzer.remote_enabled and self.vision_analyzer.remote_ip:
                     print(f"🛰️ Dispatching text analysis to remote 5090 ({self.vision_analyzer.remote_ip})...")
                     ai_result = self._classify_text_remote(full_text, file_path.name, allowed_categories)
                     if ai_result and ai_result.get('success'):
                         ai_result['source'] = f"Remote Powerhouse (Ollama)"
                     else:
-                        print("⚠️  Remote text analysis failed, falling back to Gemini.")
-                
-                # Fallback to SemanticTextAnalyzer (Gemini)
+                        print("⚠️  Remote text analysis failed or unavailable, falling back to Gemini.")
+                        
+                # --- Fallback: SemanticTextAnalyzer (Gemini) ---
                 if not ai_result or not ai_result.get('success'):
                     if self.semantic_text_enabled and self.semantic_text_analyzer:
                         print("✨ Engaging Semantic Text Analyzer (Gemini)...")
@@ -612,6 +674,9 @@ class UnifiedClassificationService:
                             filename=file_path.name,
                             allowed_categories=allowed_categories
                         )
+                        
+                        if not ai_result or not ai_result.get('success'):
+                            print("⚠️  Gemini text analysis failed.")
                 
                 if ai_result and ai_result.get("success"):
                     ai_category = ai_result.get("category")
@@ -629,16 +694,14 @@ class UnifiedClassificationService:
                             f"Reasoning: {ai_result.get('reasoning', '')}"
                         ]
                         
-                        # Use AI suggested filename if available
-                        if ai_result.get("suggested_filename"):
-                            return {
-                                'source': 'Semantic Text Analyzer (Gemini)',
-                                'category': best_category,
-                                'confidence': best_confidence,
-                                'reasoning': reasoning,
-                                'suggested_filename': ai_result.get("suggested_filename"),
-                                'keywords': ai_result.get("keywords", [])  # Return AI keywords
-                            }
+                        return {
+                            'source': ai_result.get('source', 'Semantic Text Analyzer (Gemini)'),
+                            'category': best_category,
+                            'confidence': best_confidence,
+                            'reasoning': reasoning,
+                            'suggested_filename': ai_result.get("suggested_filename", file_path.name),
+                            'keywords': ai_result.get("keywords", [])  # Return AI keywords
+                        }
 
             # Final Cleanup
             final_confidence = min(best_confidence, 1.0)
@@ -1072,9 +1135,9 @@ class UnifiedClassificationService:
             4. Suggest the BEST category ID from the list above. If NO category fits, suggest a new slug.
             5. Suggest a descriptive filename (IMPORTANT: preserve the extension).
             
-            Text Content (First 2000 chars):
+            Text Content (Sample):
             \"\"\"
-            {text[:2000]}
+            {text[:8000]}
             \"\"\"
             
             Output JSON Format:
@@ -1089,9 +1152,10 @@ class UnifiedClassificationService:
             }}
             """
 
+            text_model = getattr(self.vision_analyzer, 'remote_text_model', 'qwen3.5:9b')
             url = f"http://{self.vision_analyzer.remote_ip}:{self.vision_analyzer.remote_ollama_port}/api/generate"
             payload = {
-                "model": "qwen2.5:7b", # Using standard Qwen 2.5 for text
+                "model": text_model,
                 "prompt": prompt,
                 "stream": False,
                 "format": "json"
@@ -1100,8 +1164,29 @@ class UnifiedClassificationService:
             response = requests.post(url, json=payload, timeout=30)
             response.raise_for_status()
             
+            print(f"DEBUG: Ollama raw response: {response.text}")
+            
             result = response.json()
-            response_text = result.get("response", "{}")
+            response_text = result.get("response", "")
+            
+            # Ollama with reasoning models might place the output in "thinking" if format=json bugs out
+            if not response_text.strip() and "thinking" in result:
+                response_text = result.get("thinking", "")
+                
+            if not response_text.strip():
+                response_text = "{}"
+            
+            # Clean markdown JSON wrapping if present
+            response_text = response_text.strip()
+            if response_text.startswith("```json"):
+                response_text = response_text[7:]
+            if response_text.startswith("```"):
+                response_text = response_text[3:]
+            if response_text.endswith("```"):
+                response_text = response_text[:-3]
+            response_text = response_text.strip()
+            
+            print(f"DEBUG: response_text before JSON parse: {repr(response_text)}")
             
             import json
             parsed = json.loads(response_text)

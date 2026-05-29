@@ -3,6 +3,27 @@
   "created": "2025-09-01",
   "last_updated": "2025-09-01",
   "description": "Enhanced classification v3.0 - Based on User's actual file patterns, ADHD-optimized with real content analysis",
+  "exclusion_rules": {
+    "directory_patterns": [
+      "_NOAI",
+      "_NO_AI",
+      ".noai",
+      ".no_ai",
+      ".git",
+      ".obsidian",
+      "node_modules",
+      "__pycache__",
+      "venv",
+      ".venv"
+    ],
+    "file_patterns": [
+      ".noai",
+      ".no_ai",
+      "_NOAI",
+      "_NO_AI"
+    ],
+    "action": "skip_classification"
+  },
   "classification_rules": {
     "entertainment_industry": {
       "keywords": [
@@ -77,6 +98,10 @@
         "Tax Return",
         "Payroll",
         "Invoice",
+        "Quote",
+        "Estimate",
+        "Proposal",
+        "Bid",
         "Payment Report",
         "Bank Statement",
         "Bank Feed",
@@ -135,6 +160,8 @@
         "residual_payment": 0.9,
         "payroll": 0.9,
         "invoice": 0.85,
+        "quote": 0.85,
+        "estimate": 0.85,
         "receipt": 0.75,
         "refinery_llc": 0.85
       }

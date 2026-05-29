@@ -168,6 +168,18 @@ class TaxonomyService:
                 "extensions": [".pdf"],
                 "confidence": 0.90
             },
+            "biz_quotes": {
+                "id": "biz_quotes",
+                "display_name": "Quotes",
+                "folder_name": "Quotes",
+                "parent_path": "Business Management",
+                "path_fingerprint": "Business Management/Quotes",
+                "locked": False,
+                "aliases": ["Estimates", "Bids"],
+                "keywords": ["quote", "estimate", "bid", "proposal"],
+                "extensions": [".xlsx", ".xls", ".pdf"],
+                "confidence": 0.85
+            },
             "biz_financials": {
                 "id": "biz_financials",
                 "display_name": "Financials",

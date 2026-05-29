@@ -102,7 +102,7 @@ class ADHDFriendlyConfidenceSystem:
         
         # Emergency prevention triggers
         self.emergency_triggers = {
-            "disk_space_critical": 0.99,    # 99% disk usage (raised from 0.95 — APFS purgeable space causes false positives)
+            "disk_space_critical": 1.0,     # Disabled (100%+) — APFS purgeable space causes false positives
             "duplicate_crisis": 50,         # 50+ duplicates detected
             "downloads_overflow": 100,      # 100+ files in downloads
             "staging_overflow": 200,        # 200+ files in staging

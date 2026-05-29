@@ -17,7 +17,11 @@
                 "Archived_Clients",
                 "Financial",
                 "Legal",
-                "Admin"
+                "Admin",
+                "Taxes",
+                "Social_Media",
+                "Correspondence",
+                "Press"
             ]
         },
         "02_CREATIVE_PROJECTS": {
@@ -36,7 +40,10 @@
                 "Music_Beds",
                 "Foley",
                 "Voice_Samples",
-                "_Unsorted"
+                "Music_Downloads",
+                "Music_Projects",
+                "FX_Downloads",
+                "FX_Projects"
             ]
         },
         "04_VISUAL_ASSETS": {
@@ -44,7 +51,10 @@
             "subfolders": [
                 "Screenshots",
                 "Stock_Images",
-                "Video_Clips"
+                "Video_Clips",
+                "Project_Assets",
+                "Design_Assets",
+                "Reference_Images"
             ]
         },
         "05_DEVELOPMENT": {
@@ -52,8 +62,15 @@
             "subfolders": [
                 "AI_File_Organizer",
                 "VEO_Prompt_Machine",
+                "Repair-Skill Scaffolding",
+                "Local-LLM_Tools",
+                "Model_Alignment_Research",
+                "Web_Dev_Scripts",
+                "Python_Scripts",
+                "Scout",
                 "Notebooks",
-                "Scripts",
+                "Membranes",
+                "QuickEdit",
                 "Archives"
             ]
         },
@@ -67,8 +84,24 @@
                 "Tutorials"
             ]
         },
+        "AI_METADATA_SYSTEM": {
+            "purpose": "AI_METADATA_SYSTEM - EXCLUDED from processing",
+            "excluded": true
+        },
         "98_OBSIDIAN_VAULT": {
             "purpose": "Markdown notes - EXCLUDED from processing",
+            "excluded": true
+        },
+        "Vault_NOAI": {
+            "purpose": "Markdown notes - EXCLUDED from processing",
+            "excluded": true
+        },
+        "zz_Excluded": {
+            "purpose": "Markdown notes - EXCLUDED from processing",
+            "excluded": true
+        },
+        "99_PROJECTS": {
+            "purpose": "Projects - EXCLUDED from processing",
             "excluded": true
         },
         "99_ARCHIVE": {
@@ -96,7 +129,11 @@
                 "Audio/Masters",
                 "Scripts_Drafts",
                 "Visual_Assets",
-                "Promotion"
+                "Promotion",
+                "Production_Scripts",
+                "Unsorted_Clips",
+                "Masters",
+                "VOX"
             ]
         },
         "this_isnt_real": {
@@ -106,8 +143,15 @@
                 "isnt real",
                 "this isnt real"
             ],
-            "chapter_prefix": "CH",
-            "interlude_prefix": "INT"
+            "season_prefix": "S",
+            "episode_prefix": "EP",
+            "subfolders": [
+                "Scripts_Drafts",
+                "Scripts_Final",
+                "Clips",
+                "Project_Audio",
+                "Unsorted_Clips"
+            ]
         },
         "alignment_clinic": {
             "path": "02_CREATIVE_PROJECTS/Alignment_Clinic",

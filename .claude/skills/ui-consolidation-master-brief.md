@@ -4,13 +4,9 @@
 
 **Mission:** Transform the AI File Organizer from a collection of 70+ CLI tools into a unified, beautiful, ADHD-friendly web application that eliminates all terminal interactions.
 
-**User:** Ryan (Entertainment Manager + Creative Producer with ADHD)
-
-**Critical Context:** Ryan has not been able to use this powerful system because context-switching between 70+ CLI commands creates insurmountable cognitive load. This consolidation is not a "nice-to-have" — it's the difference between a system that works and one that doesn't.
-
 **Timeline:** 4 weeks (aggressive but achievable)
 
-**Success Metric:** Ryan can organize files, search content, manage VEO prompts, and control system settings **without ever opening the terminal**.
+**Success Metric:** You can organize files, search content, manage VEO prompts, and control system settings **without ever opening the terminal**.
 
 ---
 

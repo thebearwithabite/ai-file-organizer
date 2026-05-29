@@ -4,6 +4,7 @@ This is your comprehensive reference for all Python commands in the AI File Orga
 
 ## Quick Reference Index
 
+- [Unified Architecture](#unified-architecture) - Unified services and exclusion rules
 - [Core Organization](#core-organization) - Main file organization commands
 - [Search & Discovery](#search--discovery) - Finding files and content
 - [Computer Vision](#computer-vision) - Image and video analysis
@@ -15,6 +16,38 @@ This is your comprehensive reference for all Python commands in the AI File Orga
 - [Creative Tools](#creative-tools) - Story and creative content tools
 - [System Management](#system-management) - Status, monitoring, and maintenance
 - [Troubleshooting](#troubleshooting) - Common issues and solutions
+
+---
+
+## Unified Architecture
+
+### Metadata & Classification Services
+
+**Purpose**: Centralized services for metadata management and multi-engine classification.
+
+```bash
+# Verify database and schema health
+./venv/bin/python3 test_database_diagnostics.py
+
+# Run integration tests for unified services
+./venv/bin/python3 test_metadata.py
+
+# Orchestrate staging with unified logic
+./venv/bin/python3 orchestrate_staging.py --dry-run
+```
+
+### Exclusion Protocol (_NOAI)
+
+**Purpose**: Prevent AI analysis on specific directories for privacy or project safety.
+
+1.  **Folder-based**: Rename any directory to include `_NOAI` (e.g., `Private_Project_NOAI`).
+2.  **File-based**: Place an empty `.noai` file inside any directory.
+
+**Verification**:
+```bash
+# Test exclusion logic with a dry-run
+./venv/bin/python3 orchestrate_staging.py --dry-run --scan-folder path/to/excluded_dir
+```
 
 ---
 

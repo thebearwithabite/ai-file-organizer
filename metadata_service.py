@@ -47,7 +47,11 @@ class MetadataService:
                     CREATE TABLE IF NOT EXISTS file_metadata (
                         file_id TEXT PRIMARY KEY,
                         file_path TEXT NOT NULL,
-                        filename TEXT NOT NULL,
+                        filename TEXT, -- Relaxed for legacy compatibility
+                        file_name TEXT, -- Legacy compatibility
+                        file_type TEXT, -- Legacy compatibility
+                        file_size INTEGER, -- Legacy compatibility
+                        indexed_date TIMESTAMP, -- Legacy compatibility
                         category TEXT,
                         mood TEXT,
                         confidence REAL,
@@ -55,7 +59,15 @@ class MetadataService:
                         transcript TEXT,
                         metadata_json TEXT, -- All extended attributes
                         last_analyzed TIMESTAMP,
-                        sync_status TEXT DEFAULT 'pending'
+                        sync_status TEXT DEFAULT 'pending',
+                        -- Google Drive Integration Fields
+                        gdrive_upload BOOLEAN DEFAULT 0,
+                        gdrive_folder TEXT,
+                        gdrive_file_id TEXT,
+                        gdrive_category TEXT,
+                        gdrive_confidence REAL,
+                        upload_timestamp TIMESTAMP,
+                        space_freed_mb REAL
                     )
                 """)
                 
@@ -115,9 +127,12 @@ class MetadataService:
                 cursor = conn.cursor()
                 cursor.execute("""
                     INSERT INTO file_metadata (
-                        file_id, file_path, filename, category, mood, 
-                        confidence, tags, transcript, metadata_json, last_analyzed
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        file_id, file_path, filename, file_name, file_type, file_size, 
+                        indexed_date, category, mood, confidence, tags, transcript, 
+                        metadata_json, last_analyzed, gdrive_upload, gdrive_folder, 
+                        gdrive_file_id, gdrive_category, gdrive_confidence, 
+                        upload_timestamp, space_freed_mb
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(file_id) DO UPDATE SET
                         category=excluded.category,
                         mood=excluded.mood,
@@ -126,18 +141,36 @@ class MetadataService:
                         transcript=excluded.transcript,
                         metadata_json=excluded.metadata_json,
                         last_analyzed=excluded.last_analyzed,
-                        sync_status='pending'
+                        sync_status='pending',
+                        gdrive_upload=excluded.gdrive_upload,
+                        gdrive_folder=excluded.gdrive_folder,
+                        gdrive_file_id=excluded.gdrive_file_id,
+                        gdrive_category=excluded.gdrive_category,
+                        gdrive_confidence=excluded.gdrive_confidence,
+                        upload_timestamp=excluded.upload_timestamp,
+                        space_freed_mb=excluded.space_freed_mb
                 """, (
                     file_id,
                     str(path_obj),
                     path_obj.name,
+                    metadata.get('file_name', path_obj.name),
+                    metadata.get('file_type', 'unknown'),
+                    metadata.get('file_size', path_obj.stat().st_size if path_obj.exists() else 0),
+                    metadata.get('indexed_date', datetime.now().isoformat()),
                     metadata.get('category'),
                     metadata.get('mood'),
                     metadata.get('confidence', 0.0),
                     json.dumps(metadata.get('tags', [])),
                     metadata.get('transcript'),
                     json.dumps(metadata),
-                    datetime.now().isoformat()
+                    datetime.now().isoformat(),
+                    metadata.get('gdrive_upload', 0),
+                    metadata.get('gdrive_folder'),
+                    metadata.get('gdrive_file_id'),
+                    metadata.get('gdrive_category'),
+                    metadata.get('gdrive_confidence'),
+                    metadata.get('upload_timestamp'),
+                    metadata.get('space_freed_mb')
                 ))
                 conn.commit()
             
