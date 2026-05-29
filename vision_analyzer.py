@@ -81,6 +81,7 @@ Return a valid JSON object with this structure:
     "visual_style": "photo/screenshot/illustration/diagram/etc",
     "emotional_tone": "Mood or tone of the image",
     "suggested_category": "Pick the best ID from the ALLOWED CATEGORIES list",
+    "suggested_filename": "A short, descriptive snake_case filename with appropriate extension",
     "keywords": ["list", "of", "relevant", "keywords", "for", "search"]
 }}"""
 
@@ -110,6 +111,7 @@ Return a valid JSON object with this structure:
     "visual_style": "cinematic/amateur/professional/etc",
     "mood": "Emotional tone",
     "suggested_category": "Pick the best ID from the ALLOWED CATEGORIES list",
+    "suggested_filename": "A short, descriptive snake_case filename with appropriate extension",
     "keywords": ["list", "of", "relevant", "keywords"]
 }}"""
 
@@ -244,7 +246,16 @@ Return a valid JSON object with this structure:
                             self.remote_enabled = True
                             self.remote_ip = svc_ip
                             self.remote_ollama_port = svc.get("port", 11434)
-                            self.logger.info(f"🚀 Remote Ollama detected at {self.remote_ip}:{self.remote_ollama_port}")
+                            # Read the models from config
+                            models = svc.get("models", {})
+                            if models.get("vision"):
+                                self.remote_model = models.get("vision")
+                            if models.get("text"):
+                                self.remote_text_model = models.get("text")
+                            else:
+                                self.remote_text_model = "qwen3.5:9b"  # Fallback
+                                
+                            self.logger.info(f"🚀 Remote Ollama detected at {self.remote_ip}:{self.remote_ollama_port} (vision: {self.remote_model}, text: {self.remote_text_model})")
 
         except Exception as e:
             self.logger.warning(f"Failed to load remote powerhouse config: {e}")
@@ -731,9 +742,22 @@ Return a valid JSON object with this structure:
             response_data = response.json()
             analysis_text = response_data.get("response", "")
             
-            if not analysis_text:
+            if not analysis_text.strip() and "thinking" in response_data:
+                analysis_text = response_data.get("thinking", "")
+                
+            if not analysis_text.strip():
                 self.logger.warning(f"Ollama returned empty response: {response_data}")
                 return {"success": False, "error": "Empty response from Ollama"}
+                
+            # Clean markdown JSON wrapping if present
+            analysis_text = analysis_text.strip()
+            if analysis_text.startswith("```json"):
+                analysis_text = analysis_text[7:]
+            if analysis_text.startswith("```"):
+                analysis_text = analysis_text[3:]
+            if analysis_text.endswith("```"):
+                analysis_text = analysis_text[:-3]
+            analysis_text = analysis_text.strip()
             
             # Parse result using existing parsing logic
             result = self._parse_image_analysis(analysis_text, image_path)
@@ -1219,6 +1243,7 @@ Return a valid JSON object with this structure:
             text_content = data.get('text_content', '')
             keywords = data.get('keywords', [])
             suggested_category = data.get('suggested_category', 'photo')
+            suggested_filename = data.get('suggested_filename')
             
             # Calculate confidence
             confidence = 0.85 # High base confidence for structured JSON
@@ -1236,6 +1261,7 @@ Return a valid JSON object with this structure:
                 'confidence_score': confidence,
                 'keywords': keywords,
                 'suggested_category': suggested_category,
+                'suggested_filename': suggested_filename,
                 'metadata': {
                     'file_name': image_path.name,
                     'file_size': image_path.stat().st_size if image_path.exists() else 0,
@@ -1297,6 +1323,7 @@ Return a valid JSON object with this structure:
                 'confidence_score': confidence,
                 'keywords': keywords,
                 'suggested_category': detected_category,
+                'suggested_filename': None,
                 'metadata': {
                     'file_name': image_path.name,
                     'file_size': image_path.stat().st_size if image_path.exists() else 0,
@@ -1336,6 +1363,7 @@ Return a valid JSON object with this structure:
             scene_type = data.get('scene_type', 'video')
             keywords = data.get('keywords', [])
             suggested_category = data.get('suggested_category', 'video_recording')
+            suggested_filename = data.get('suggested_filename')
             
             # Calculate confidence
             confidence = 0.85 # High base confidence for structured JSON
@@ -1351,6 +1379,7 @@ Return a valid JSON object with this structure:
                 'confidence_score': confidence,
                 'keywords': keywords,
                 'suggested_category': suggested_category,
+                'suggested_filename': suggested_filename,
                 'metadata': {
                     'file_name': video_path.name,
                     'file_size': video_path.stat().st_size if video_path.exists() else 0,
@@ -1396,6 +1425,7 @@ Return a valid JSON object with this structure:
                 'confidence_score': confidence,
                 'keywords': keywords,
                 'suggested_category': detected_category,
+                'suggested_filename': None,
                 'metadata': {
                     'file_name': video_path.name,
                     'file_size': video_path.stat().st_size if video_path.exists() else 0,

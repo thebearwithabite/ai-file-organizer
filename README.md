@@ -1,11 +1,19 @@
-# AI File Organizer v3.2
-
-[![Run in Smithery](https://smithery.ai/badge/skills/thebearwithabite)](https://smithery.ai/skills?ns=thebearwithabite&utm_source=github&utm_medium=badge)
-
+<div align="center">
+  <img src="docs/assets/hero.png" alt="AI File Organizer Hero" width="600" style="border-radius: 12px; margin-bottom: 20px;" />
+  
+  # AI File Organizer
+  
+  **An ADHD-friendly AI librarian that organizes local files, tags metadata, and retrieves context in natural language, now featuring a standalone Agno RAG retrieval portal.**
+  
+  [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+  
+  [Quick Start](#-quick-start) · [Architecture](#-system-architecture) · [Agno RAG Retrieval](#-agno-rag-retrieval-loop) · [Video Scripts](#-video-production-planning)
+</div>
 
 ## 🎯 **What This System Actually Does**
 
-An ADHD-friendly AI file organizer that helps manage complex document workflows with semantic search, interactive classification, and complete safety rollbacks.
+An ADHD-friendly AI file organizer that helps manage complex document workflows with semantic search, interactive classification, complete safety rollbacks, and a natural language RAG (Retrieval-Augmented Generation) portal.
+
 
 **Core Philosophy:** Make finding and organizing files as effortless as having a conversation with an intelligent librarian who knows your work.
 
@@ -416,6 +424,44 @@ This is a specialized tool built for complex document workflows and ADHD accessi
 
 ---
 
+## 🤖 **Agno RAG Retrieval Loop**
+
+A standalone, portable Retrieval-Augmented Generation (RAG) agent built using the **Agno** framework. It interfaces with local file tools, indexes organized directories, and uses SQLite for local session storage.
+
+### Key Features
+*   **Gemini 2.5 Flash Engine**: Leverages Google's latest model for fast and context-aware responses.
+*   **Dynamic Database Resolution**: In compliance with local system rules, the sqlite session database (`archive_index.db`) is saved directly inside `~/AI_METADATA_SYSTEM/databases/` to avoid workspace pollution and cloud sync corruption.
+*   **Interactive Command Shell**: Ask questions, search metadata, and retrieve content summaries in plain English.
+
+### CLI Usage:
+```bash
+# Start the interactive query shell (RAG navigator)
+python agno_retrieval_loop.py
+
+# Query the archive directly for a specific search and exit
+python agno_retrieval_loop.py --query "Summarize the latest creative project files"
+
+# Scan a custom target directory
+python agno_retrieval_loop.py --dir ./custom_organized_files --query "List all files"
+```
+
+---
+
+## 🏛️ **System Architecture**
+
+For a detailed blueprint, design principles, and component breakdown, please refer to:
+*   📖 **[docs/architecture.md](docs/architecture.md)** — Core service details, Mermaid diagrams, and database isolation rules.
+
+---
+
+## 🎬 **Video Production Planning**
+
+Full script boards planned for demonstrating and marketing the AI File Organizer repository:
+*   🎥 **[docs/video-scripts/demo-video.md](docs/video-scripts/demo-video.md)** — Technical video script (3-5 minutes) showcasing workflow classification, confidence modes, and RAG search.
+*   📣 **[docs/video-scripts/promo-video.md](docs/video-scripts/promo-video.md)** — Promo/teaser script (60-90 seconds) focusing on ADHD-friendly productivity benefits and file organization.
+
+---
+
 ## 📜 **License**
 
 MIT License - Built with ❤️ for creative minds and anyone managing complex content workflows with ADHD.
@@ -423,3 +469,4 @@ MIT License - Built with ❤️ for creative minds and anyone managing complex c
 ---
 
 *From document chaos to intelligent organization. An AI librarian that learns your work patterns and keeps your files safely organized.*
+

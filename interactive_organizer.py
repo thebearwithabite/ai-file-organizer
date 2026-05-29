@@ -40,6 +40,7 @@ class ClassificationResult:
     confidence: float
     reasoning: List[str]
     suggested_path: str
+    suggested_filename: str = None
     tags: List[str] = field(default_factory=list)
     people: List[str] = field(default_factory=list)
     projects: List[str] = field(default_factory=list)
@@ -62,6 +63,9 @@ class InteractiveOrganizer:
         self.staging_monitor = StagingMonitor(str(self.base_dir))
         self.audio_analyzer = AudioAIAnalyzer(str(self.base_dir))
         self.recycling = SafeFileRecycling(str(self.base_dir))
+        
+        from confidence_system import ADHDFriendlyConfidenceSystem
+        self.confidence_system = ADHDFriendlyConfidenceSystem(str(self.base_dir))
         
         # ADHD-friendly safety mode (default on)
         self.use_recycling = True
@@ -186,7 +190,7 @@ class InteractiveOrganizer:
                 pass  # Use filename-based classification
             
             # Classify with Unified Service + Interaction
-            print(f"🤔 Analyzing file...")
+            print(f"🤔 Analyzing file: {file_path.name}...")
             classification = self._classify_and_interact(file_path, audio_analysis)
             
             # Enhanced classification for audio files
@@ -217,7 +221,8 @@ class InteractiveOrganizer:
                 self.session_stats['high_confidence'] += 1
             
             # Generate destination path
-            destination = self.base_dir / classification.suggested_path / file_path.name
+            target_filename = classification.suggested_filename if classification.suggested_filename else file_path.name
+            destination = self.base_dir / classification.suggested_path / target_filename
             
             # Check for duplicates
             if destination.exists():
@@ -230,10 +235,16 @@ class InteractiveOrganizer:
             # Show organization plan
             print(f"\n📋 Organization Plan:")
             print(f"   From: {file_path}")
+            if target_filename != file_path.name:
+                print(f"   ✨ RENAME: {file_path.name} -> \033[1m{target_filename}\033[0m")
             print(f"   To: {destination}")
-            print(f"   Category: {classification.category}")
-            print(f"   Confidence: {classification.confidence:.1f}%")
-            print(f"   Reasoning: {', '.join(classification.reasoning[:2])}")
+            print(f"   Category: \033[94m{classification.category}\033[0m")
+            print(f"   Confidence: \033[92m{classification.confidence:.1f}%\033[0m")
+            
+            if classification.reasoning:
+                print(f"   🧠 Reasoning:")
+                for r in classification.reasoning[:4]:
+                    print(f"     • {r}")
             
             if dry_run:
                 print(f"   🔍 DRY RUN - Would move file")
@@ -287,14 +298,13 @@ class InteractiveOrganizer:
         # 1. Get initial classification from Unified Service
         result_dict = self.classifier_service.classify_file(file_path)
         
-        # Parse the result
-        final = result_dict.get('final', {})
-        category = final.get('category', 'unknown')
-        confidence = final.get('confidence', 0.0) * 100 # Convert 0-1.0 to 0-100 scale
+        # Parse the result (UnifiedClassificationService returns a flat dictionary with fusion details)
+        category = result_dict.get('category', 'unknown')
+        confidence = result_dict.get('confidence', 0.0) * 100 # Convert 0-1.0 to 0-100 scale
         
-        trace = final.get('decision_trace', '')
-        reasoning = [trace] if trace else []
-        candidates = final.get('candidates', [])
+        trace = result_dict.get('fusion', {}).get('decision_trace', '')
+        reasoning = result_dict.get('reasoning', [])
+        candidates = result_dict.get('fusion', {}).get('candidates', [])
         
         # Add candidate info to reasoning
         for cand in candidates:
@@ -306,6 +316,7 @@ class InteractiveOrganizer:
             confidence=confidence,
             reasoning=reasoning,
             suggested_path=str(self.taxonomy_service.resolve_path(category)),
+            suggested_filename=result_dict.get('suggested_filename', file_path.name),
             tags=[category]
         )
 
@@ -334,8 +345,13 @@ class InteractiveOrganizer:
             # Update path based on new category
             result.suggested_path = str(self.taxonomy_service.resolve_path(result.category))
 
-        # 3. Interactive Questioning (Threshold: 65%)
-        if result.confidence < 65:
+        # 3. Dynamic Interactive Questioning based on ADHD Confidence System
+        confidence_level = self.confidence_system.determine_confidence_level(str(file_path))
+        threshold_config = self.confidence_system.thresholds.get(confidence_level, {})
+        auto_move_threshold = threshold_config.get("auto_move_threshold", 0.65) * 100 # Convert to percentage
+
+        if result.confidence < auto_move_threshold:
+            print(f"   ⚙️ Auto-move threshold for {confidence_level.name} is {auto_move_threshold}%. (Confidence: {result.confidence:.1f}%)")
             self._ask_user_questions(file_path, result, candidates)
             # Update path again in case user changed category
             result.suggested_path = str(self.taxonomy_service.resolve_path(result.category))

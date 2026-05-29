@@ -72,7 +72,7 @@ class PathConfig:
             
             # Database and storage (STRICTLY LOCAL)
             'metadata_db': metadata_root / 'databases' / 'metadata.db',
-            'vector_db': metadata_root / 'databases' / 'vector_store',
+            'vector_db': metadata_root / 'vector_db',
             
             # Configuration files
             'user_preferences': metadata_root / 'config' / 'user_preferences.json',

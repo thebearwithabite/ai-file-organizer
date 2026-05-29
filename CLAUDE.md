@@ -76,14 +76,16 @@ User has ADHD and managing file organization is genuinely difficult. This system
 - **Duplicate detection**: Prevents the anxiety of "did I already save this?"
 - **Apple Script integration**: Works within macOS workflow, no context switching
 
-## 🏗️ **System Architecture**
+## 🏗️ **System Architecture (Phase 4 - Unified & Stabilized)**
 
 ```
-📁 AI File Organizer v3.1 - Intelligent Learning Organizer (Phase 1, 2 & 3a COMPLETE)/
+📁 AI File Organizer v3.5 - Unified Architecture (STABLE)/
+├── 🗄️ MetadataService                  # Unified source of truth (SQLite + Sidecars)
+├── 🧠 UnifiedClassificationService      # Consolidated AI logic (Text/Vision/Audio)
+├── 🛡️ Exclusion Protocol (_NOAI)       # Strict boundary enforcement for project safety
+├── 🧩 Compatibility Shims              # Legacy bridges (MetadataGenerator, LibrarianCLI)
 ├── 🧠 Vector Database (ChromaDB)         # Semantic search engine
 ├── 📧 Email Integration (.emlx files)    # macOS Mail integration
-├── 📄 Document Processing               # PDFs, DOCX, scripts
-├── 🔮 Computer Vision (Gemini Vision)   # Image/video analysis (Phase 2)
 ├── ☁️ Google Drive Hybrid Integration    # 2TB cloud storage with local caching
 ├── 🌊 File Streaming Service            # On-demand cloud file access
 ├── 🔄 Background Sync Service           # Continuous synchronization
@@ -93,28 +95,25 @@ User has ADHD and managing file organization is genuinely difficult. This system
 ├── 🤔 Interactive Classification       # Asks questions until 85% confident
 ├── 🛡️ Easy Rollback System             # Complete file operation safety net
 ├── 🗂️ Hierarchical Organization        # Project → Episode → Media Type structure
-├── 🎓 Phase 1 Core Intelligence (OPERATIONAL)
+├── 🎓 Intelligence Systems
 │   ├── Universal Adaptive Learning      # Learns from all user interactions
 │   ├── 4-Level Confidence System       # NEVER/MINIMAL/SMART/ALWAYS modes
 │   ├── Adaptive Background Monitor     # Observes manual file movements
-│   ├── Emergency Space Protection      # Proactive disk management
-│   ├── Interactive Batch Processor     # Multi-file handling with preview
-│   └── Automated Deduplication Service # Intelligent duplicate detection
-├── 🔮 Phase 2 Vision Integration (OPERATIONAL)
-│   ├── Vision Analyzer (vision_analyzer.py) # Gemini Vision API integration
-│   ├── Visual Pattern Learning          # Learns from image/video classifications
-│   ├── Screenshot Understanding         # Analyzes UI screenshots and designs
-│   └── Entertainment Media Analysis     # Photos, videos, creative content
-└── 🎬 Phase 3a VEO Prompt Builder (OPERATIONAL)
+│   └── Emergency Space Protection      # Proactive disk management
+└── 🎬 Production Tools (VEO/Cinema)
     ├── VEO Prompt Generator            # Transform video clips into VEO 3.1 JSON
     ├── Shot Analysis System            # Camera movement, lighting, mood detection
     └── Hierarchical Library Organization # Project/episode-based video organization
 ```
 
-### Key Components:
+### Key Components (Phase 4 Unified):
 
 **Core Foundation:**
-- **enhanced_librarian.py**: Advanced semantic search with hybrid cloud/local capability
+- **metadata_service.py**: The final source of truth for all file metadata.
+- **unified_classifier.py**: Consolidated classification engine with text, vision, and audio capability.
+- **metadata_generator.py**: Compatibility bridge for legacy integration.
+- **enhanced_librarian.py**: Advanced semantic search with hybrid cloud/local capability.
+
 - **gdrive_integration.py**: Google Drive hybrid architecture (2TB cloud storage)
 - **vector_librarian.py**: The brain - semantic search with smart chunking
 - **email_extractor.py**: Reads macOS Mail for unified search
@@ -459,6 +458,18 @@ python easy_rollback_system.py --search "contract"  # Find operations on files c
 
 # Show today's operations only (helpful for debugging):
 python easy_rollback_system.py --today
+```
+
+### Agno RAG Retrieval Loop (RAG Navigation Portal):
+```bash
+# Start an interactive natural language query shell over organized files
+python agno_retrieval_loop.py
+
+# Query the archive directly for a specific search and exit
+python agno_retrieval_loop.py --query "Summarize the latest organized folder"
+
+# Point the agent to index a custom directory
+python agno_retrieval_loop.py --dir ./custom_folder --query "List all files in custom folder"
 ```
 
 ## 💡 **Real Examples**

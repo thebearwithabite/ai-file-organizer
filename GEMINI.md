@@ -10,7 +10,7 @@ The AI File Organizer is an advanced, intelligent file management system designe
 
 - **Language:** Python 3.11+
 - **AI/ML:**
-    - `sentence-transformers` for generating text embeddings.
+    - `sentence-transformers` for generati ng text embeddings.
     - `chromadb` as a vector store for semantic search.
     - `librosa` for advanced audio analysis.
     - `SpeechRecognition` for audio transcription.

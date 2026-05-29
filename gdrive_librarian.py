@@ -247,6 +247,148 @@ class GoogleDriveLibrarian:
                 json.dump(config, f, indent=2)
         except Exception as e:
             logger.error(f"❌ Could not save config: {e}")
+
+    def authenticate(self, credentials_file: str = None) -> bool:
+        """Authenticate with Google Drive (Legacy compatibility wrapper)"""
+        if credentials_file:
+            # Recreate auth service with specific credentials file if provided
+            from google_drive_auth import GoogleDriveAuth
+            self.auth_service = GoogleDriveAuth(credentials_file=credentials_file, config_dir=self.config_dir)
+            
+        try:
+            if not self.auth_service.is_authenticated:
+                result = self.auth_service.authenticate()
+                if not result:
+                    return False
+            return self.initialize()
+        except Exception as e:
+            logger.error(f"❌ Authentication failed: {e}")
+            return False
+
+    def get_storage_info(self) -> Optional[Dict[str, float]]:
+        """Get storage information (Legacy compatibility wrapper)"""
+        if not self._authenticated:
+            return None
+            
+        with self._status_lock:
+            if not self._cached_auth_info:
+                return None
+                
+            total = self._cached_auth_info.get('total_storage_gb', 0)
+            used = self._cached_auth_info.get('used_storage_gb', 0)
+            free = self._cached_auth_info.get('free_storage_gb', 0)
+            
+            return {
+                'total_gb': total,
+                'used_gb': used,
+                'available_gb': free,
+                'usage_percent': (used / total * 100) if total > 0 else 0
+            }
+
+    def get_drive_folders(self) -> Dict[str, str]:
+        """Get available Drive folders (Legacy compatibility wrapper)"""
+        if not self._authenticated:
+            return {}
+            
+        try:
+            service = self.auth_service.get_authenticated_service()
+            results = service.files().list(
+                q="mimeType='application/vnd.google-apps.folder' and trashed=false",
+                pageSize=100,
+                fields="files(id, name)"
+            ).execute()
+            
+            folders = {}
+            for f in results.get('files', []):
+                folders[f['name']] = f['id']
+            return folders
+        except Exception as e:
+            logger.error(f"❌ Failed to get folders: {e}")
+            return {}
+
+    def organize_downloads(self, directory: str = None, dry_run: bool = True) -> Dict[str, Any]:
+        """Organize files from Downloads to Drive (Legacy compatibility wrapper)"""
+        downloads_path = Path(directory) if directory else Path.home() / "Downloads"
+        
+        results = {'processed': 0, 'uploaded': 0, 'space_freed': 0.0}
+        if not downloads_path.exists():
+            return results
+            
+        for file_path in downloads_path.glob('*'):
+            if file_path.is_file() and not file_path.name.startswith('.'):
+                results['processed'] += 1
+                size_mb = file_path.stat().st_size / (1024 * 1024)
+                
+                if not dry_run:
+                    file_id = self.upload_file(str(file_path))
+                    if file_id:
+                        try:
+                            file_path.unlink()  # Free space
+                        except OSError as e:
+                            logger.error(f"Failed to delete {file_path}: {e}")
+                
+                results['uploaded'] += 1
+                results['space_freed'] += size_mb
+                
+        return results
+
+    def upload_file(self, file_path: str, folder_id: str = None) -> Optional[str]:
+        """Upload file to Google Drive (Legacy compatibility wrapper)"""
+        if not self._authenticated:
+            return None
+            
+        try:
+            from googleapiclient.http import MediaFileUpload
+            service = self.auth_service.get_authenticated_service()
+            
+            path = Path(file_path)
+            file_metadata = {'name': path.name}
+            if folder_id:
+                file_metadata['parents'] = [folder_id]
+                
+            media = MediaFileUpload(str(path), resumable=True)
+            
+            file = service.files().create(
+                body=file_metadata,
+                media_body=media,
+                fields='id'
+            ).execute()
+            
+            return file.get('id')
+        except Exception as e:
+            logger.error(f"❌ Failed to upload file: {e}")
+            return None
+
+    def search_drive(self, query: str, folder_id: str = None) -> List[Dict]:
+        """Legacy search method for CLI compatibility"""
+        try:
+            service = self.auth_service.get_authenticated_service()
+            
+            # Build Drive API search query
+            drive_query = f"name contains '{query}' or fullText contains '{query}'"
+            if folder_id:
+                drive_query = f"'{folder_id}' in parents and ({drive_query})"
+                
+            results = service.files().list(
+                q=drive_query,
+                pageSize=50,
+                fields='files(id,name,size,mimeType,createdTime,description)',
+                orderBy='createdTime desc'
+            ).execute()
+            
+            formatted_results = []
+            for f in results.get('files', []):
+                formatted_results.append({
+                    'id': f.get('id'),
+                    'name': f.get('name', 'Unknown'),
+                    'size': int(f.get('size', 0)),
+                    'created': f.get('createdTime'),
+                    'description': f.get('description', '')
+                })
+            return formatted_results
+        except Exception as e:
+            logger.error(f"❌ Drive search failed: {e}")
+            return []
     
     def initialize(self) -> bool:
         """

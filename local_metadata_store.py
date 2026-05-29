@@ -1082,6 +1082,55 @@ class LocalMetadataStore:
             (str(self.SCHEMA_VERSION),)
         )
     
+    def get_files_modified_since(self, timestamp: datetime) -> List[FileMetadata]:
+        """
+        Get files modified since a given timestamp
+        
+        Args:
+            timestamp: Cutoff time
+            
+        Returns:
+            list: List of FileMetadata objects
+        """
+        
+        try:
+            with self._get_cursor() as cursor:
+                cursor.execute("""
+                    SELECT * FROM files 
+                    WHERE modified_time > ? OR updated_at > ?
+                """, (timestamp.isoformat(), timestamp.isoformat()))
+                
+                results = []
+                for row in cursor.fetchall():
+                    # Create FileMetadata object from row
+                    # Note: Row factory gives us a dict-like object
+                    file_data = dict(row)
+                    
+                    # Convert string timestamps back to datetime objects if needed
+                    # SQLite often returns them as strings
+                    for date_field in ['modified_time', 'created_time', 'last_accessed', 'last_sync', 'created_at', 'updated_at']:
+                        if file_data.get(date_field) and isinstance(file_data[date_field], str):
+                            try:
+                                file_data[date_field] = datetime.fromisoformat(file_data[date_field])
+                            except ValueError:
+                                pass
+                    
+                    # Handle boolean and other types
+                    file_data['is_cached'] = bool(file_data.get('is_cached'))
+                    
+                    # Filter keys to match FileMetadata fields
+                    import inspect
+                    fields = inspect.signature(FileMetadata).parameters.keys()
+                    filtered_data = {k: v for k, v in file_data.items() if k in fields}
+                    
+                    results.append(FileMetadata(**filtered_data))
+                
+                return results
+                
+        except Exception as e:
+            logger.error(f"❌ Failed to get modified files: {e}")
+            return []
+
     def close(self):
         """Close database connections"""
         

@@ -52,6 +52,8 @@ class ContentExtractor:
             '.tsx': self._extract_code,
             '.html': self._extract_html,
             '.csv': self._extract_csv,
+            '.xlsx': self._extract_xlsx,
+            '.xls': self._extract_xlsx,
             '.json': self._extract_json,
             # Vision-based extractors
             '.png': self._extract_vision,
@@ -568,6 +570,51 @@ class ContentExtractor:
                 'method': 'csv_failed'
             }
     
+    def _extract_xlsx(self, file_path: Path) -> Dict[str, Any]:
+        """Extract text from Excel files (XLSX, XLS)"""
+        try:
+            import openpyxl
+            
+            text_parts = []
+            # read_only=True and data_only=True for speed and content focus
+            wb = openpyxl.load_workbook(file_path, data_only=True, read_only=True)
+            
+            for sheet in wb.worksheets:
+                text_parts.append(f"--- Sheet: {sheet.title} ---")
+                # Limit to 500 rows per sheet to prevent memory bloat
+                for row in sheet.iter_rows(max_row=500, values_only=True):
+                    row_text = ' '.join(str(cell) for cell in row if cell is not None)
+                    if row_text.strip():
+                        text_parts.append(row_text)
+            
+            text = '\n'.join(text_parts)
+            
+            return {
+                'success': True,
+                'text': text,
+                'metadata': {'format': 'xlsx', 'sheets': len(wb.worksheets)},
+                'method': 'openpyxl'
+            }
+            
+        except ImportError:
+            return {
+                'success': False,
+                'text': '',
+                'metadata': {'error': 'openpyxl not available'},
+                'method': 'none'
+            }
+        except Exception as e:
+            # Fallback to direct text read if it's actually a CSV renamed or something
+            try:
+                return self._extract_csv(file_path)
+            except:
+                return {
+                    'success': False,
+                    'text': '',
+                    'metadata': {'error': str(e)},
+                    'method': 'xlsx_failed'
+                }
+
     def _extract_json(self, file_path: Path) -> Dict[str, Any]:
         """Extract text from JSON files"""
         try:
