@@ -60,7 +60,7 @@ export default function FileAnalysisPanel() {
                 {/* Dropzone */}
                 <div
                     {...getRootProps()}
-                    className={`border-2 border-dashed rounded-xl p-12 text-center transition-all cursor-pointer ${isDragActive
+                    className={`border-2 border-dashed rounded-xl p-12 text-center transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none focus:outline-none ${isDragActive
                         ? 'border-primary bg-primary/10'
                         : 'border-white/10 hover:border-white/20 hover:bg-white/5'
                         }`}

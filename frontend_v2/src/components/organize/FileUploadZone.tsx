@@ -40,7 +40,7 @@ export default function FileUploadZone({ onClassificationComplete }: FileUploadZ
     <div
       {...getRootProps()}
       className={cn(
-        "border-2 border-dashed rounded-2xl p-12 text-center transition-all duration-300 cursor-pointer",
+        "border-2 border-dashed rounded-2xl p-12 text-center transition-all duration-300 cursor-pointer focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none focus:outline-none",
         isDragActive
           ? "border-primary bg-primary/10"
           : "border-white/20 hover:border-white/40",
@@ -65,9 +65,9 @@ export default function FileUploadZone({ onClassificationComplete }: FileUploadZ
           <Upload size={48} className="mx-auto mb-4 text-white/40" />
           <p className="text-xl text-white mb-2 font-semibold">Drag & drop a file here</p>
           <p className="text-sm text-white/60 mb-4">or</p>
-          <button className="px-6 py-3 bg-primary hover:bg-primary-hover rounded-lg font-medium transition-colors">
+          <span className="inline-block px-6 py-3 bg-primary hover:bg-primary-hover rounded-lg font-medium transition-colors">
             Browse Files
-          </button>
+          </span>
           <p className="text-xs text-white/40 mt-4">
             Supports: PDF, DOCX, Images, Audio, Video, and more
           </p>
