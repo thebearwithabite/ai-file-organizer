@@ -15,3 +15,6 @@
 ## 2024-05-24 - Accessible Disconnected Banners
 **Learning:** Offline or disconnection warning banners (like `ConnectionStatus.tsx`) often bypass standard design system components and fail to announce themselves to screen readers upon mounting. Furthermore, their associated retry actions lack dynamic interaction text or explicit `aria-busy` state during asynchronous checks, leading to confusion during degraded system states.
 **Action:** Whenever introducing or modifying ad-hoc connection error banners, explicitly add `role="alert"` and `aria-live="assertive"` so screen readers announce them immediately. Any associated retry buttons must include `aria-busy`, explicit visual disabled states (`disabled:opacity-70`), and dynamic interaction text (e.g., "Retrying...") to provide clear feedback.
+## 2024-05-31 - Add accessibility to icon-only buttons
+**Learning:** Icon-only buttons (like play/pause controls or X buttons) must have explicit `aria-label` or `title` attributes, their respective icons must have `aria-hidden="true"`, and the buttons must implement clear visual focus states (e.g., via `focus-visible`) for keyboard navigation.
+**Action:** Always verify that interactive icon-only elements have an accessible name and a clear focus indicator state.
