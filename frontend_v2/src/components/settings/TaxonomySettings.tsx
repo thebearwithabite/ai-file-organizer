@@ -167,7 +167,7 @@ export const TaxonomySettings: React.FC = () => {
                 </div>
                 <button
                     onClick={handleCreateOpen}
-                    className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-xl transition-colors font-medium"
+                    className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-xl transition-colors font-medium focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none"
                 >
                     <Plus size={18} />
                     Add New Category
@@ -219,7 +219,7 @@ export const TaxonomySettings: React.FC = () => {
                                             <button
                                                 onClick={() => handleEditOpen(cat)}
                                                 disabled={cat.locked}
-                                                className="p-2 hover:bg-white/10 rounded-lg text-white/60 hover:text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                                                className="p-2 hover:bg-white/10 rounded-lg text-white/60 hover:text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none"
                                                 title="Edit Metadata"
                                             >
                                                 <Edit size={18} />
@@ -227,7 +227,7 @@ export const TaxonomySettings: React.FC = () => {
                                             <button
                                                 onClick={() => handleRenameOpen(cat)}
                                                 disabled={cat.locked}
-                                                className="p-2 hover:bg-white/10 rounded-lg text-white/60 hover:text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                                                className="p-2 hover:bg-white/10 rounded-lg text-white/60 hover:text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none"
                                                 title="Rename Category & Folder"
                                             >
                                                 <FolderEdit size={18} />
@@ -247,7 +247,7 @@ export const TaxonomySettings: React.FC = () => {
                     <div className="bg-[#1a1a1a] border border-white/20 rounded-2xl w-full max-w-md shadow-2xl animate-in fade-in zoom-in duration-200">
                         <div className="flex justify-between items-center p-6 border-b border-white/10">
                             <h3 className="text-lg font-bold text-white">Edit Metadata: {editCategory.display_name}</h3>
-                            <button onClick={() => setEditCategory(null)} className="text-white/40 hover:text-white">
+                            <button onClick={() => setEditCategory(null)} className="text-white/40 hover:text-white focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none rounded-lg" aria-label="Close">
                                 <X size={20} />
                             </button>
                         </div>
@@ -274,8 +274,8 @@ export const TaxonomySettings: React.FC = () => {
                             </div>
                         </div>
                         <div className="flex justify-end gap-3 p-6 border-t border-white/10">
-                            <button onClick={() => setEditCategory(null)} className="px-4 py-2 text-white/60 hover:text-white transition-colors">Cancel</button>
-                            <button onClick={handleEditSave} className="flex items-center gap-2 px-6 py-2 bg-primary hover:bg-primary/90 text-white rounded-xl transition-colors font-medium">
+                            <button onClick={() => setEditCategory(null)} className="px-4 py-2 text-white/60 hover:text-white transition-colors focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none rounded-lg">Cancel</button>
+                            <button onClick={handleEditSave} className="flex items-center gap-2 px-6 py-2 bg-primary hover:bg-primary/90 text-white rounded-xl transition-colors font-medium focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none">
                                 <Save size={18} />
                                 Save Changes
                             </button>
@@ -290,7 +290,7 @@ export const TaxonomySettings: React.FC = () => {
                     <div className="bg-[#1a1a1a] border border-white/20 rounded-2xl w-full max-w-md shadow-2xl animate-in fade-in zoom-in duration-200">
                         <div className="flex justify-between items-center p-6 border-b border-white/10">
                             <h3 className="text-lg font-bold text-white">Rename Category</h3>
-                            <button onClick={() => setRenameCategory(null)} className="text-white/40 hover:text-white">
+                            <button onClick={() => setRenameCategory(null)} className="text-white/40 hover:text-white focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none rounded-lg" aria-label="Close">
                                 <X size={20} />
                             </button>
                         </div>
@@ -319,11 +319,11 @@ export const TaxonomySettings: React.FC = () => {
                             )}
                         </div>
                         <div className="flex justify-end gap-3 p-6 border-t border-white/10">
-                            <button onClick={() => setRenameCategory(null)} className="px-4 py-2 text-white/60 hover:text-white transition-colors">Close</button>
+                            <button onClick={() => setRenameCategory(null)} className="px-4 py-2 text-white/60 hover:text-white transition-colors focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none rounded-lg">Close</button>
                             <button
                                 onClick={handleRenameSubmit}
                                 disabled={renaming || !newName || newName === renameCategory.folder_name || renameResult?.status === 'success'}
-                                className="px-6 py-2 bg-destructive hover:bg-destructive/90 text-white rounded-xl transition-colors font-medium disabled:opacity-50"
+                                className="px-6 py-2 bg-destructive hover:bg-destructive/90 text-white rounded-xl transition-colors font-medium disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none"
                             >
                                 {renaming ? "Renaming..." : "Confirm Rename"}
                             </button>
@@ -338,7 +338,7 @@ export const TaxonomySettings: React.FC = () => {
                     <div className="bg-[#1a1a1a] border border-white/20 rounded-2xl w-full max-w-lg shadow-2xl animate-in fade-in zoom-in duration-200 max-h-[90vh] overflow-y-auto">
                         <div className="flex justify-between items-center p-6 border-b border-white/10 sticky top-0 bg-[#1a1a1a] z-10">
                             <h3 className="text-lg font-bold text-white">Add New Category</h3>
-                            <button onClick={() => setCreateDialogOpen(false)} className="text-white/40 hover:text-white">
+                            <button onClick={() => setCreateDialogOpen(false)} className="text-white/40 hover:text-white focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none rounded-lg" aria-label="Close">
                                 <X size={20} />
                             </button>
                         </div>
@@ -412,11 +412,11 @@ export const TaxonomySettings: React.FC = () => {
                             </div>
                         </div>
                         <div className="flex justify-end gap-3 p-6 border-t border-white/10 sticky bottom-0 bg-[#1a1a1a] z-10">
-                            <button onClick={() => setCreateDialogOpen(false)} className="px-4 py-2 text-white/60 hover:text-white transition-colors">Cancel</button>
+                            <button onClick={() => setCreateDialogOpen(false)} className="px-4 py-2 text-white/60 hover:text-white transition-colors focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none rounded-lg">Cancel</button>
                             <button
                                 onClick={handleCreateSubmit}
                                 disabled={creating || !newCategory.id || !newCategory.display_name || !newCategory.folder_name}
-                                className="px-6 py-2 bg-primary hover:bg-primary/90 text-white rounded-xl transition-colors font-medium"
+                                className="px-6 py-2 bg-primary hover:bg-primary/90 text-white rounded-xl transition-colors font-medium focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none"
                             >
                                 {creating ? "Creating..." : "Create Category"}
                             </button>
