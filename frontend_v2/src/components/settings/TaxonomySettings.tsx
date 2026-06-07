@@ -219,18 +219,20 @@ export const TaxonomySettings: React.FC = () => {
                                             <button
                                                 onClick={() => handleEditOpen(cat)}
                                                 disabled={cat.locked}
-                                                className="p-2 hover:bg-white/10 rounded-lg text-white/60 hover:text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                                                className="p-2 hover:bg-white/10 rounded-lg text-white/60 hover:text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-primary"
                                                 title="Edit Metadata"
+                                                aria-label={`Edit metadata for ${cat.display_name}`}
                                             >
-                                                <Edit size={18} />
+                                                <Edit size={18} aria-hidden="true" />
                                             </button>
                                             <button
                                                 onClick={() => handleRenameOpen(cat)}
                                                 disabled={cat.locked}
-                                                className="p-2 hover:bg-white/10 rounded-lg text-white/60 hover:text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                                                className="p-2 hover:bg-white/10 rounded-lg text-white/60 hover:text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-primary"
                                                 title="Rename Category & Folder"
+                                                aria-label={`Rename category and folder for ${cat.display_name}`}
                                             >
-                                                <FolderEdit size={18} />
+                                                <FolderEdit size={18} aria-hidden="true" />
                                             </button>
                                         </div>
                                     </td>
