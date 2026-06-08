@@ -141,16 +141,17 @@ export default function ForensicVault() {
                 {/* Sidebar: File List */}
                 <div className="w-80 border-r border-white/10 flex flex-col bg-black/20">
                     <div className="p-4 border-b border-white/5">
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                        <form role="search" className="relative" onSubmit={(e) => e.preventDefault()}>
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" aria-hidden="true" />
                             <input
                                 type="text"
                                 placeholder="Search audit logs..."
+                                aria-label="Search audit logs"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-2 text-sm text-white focus:outline-none focus:border-primary/50 transition-all"
                             />
-                        </div>
+                        </form>
                     </div>
 
                     <div className="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar">
