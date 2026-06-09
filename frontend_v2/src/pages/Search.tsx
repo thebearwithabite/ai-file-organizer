@@ -96,13 +96,14 @@ export default function Search() {
       </div>
 
       {/* Search Form */}
-      <form onSubmit={handleSearch} className="relative">
+      <form onSubmit={handleSearch} className="relative" role="search">
         <div className="relative">
-          <SearchIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 text-white/40" size={20} />
+          <SearchIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 text-white/40" size={20} aria-hidden="true" />
           <input
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            aria-label="Search files"
             placeholder="Search for files... (e.g., 'Client Name contracts', 'creative project audio', 'payment terms')"
             className="w-full pl-12 pr-4 py-4 bg-white/[0.07] backdrop-blur-xl border border-white/10 rounded-2xl text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-primary/50 shadow-glass"
           />
@@ -110,7 +111,7 @@ export default function Search() {
         <button
           type="submit"
           disabled={query.trim().length === 0}
-          className="absolute right-2 top-1/2 transform -translate-y-1/2 px-6 py-2 bg-primary hover:bg-primary/90 rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="absolute right-2 top-1/2 transform -translate-y-1/2 px-6 py-2 bg-primary hover:bg-primary/90 rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none"
         >
           Search
         </button>
@@ -120,7 +121,7 @@ export default function Search() {
       {!searchQuery && (
         <div className="bg-white/[0.05] backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-glass">
           <div className="flex items-center gap-2 mb-4">
-            <Sparkles size={20} className="text-primary" />
+            <Sparkles size={20} className="text-primary" aria-hidden="true" />
             <h3 className="text-sm font-medium text-white">Try these searches:</h3>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -138,7 +139,7 @@ export default function Search() {
                   setQuery(example)
                   setSearchQuery(example)
                 }}
-                className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm text-white/80 hover:text-white transition-colors"
+                className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm text-white/80 hover:text-white transition-colors focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none"
               >
                 {example}
               </button>
@@ -170,7 +171,7 @@ export default function Search() {
           {/* Results List */}
           {results.length === 0 ? (
             <div className="bg-white/[0.07] backdrop-blur-xl border border-white/10 rounded-2xl p-12 text-center shadow-glass">
-              <SearchIcon size={48} className="mx-auto text-white/40 mb-4" />
+              <SearchIcon size={48} className="mx-auto text-white/40 mb-4" aria-hidden="true" />
               <p className="text-white/80 font-medium mb-2">No results found</p>
               <p className="text-white/60 text-sm">Try a different search query or check your spelling</p>
             </div>
@@ -184,7 +185,7 @@ export default function Search() {
                   <div className="flex items-start gap-4">
                     {/* File Icon */}
                     <div className="p-4 bg-white/10 rounded-xl flex-shrink-0">
-                      <FileText size={32} className="text-blue-400" />
+                      <FileText size={32} className="text-blue-400" aria-hidden="true" />
                     </div>
 
                     {/* File Info */}
@@ -239,9 +240,9 @@ export default function Search() {
                       <div className="flex gap-3">
                         <button
                           onClick={() => handleOpenFile(result.local_path || result.drive_path)}
-                          className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 rounded-xl text-sm font-medium transition-colors"
+                          className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 rounded-xl text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none"
                         >
-                          <ExternalLink size={16} />
+                          <ExternalLink size={16} aria-hidden="true" />
                           Open File
                         </button>
                         <button
@@ -249,9 +250,9 @@ export default function Search() {
                             navigator.clipboard.writeText(result.local_path || result.drive_path)
                             toast.success('Path copied to clipboard')
                           }}
-                          className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-sm transition-colors"
+                          className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-sm transition-colors focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none"
                         >
-                          <FolderOpen size={16} />
+                          <FolderOpen size={16} aria-hidden="true" />
                           Copy Path
                         </button>
                       </div>
