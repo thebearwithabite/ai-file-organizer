@@ -1,0 +1,27 @@
+<<<<<<< SEARCH
+  return (
+    <div
+      {...getRootProps()}
+      className={cn(
+        "border-2 border-dashed rounded-2xl p-12 text-center transition-all duration-300 cursor-pointer",
+        isDragActive
+          ? "border-primary bg-primary/10"
+          : "border-white/20 hover:border-white/40",
+        isPending && "opacity-50 cursor-not-allowed"
+      )}
+    >
+      <input {...getInputProps()} />
+=======
+  return (
+    <div
+      {...getRootProps()}
+      className={cn(
+        "border-2 border-dashed rounded-2xl p-12 text-center transition-all duration-300 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900",
+        isDragActive
+          ? "border-primary bg-primary/10"
+          : "border-white/20 hover:border-white/40",
+        isPending && "opacity-50 cursor-not-allowed"
+      )}
+    >
+      <input {...getInputProps()} className="sr-only" />
+>>>>>>> REPLACE
