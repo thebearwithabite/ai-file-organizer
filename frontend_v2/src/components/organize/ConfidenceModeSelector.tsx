@@ -40,7 +40,7 @@ export default function ConfidenceModeSelector() {
   const [selectedMode, setSelectedMode] = useState('smart')
 
   const { mutate: updateMode } = useMutation({
-    mutationFn: (mode: string) => api.setConfidenceMode(mode as any),
+    mutationFn: (mode: string) => api.setConfidenceMode(mode as "never" | "minimal" | "smart" | "always"),
     onSuccess: () => {
       toast.success('Confidence mode updated')
     },
@@ -64,7 +64,7 @@ export default function ConfidenceModeSelector() {
             key={mode.value}
             onClick={() => handleModeChange(mode.value)}
             className={cn(
-              "w-full text-left p-4 rounded-xl border-2 transition-all",
+              "w-full text-left p-4 rounded-xl border-2 transition-all focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900",
               selectedMode === mode.value
                 ? "border-primary bg-primary/10"
                 : "border-white/10 bg-white/[0.05] hover:border-white/20"
