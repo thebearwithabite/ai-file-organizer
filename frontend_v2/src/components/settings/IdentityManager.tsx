@@ -187,15 +187,17 @@ export default function IdentityManager() {
                                 <div className="flex gap-1">
                                     <button
                                         onClick={() => handleOpenDialog(identity)}
-                                        className="p-1.5 text-white/40 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                                        aria-label="Edit entity"
+                                        className="p-1.5 text-white/40 hover:text-white hover:bg-white/10 rounded-lg transition-colors focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-white/50"
                                     >
-                                        <Edit2 size={14} />
+                                        <Edit2 size={14} aria-hidden="true" />
                                     </button>
                                     <button
                                         onClick={() => handleDelete(identity.id)}
-                                        className="p-1.5 text-white/40 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
+                                        aria-label="Delete entity"
+                                        className="p-1.5 text-white/40 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-white/50"
                                     >
-                                        <Trash2 size={14} />
+                                        <Trash2 size={14} aria-hidden="true" />
                                     </button>
                                 </div>
                             </div>
@@ -239,9 +241,10 @@ export default function IdentityManager() {
                             </h2>
                             <button
                                 onClick={() => setIsDialogOpen(false)}
-                                className="p-2 text-white/40 hover:text-white transition-colors"
+                                aria-label="Close dialog"
+                                className="p-2 text-white/40 hover:text-white transition-colors focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-white/50 rounded-lg"
                             >
-                                <X size={20} />
+                                <X size={20} aria-hidden="true" />
                             </button>
                         </div>
 
