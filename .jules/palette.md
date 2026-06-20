@@ -15,3 +15,6 @@
 ## 2024-05-24 - Accessible Disconnected Banners
 **Learning:** Offline or disconnection warning banners (like `ConnectionStatus.tsx`) often bypass standard design system components and fail to announce themselves to screen readers upon mounting. Furthermore, their associated retry actions lack dynamic interaction text or explicit `aria-busy` state during asynchronous checks, leading to confusion during degraded system states.
 **Action:** Whenever introducing or modifying ad-hoc connection error banners, explicitly add `role="alert"` and `aria-live="assertive"` so screen readers announce them immediately. Any associated retry buttons must include `aria-busy`, explicit visual disabled states (`disabled:opacity-70`), and dynamic interaction text (e.g., "Retrying...") to provide clear feedback.
+## 2024-06-20 - Ensure Keyboard Navigation Uses focus-visible Utility Classes
+**Learning:** Interactive components built without standard HTML controls (e.g. ad-hoc tabs, custom dropdowns) often lose default browser keyboard focus rings.
+**Action:** Always ensure that interactive elements manually mapped to `<button>` or custom components have explicit `focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-primary` utility classes to satisfy basic keyboard accessibility requirements without compromising the mouse/touch visual design.

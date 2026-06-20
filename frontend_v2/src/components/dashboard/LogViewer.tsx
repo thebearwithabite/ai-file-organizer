@@ -92,7 +92,7 @@ export default function LogViewer() {
                         <button
                             key={tab}
                             onClick={() => setActiveTab(tab)}
-                            className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${activeTab === tab
+                            className={`px-3 py-1 text-xs font-medium rounded-md transition-all focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none ${activeTab === tab
                                 ? 'bg-white/10 text-white shadow-sm'
                                 : 'text-white/40 hover:text-white/70'
                                 }`}
