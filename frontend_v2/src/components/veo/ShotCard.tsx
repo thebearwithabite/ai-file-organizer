@@ -102,7 +102,7 @@ const ShotCard: React.FC<ShotCardProps> = ({
                                     setCopyButtonText('Copied!');
                                     setTimeout(() => setCopyButtonText('Copy JSON'), 2000);
                                 }}
-                                className="px-3 py-1.5 bg-white/10 backdrop-blur-md rounded-lg hover:bg-white/20 text-white text-[9px] font-black uppercase tracking-widest transition-all"
+                                className="px-3 py-1.5 bg-white/10 backdrop-blur-md rounded-lg hover:bg-white/20 text-white text-[9px] font-black uppercase tracking-widest transition-all focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none"
                             >
                                 {copyButtonText}
                             </button>
@@ -114,14 +114,14 @@ const ShotCard: React.FC<ShotCardProps> = ({
                             {!shot.isApproved ? (
                                 <button
                                     onClick={() => onApproveShot(shot.id, true)}
-                                    className="px-8 py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-2xl text-[10px] uppercase tracking-widest italic transition-all shadow-[0_10px_30px_rgba(79,70,229,0.3)]"
+                                    className="px-8 py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-2xl text-[10px] uppercase tracking-widest italic transition-all shadow-[0_10px_30px_rgba(79,70,229,0.3)] focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:outline-none"
                                 >
                                     Lock Sequence
                                 </button>
                             ) : (
                                 <button
                                     onClick={() => onApproveShot(shot.id, false)}
-                                    className="px-8 py-3.5 bg-white/5 text-white/40 hover:text-white rounded-2xl text-[10px] font-black uppercase tracking-widest border border-white/5 transition-all"
+                                    className="px-8 py-3.5 bg-white/5 text-white/40 hover:text-white rounded-2xl text-[10px] font-black uppercase tracking-widest border border-white/5 transition-all focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none"
                                 >
                                     Unlock
                                 </button>
@@ -133,7 +133,7 @@ const ShotCard: React.FC<ShotCardProps> = ({
                                 <button
                                     onClick={() => onGenerateVideo(shot.id, useKeyframeAsReference)}
                                     disabled={!shot.isApproved}
-                                    className={`px-8 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest italic transition-all ${shot.isApproved ? 'bg-pink-600 hover:bg-pink-500 text-white shadow-[0_10px_30px_rgba(219,39,119,0.3)]' : 'bg-white/5 text-white/5 cursor-not-allowed'}`}
+                                    className={`px-8 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest italic transition-all focus-visible:ring-2 focus-visible:ring-pink-400 focus-visible:outline-none ${shot.isApproved ? 'bg-pink-600 hover:bg-pink-500 text-white shadow-[0_10px_30px_rgba(219,39,119,0.3)]' : 'bg-white/5 text-white/5 cursor-not-allowed'}`}
                                 >
                                     Generate Video
                                 </button>
