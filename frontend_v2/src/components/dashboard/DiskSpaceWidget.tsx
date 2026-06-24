@@ -102,12 +102,16 @@ export default function DiskSpaceWidget() {
       <div className="flex items-center gap-2 mb-4">
         <HardDrive size={20} className="text-purple-400" />
         <h2 className="text-xl font-semibold text-white">Disk Space Protection</h2>
-        <div className="group relative ml-auto">
-          <Info size={16} className="text-white/40 hover:text-white/60 cursor-help transition-colors" />
-          <div className="invisible group-hover:visible absolute right-0 top-6 w-72 p-3 bg-black/90 backdrop-blur-xl border border-white/20 rounded-lg text-xs text-white/80 z-10 shadow-xl">
+        <button
+          type="button"
+          className="group relative ml-auto focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none rounded"
+          aria-label="Disk space protection info"
+        >
+          <Info size={16} aria-hidden="true" className="text-white/40 group-hover:text-white/60 group-focus-visible:text-white/60 cursor-help transition-colors" />
+          <div className="invisible group-hover:visible group-focus:visible absolute right-0 top-6 w-72 p-3 bg-black/90 backdrop-blur-xl border border-white/20 rounded-lg text-xs text-white/80 z-10 shadow-xl text-left pointer-events-none">
             Monitors disk space and prevents "disk full" crises. Automatically protects against space issues before they happen. ADHD-friendly: eliminates panic moments from sudden space issues.
           </div>
-        </div>
+        </button>
       </div>
 
       {/* Disk Usage Stats */}
@@ -177,7 +181,7 @@ export default function DiskSpaceWidget() {
           <button
             onClick={handleFreeUpSpace}
             disabled={isCleaning}
-            className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-all duration-200 ${status?.threshold_95
+            className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-all duration-200 focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 ${status?.threshold_95
               ? 'bg-destructive hover:bg-destructive/80 text-white shadow-lg'
               : 'bg-warning hover:bg-warning/80 text-black shadow-lg'
               } disabled:opacity-50 disabled:cursor-not-allowed`}
