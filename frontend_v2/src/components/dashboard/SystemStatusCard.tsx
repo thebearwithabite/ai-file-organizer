@@ -60,7 +60,7 @@ export default function SystemStatusCard() {
         <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/10">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-blue-500/20 rounded-lg">
-              <Cloud size={18} className="text-blue-400" />
+              <Cloud size={18} className="text-blue-400" aria-hidden="true" />
             </div>
             <div>
               <div className="text-sm font-medium text-white">Google Drive</div>
@@ -69,14 +69,14 @@ export default function SystemStatusCard() {
               </div>
             </div>
           </div>
-          <div className={`w-2 h-2 rounded-full ${status?.google_drive?.connected ? 'bg-success' : 'bg-destructive'}`} />
+          <div aria-hidden="true" className={`w-2 h-2 rounded-full ${status?.google_drive?.connected ? 'bg-success' : 'bg-destructive'}`} />
         </div>
 
         {/* Disk Space */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <HardDrive size={20} className="text-purple-400" />
+              <HardDrive size={20} className="text-purple-400" aria-hidden="true" />
               <div>
                 <div className="text-sm font-medium text-white">Disk Space</div>
                 <div className="text-xs text-white/60">
@@ -109,7 +109,7 @@ export default function SystemStatusCard() {
               disabled={cleanupMutation.isPending}
               className="w-full flex items-center justify-center gap-2 px-3 py-2 mt-2 bg-warning/20 hover:bg-warning/30 border border-warning/30 rounded-lg text-xs font-medium text-warning transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Trash2 size={14} />
+              <Trash2 size={14} aria-hidden="true" />
               {cleanupMutation.isPending ? 'Freeing space...' : 'Free Up Space (Move to Google Drive)'}
             </button>
           )}
@@ -118,19 +118,19 @@ export default function SystemStatusCard() {
         {/* Background Services */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Activity size={20} className="text-green-400" />
+            <Activity size={20} className="text-green-400" aria-hidden="true" />
             <div>
               <div className="text-sm font-medium text-white">Background Services</div>
               <div className="text-xs text-white/60">3 services running</div>
             </div>
           </div>
-          <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
+          <div aria-hidden="true" className="w-2 h-2 rounded-full bg-success animate-pulse" />
         </div>
 
         {/* Orchestration Status */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Activity size={20} className="text-blue-400" />
+            <Activity size={20} className="text-blue-400" aria-hidden="true" />
             <div>
               <div className="text-sm font-medium text-white">Last Orchestration</div>
               <div className="text-xs text-white/60">
@@ -140,7 +140,7 @@ export default function SystemStatusCard() {
               </div>
             </div>
           </div>
-          <div className={`w-2 h-2 rounded-full ${status.orchestration?.status === 'running' ? 'bg-blue-400 animate-pulse' : 'bg-white/20'}`} />
+          <div aria-hidden="true" className={`w-2 h-2 rounded-full ${status.orchestration?.status === 'running' ? 'bg-blue-400 animate-pulse' : 'bg-white/20'}`} />
         </div>
 
         {/* Confidence Mode */}
