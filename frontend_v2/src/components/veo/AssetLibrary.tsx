@@ -165,6 +165,7 @@ const AssetLibrary: React.FC<AssetLibraryProps> = ({
                                     <div className="bg-white/5 rounded-2xl border border-indigo-500/30 p-4 flex flex-col justify-center gap-3 animate-in fade-in zoom-in-95 duration-200 backdrop-blur-md">
                                         <p className="text-[10px] font-black text-white/40 uppercase tracking-widest leading-none">New {section.label.slice(0, -1)}:</p>
                                         <input
+                                            aria-label="Asset name"
                                             autoFocus
                                             type="text"
                                             className="bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 w-full font-medium"

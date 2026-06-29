@@ -115,8 +115,8 @@ const VeoProjectForm: React.FC<VeoProjectFormProps> = ({
                     />
 
                     <div className="mt-10 flex flex-col md:flex-row justify-between items-center gap-6 relative z-10">
-                        <label className="flex items-center gap-4 cursor-pointer group">
-                            <input type="checkbox" checked={createKeyframes} onChange={(e) => setCreateKeyframes(e.target.checked)} className="hidden" />
+                        <label className="flex items-center gap-4 cursor-pointer group" htmlFor="create-keyframes">
+                            <input id="create-keyframes" type="checkbox" checked={createKeyframes} onChange={(e) => setCreateKeyframes(e.target.checked)} className="hidden" />
                             <div className={`w-12 h-6 rounded-full transition-all border p-1 flex items-center ${createKeyframes ? 'bg-indigo-600 border-indigo-400' : 'bg-black/60 border-white/10'}`}>
                                 <div className={`w-4 h-4 bg-white rounded-full transition-all duration-300 shadow-md ${createKeyframes ? 'translate-x-6' : 'translate-x-0'}`}></div>
                             </div>

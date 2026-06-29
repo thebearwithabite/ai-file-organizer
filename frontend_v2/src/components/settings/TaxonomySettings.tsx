@@ -253,8 +253,8 @@ export const TaxonomySettings: React.FC = () => {
                         </div>
                         <div className="p-6 space-y-4">
                             <div>
-                                <label className="block text-sm font-medium text-white/60 mb-1.5 text-left">Aliases (comma separated)</label>
-                                <input
+                                <label htmlFor="edit-aliases" className="block text-sm font-medium text-white/60 mb-1.5 text-left">Aliases (comma separated)</label>
+                                <input id="edit-aliases"
                                     type="text"
                                     value={editAliases}
                                     onChange={(e) => setEditAliases(e.target.value)}
@@ -263,8 +263,8 @@ export const TaxonomySettings: React.FC = () => {
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-white/60 mb-1.5 text-left">Keywords (comma separated)</label>
-                                <input
+                                <label htmlFor="edit-keywords" className="block text-sm font-medium text-white/60 mb-1.5 text-left">Keywords (comma separated)</label>
+                                <input id="edit-keywords"
                                     type="text"
                                     value={editKeywords}
                                     onChange={(e) => setEditKeywords(e.target.value)}
@@ -302,8 +302,8 @@ export const TaxonomySettings: React.FC = () => {
                                 </div>
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-white/60 mb-1.5 text-left">New Folder Name</label>
-                                <input
+                                <label htmlFor="new-folder-name" className="block text-sm font-medium text-white/60 mb-1.5 text-left">New Folder Name</label>
+                                <input id="new-folder-name"
                                     type="text"
                                     value={newName}
                                     onChange={(e) => setNewName(e.target.value)}
@@ -351,8 +351,8 @@ export const TaxonomySettings: React.FC = () => {
                             )}
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div className="sm:col-span-2">
-                                    <label className="block text-sm font-medium text-white/60 mb-1.5 text-left">Category ID (unique_slug)</label>
-                                    <input
+                                    <label htmlFor="new-category-id" className="block text-sm font-medium text-white/60 mb-1.5 text-left">Category ID (unique_slug)</label>
+                                    <input id="new-category-id"
                                         type="text"
                                         value={newCategory.id}
                                         onChange={(e) => setNewCategory({ ...newCategory, id: e.target.value })}
@@ -362,8 +362,8 @@ export const TaxonomySettings: React.FC = () => {
                                     <p className="mt-1 text-xs text-white/40">Lowercase + underscores</p>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-white/60 mb-1.5 text-left">Display Name</label>
-                                    <input
+                                    <label htmlFor="new-display-name" className="block text-sm font-medium text-white/60 mb-1.5 text-left">Display Name</label>
+                                    <input id="new-display-name"
                                         type="text"
                                         value={newCategory.display_name}
                                         onChange={(e) => setNewCategory({ ...newCategory, display_name: e.target.value })}
@@ -372,8 +372,8 @@ export const TaxonomySettings: React.FC = () => {
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-white/60 mb-1.5 text-left">Folder Name</label>
-                                    <input
+                                    <label htmlFor="new-folder-name-create" className="block text-sm font-medium text-white/60 mb-1.5 text-left">Folder Name</label>
+                                    <input id="new-folder-name-create"
                                         type="text"
                                         value={newCategory.folder_name}
                                         onChange={(e) => setNewCategory({ ...newCategory, folder_name: e.target.value })}
@@ -382,8 +382,8 @@ export const TaxonomySettings: React.FC = () => {
                                     />
                                 </div>
                                 <div className="sm:col-span-2">
-                                    <label className="block text-sm font-medium text-white/60 mb-1.5 text-left">Parent Path (optional)</label>
-                                    <input
+                                    <label htmlFor="new-parent-path" className="block text-sm font-medium text-white/60 mb-1.5 text-left">Parent Path (optional)</label>
+                                    <input id="new-parent-path"
                                         type="text"
                                         value={newCategory.parent_path}
                                         onChange={(e) => setNewCategory({ ...newCategory, parent_path: e.target.value })}
@@ -392,8 +392,8 @@ export const TaxonomySettings: React.FC = () => {
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-white/60 mb-1.5 text-left">Aliases</label>
-                                    <input
+                                    <label htmlFor="new-aliases" className="block text-sm font-medium text-white/60 mb-1.5 text-left">Aliases</label>
+                                    <input id="new-aliases"
                                         type="text"
                                         value={newCategory.aliases}
                                         onChange={(e) => setNewCategory({ ...newCategory, aliases: e.target.value })}
@@ -401,8 +401,8 @@ export const TaxonomySettings: React.FC = () => {
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-white/60 mb-1.5 text-left">Keywords</label>
-                                    <input
+                                    <label htmlFor="new-keywords" className="block text-sm font-medium text-white/60 mb-1.5 text-left">Keywords</label>
+                                    <input id="new-keywords"
                                         type="text"
                                         value={newCategory.keywords}
                                         onChange={(e) => setNewCategory({ ...newCategory, keywords: e.target.value })}
