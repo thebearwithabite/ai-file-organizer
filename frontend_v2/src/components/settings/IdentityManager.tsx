@@ -149,6 +149,7 @@ export default function IdentityManager() {
                 <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
                 <input
                     type="text"
+                    aria-label="Search entities"
                     placeholder="Search entities by name or system ID..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}

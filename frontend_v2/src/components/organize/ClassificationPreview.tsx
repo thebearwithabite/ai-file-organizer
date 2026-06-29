@@ -132,8 +132,9 @@ export default function ClassificationPreview({ result, onClose }: Classificatio
         </div>
 
         <div>
-          <label className="text-xs text-white/50 mb-1 block">Project Name</label>
+          <label htmlFor="project-input" className="text-xs text-white/50 mb-1 block">Project Name</label>
           <input
+            id="project-input"
             type="text"
             list="project-suggestions"
             value={project}
@@ -149,8 +150,9 @@ export default function ClassificationPreview({ result, onClose }: Classificatio
         </div>
 
         <div>
-          <label className="text-xs text-white/50 mb-1 block">Episode/Version</label>
+          <label htmlFor="episode-input" className="text-xs text-white/50 mb-1 block">Episode/Version</label>
           <input
+            id="episode-input"
             type="text"
             value={episode}
             onChange={(e) => setEpisode(e.target.value)}
