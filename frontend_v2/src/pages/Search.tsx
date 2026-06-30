@@ -53,9 +53,9 @@ export default function Search() {
     try {
       await api.openFile(filePath)
       toast.success('Opening file...')
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast.error('Failed to open file', {
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unknown error',
       })
     }
   }
@@ -96,11 +96,12 @@ export default function Search() {
       </div>
 
       {/* Search Form */}
-      <form onSubmit={handleSearch} className="relative">
+      <form role="search" onSubmit={handleSearch} className="relative">
         <div className="relative">
-          <SearchIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 text-white/40" size={20} />
+          <SearchIcon aria-hidden="true" className="absolute left-4 top-1/2 transform -translate-y-1/2 text-white/40" size={20} />
           <input
             type="text"
+            aria-label="Search query"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search for files... (e.g., 'Client Name contracts', 'creative project audio', 'payment terms')"
@@ -110,7 +111,7 @@ export default function Search() {
         <button
           type="submit"
           disabled={query.trim().length === 0}
-          className="absolute right-2 top-1/2 transform -translate-y-1/2 px-6 py-2 bg-primary hover:bg-primary/90 rounded-xl font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="absolute right-2 top-1/2 transform -translate-y-1/2 px-6 py-2 bg-primary hover:bg-primary/90 rounded-xl font-medium transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Search
         </button>
@@ -138,7 +139,7 @@ export default function Search() {
                   setQuery(example)
                   setSearchQuery(example)
                 }}
-                className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm text-white/80 hover:text-white transition-colors"
+                className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm text-white/80 hover:text-white transition-colors focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none"
               >
                 {example}
               </button>
