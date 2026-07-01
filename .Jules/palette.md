@@ -1,0 +1,3 @@
+## 2025-07-01 - Confidence Mode Selector Keyboard Accessibility
+**Learning:** Custom interactive components mapped as lists of buttons (like the `ConfidenceModeSelector`) frequently omit default `focus-visible` styles, rendering them invisible to keyboard navigation. We also noticed an implicit `any` type casting on the backend API call parameter for the selector component.
+**Action:** Always add explicit `focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none` utilities to custom button selectors in Tailwind. Replace `any` casts with proper type imports like `ConfidenceMode` to ensure type safety.
