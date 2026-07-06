@@ -53,9 +53,9 @@ export default function Search() {
     try {
       await api.openFile(filePath)
       toast.success('Opening file...')
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast.error('Failed to open file', {
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unknown error',
       })
     }
   }
@@ -96,10 +96,11 @@ export default function Search() {
       </div>
 
       {/* Search Form */}
-      <form onSubmit={handleSearch} className="relative">
+      <form role="search" onSubmit={handleSearch} className="relative">
         <div className="relative">
           <SearchIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 text-white/40" size={20} />
           <input
+            aria-label="Search for files"
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
