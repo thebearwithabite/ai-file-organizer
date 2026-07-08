@@ -118,12 +118,12 @@ export default function ConfidenceModeSwitcher() {
       <div className="flex items-center gap-2 mb-4">
         <Sliders size={20} className="text-primary" />
         <h2 className="text-xl font-semibold text-white">Confidence Mode</h2>
-        <div className="group relative ml-auto">
-          <Info size={16} className="text-white/40 hover:text-white/60 cursor-help transition-colors" />
-          <div className="invisible group-hover:visible absolute right-0 top-6 w-72 p-3 bg-black/90 backdrop-blur-xl border border-white/20 rounded-lg text-xs text-white/80 z-10 shadow-xl">
+        <button type="button" aria-label="More information" className="group relative ml-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-full">
+          <Info size={16} className="text-white/40 group-hover:text-white/60 cursor-help transition-colors" />
+          <div className="invisible group-hover:visible group-focus:visible absolute right-0 top-6 w-72 p-3 bg-black/90 backdrop-blur-xl border border-white/20 rounded-lg text-xs text-white/80 z-10 shadow-xl">
             Controls how often the AI asks for your input during file organization. ADHD-friendly modes help reduce decision fatigue while maintaining accuracy.
           </div>
-        </div>
+        </button>
       </div>
 
       <p className="text-white/60 text-sm mb-6">
