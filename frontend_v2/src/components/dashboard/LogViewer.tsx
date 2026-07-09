@@ -87,12 +87,14 @@ export default function LogViewer() {
                     <h2 className="text-xl font-semibold text-white">System Logs</h2>
                 </div>
 
-                <div className="flex bg-white/5 p-1 rounded-lg">
+                <div className="flex bg-white/5 p-1 rounded-lg" role="tablist" aria-label="Log categories">
                     {(['all', 'maintenance', 'emergency'] as const).map(tab => (
                         <button
                             key={tab}
+                            role="tab"
+                            aria-selected={activeTab === tab}
                             onClick={() => setActiveTab(tab)}
-                            className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${activeTab === tab
+                            className={`px-3 py-1 text-xs font-medium rounded-md transition-all focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-primary ${activeTab === tab
                                 ? 'bg-white/10 text-white shadow-sm'
                                 : 'text-white/40 hover:text-white/70'
                                 }`}
