@@ -45,7 +45,7 @@ export default function Sidebar() {
         <div className="text-xs text-white/40 mb-2">Recently Viewed</div>
         <div className="text-sm text-white/60 space-y-1">
           <div className="truncate">contract_draft.pdf</div>
-          <div className="truncate">Search: finn contracts</div>
+          <div className="truncate">Search: client contracts</div>
         </div>
       </div>
     </aside>

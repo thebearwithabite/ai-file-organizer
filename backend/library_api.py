@@ -16,7 +16,7 @@ import sys
 # Add parent directory to path for security_utils import
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from security_utils import sanitize_filename, validate_path_within_base
-from gdrive_integration import get_metadata_root
+from core.paths import get_metadata_root
 
 DB_PATH = get_metadata_root() / "metadata.db"
 app = FastAPI(title="AI File Organizer – Library API")

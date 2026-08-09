@@ -16,7 +16,7 @@ class FileNamingComponents:
     """Components for the enhanced filename"""
     date: str  # YYYY-MM-DD
     project: str  # MGMT, ST, PROJ, etc.
-    client: str  # ClientName, Netflix, etc.
+    client: str  # ClientName, Streaming Service, etc.
     content_type: str  # Management-Agreement, Script, etc.
     version: str  # v1, v2, etc.
     extension: str  # .pdf, .docx, etc.
@@ -60,9 +60,9 @@ class FileNamingProtocol:
         # Client/Person mappings
         self.client_codes = {
             "Client Name": "ClientName",
-            "finn": "ClientName", 
+            "client": "ClientName", 
             "Client": "ClientName",
-            "netflix": "Netflix",
+            "streaming service": "Streaming Service",
             "Management Company": "RefineryAM",
             "internal": "Internal",
             "personal": "Personal",
@@ -396,8 +396,8 @@ def test_naming_protocol():
             'filename': 'client_contract_06.pdf',
             'classification': {
                 'category': 'entertainment_industry', 
-                'people': ['finn_Client'],
-                'tags': ['entertainment_industry', 'finn_Client']
+                'people': ['client_A'],
+                'tags': ['entertainment_industry', 'client_A']
             }
         },
         {

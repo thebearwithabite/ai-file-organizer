@@ -158,7 +158,7 @@ Unified search across files, emails, and VEO clips.
 
 **Request:**
 ```typescript
-GET /api/search?q=finn%20contracts&mode=auto&filter[category]=contracts&filter[date_from]=2024-01-01&limit=50
+GET /api/search?q=client%20contracts&mode=auto&filter[category]=contracts&filter[date_from]=2024-01-01&limit=50
 ```
 
 **Query Parameters:**
@@ -689,7 +689,7 @@ List learned patterns.
 {
   patterns: Array<{
     pattern_id: string
-    description: string      // e.g., "Files mentioning 'Finn' + 'contract'"
+    description: string      // e.g., "Files mentioning 'the client' + 'contract'"
     category: string
     confidence: number
     usage_count: number

@@ -15,7 +15,7 @@ sys.path.insert(0, str(project_dir))
 
 from interactive_with_preview import PreviewClassifier
 from file_naming_protocol import FileNamingProtocol
-from gdrive_integration import get_ai_organizer_root, get_metadata_root
+from core.paths import get_ai_organizer_root, get_metadata_root
 
 class IntegratedOrganizer:
     """Complete file organization with classification, naming, and movement"""
@@ -132,7 +132,7 @@ class IntegratedOrganizer:
         
         # Map categories to folder structures
         if 'entertainment' in category:
-            if any(person.lower().replace('_', ' ') in ['Client Name', 'finn'] 
+            if any(person.lower().replace('_', ' ') in ['Client Name', 'client'] 
                    for person in classification_result.people):
                 return self.base_dir / "01_ACTIVE_PROJECTS" / "Entertainment_Industry" / "Current_Contracts" / "Client Name_Client"
             else:

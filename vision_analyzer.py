@@ -22,7 +22,7 @@ import time
 import logging
 import threading
 
-from gdrive_integration import get_ai_organizer_root, get_metadata_root
+from core.paths import get_ai_organizer_root, get_metadata_root
 
 try:
     import google.generativeai as genai

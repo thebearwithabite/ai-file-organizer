@@ -8,7 +8,7 @@ import logging
 
 from adaptive_background_monitor import AdaptiveBackgroundMonitor
 from staging_monitor import StagingMonitor
-from gdrive_integration import get_metadata_root
+from core.paths import get_metadata_root
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("AdaptiveTest")

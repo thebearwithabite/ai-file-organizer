@@ -32,7 +32,7 @@ def show_classification_questions():
     for file_path in staging_dir.iterdir():
         if file_path.is_file() and not file_path.name.startswith('.'):
             name_lower = file_path.name.lower()
-            if any(keyword in name_lower for keyword in ['Client', 'finn', 'management', 'island', 'ai', 'commission']):
+            if any(keyword in name_lower for keyword in ['Client', 'client', 'management', 'island', 'ai', 'commission']):
                 test_files.append(file_path)
         if len(test_files) >= 5:
             break
@@ -82,7 +82,7 @@ def show_classification_questions():
                 print(f"                 'Active projects, business ops, or archive?'")
             
             # Show likely options
-            if "Client" in file_path.name.lower() or "finn" in file_path.name.lower():
+            if "Client" in file_path.name.lower() or "client" in file_path.name.lower():
                 print(f"   🎯 Likely Options:")
                 print(f"      1. Entertainment Industry (current projects)")
                 print(f"      2. Business Operations (payroll, contracts)")

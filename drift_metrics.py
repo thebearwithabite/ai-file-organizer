@@ -11,7 +11,7 @@ from pathlib import Path
 from datetime import datetime
 from typing import Dict, Any
 
-from gdrive_integration import get_metadata_root
+from core.paths import get_metadata_root
 
 logger = logging.getLogger(__name__)
 

@@ -20,7 +20,7 @@ from query_interface import LocalLibrarian
 from staging_monitor import StagingMonitor
 from content_extractor import ContentExtractor
 from classification_engine import FileClassificationEngine
-from gdrive_integration import get_ai_organizer_root
+from core.paths import get_ai_organizer_root
 
 class LibrarianCLI:
     """
@@ -106,7 +106,7 @@ class LibrarianCLI:
         print("=" * 50)
         
         import shutil
-        from automated_deduplication_service import AutomatedDeduplicationService
+        from bulletproof_deduplication import BulletproofDeduplicator
         from easy_rollback_system import EasyRollbackSystem
         
         staging_monitor = StagingMonitor(str(self.base_dir))
@@ -241,7 +241,7 @@ class LibrarianCLI:
         extractor = ContentExtractor(str(self.base_dir))
         
         # Find files to index
-        from gdrive_integration import get_metadata_root
+        from core.paths import get_metadata_root
         index_locations = [
             self.base_dir / "00_ACTIVE_PROJECTS",
             self.base_dir / "01_UNIVERSAL_ASSETS",

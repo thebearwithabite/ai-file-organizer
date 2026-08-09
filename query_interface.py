@@ -15,7 +15,7 @@ from collections import defaultdict
 from content_extractor import ContentExtractor
 from classification_engine import FileClassificationEngine
 from staging_monitor import StagingMonitor
-from gdrive_integration import get_ai_organizer_root
+from core.paths import get_ai_organizer_root
 
 @dataclass
 class QueryResult:
@@ -53,12 +53,12 @@ class QueryProcessor:
         """Initialize entity recognition patterns"""
         return {
             'people': [
-                r'finn\s*Client?', r'stranger\s*things', r'netflix',
+                r'client\s*Client?', r'stranger\s*things', r'streaming service',
                 r'refinery', r'artist\s*management', r'mnt'
             ],
             'projects': [
                 r'papers\s*that\s*dream', r'podcast', r'episode',
-                r'stranger\s*things', r'netflix', r'refinery'
+                r'stranger\s*things', r'streaming service', r'refinery'
             ],
             'document_types': [
                 r'contract', r'agreement', r'script', r'audio',

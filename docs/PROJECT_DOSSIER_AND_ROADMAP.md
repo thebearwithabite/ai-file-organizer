@@ -1,8 +1,8 @@
 # AI File Organizer — Project Dossier & Roadmap
 
 **Codename:** Antigravity
-**Repo:** `github.com/thebearwithabite/ai-file-organizer`
-**Owner:** Ryan Thomson (@RT Max / @The Bear With A Bite)
+**Repo:** `github.com/example-org/ai-file-organizer`
+**Owner:** the user Thomson (@RT Max / @The Bear With A Bite)
 **Dossier Date:** February 7, 2026
 **Purpose:** Onboard a new project overseer (OpenClaw) with full institutional context, then define the stabilization-to-expansion roadmap.
 
@@ -10,9 +10,9 @@
 
 ## Part 1: What This Project Is
 
-Antigravity is a distributed, AI-powered creative operating system that began as a smart file organizer and is evolving into a multi-modal creative pipeline. Ryan built it because he has ADHD and file organization is genuinely hard — the system creates an intelligent librarian that knows him and his work intimately, reduces cognitive load, and connects related documents and ideas.
+Antigravity is a distributed, AI-powered creative operating system that began as a smart file organizer and is evolving into a multi-modal creative pipeline. the user built it because he has ADHD and file organization is genuinely hard — the system creates an intelligent librarian that knows him and his work intimately, reduces cognitive load, and connects related documents and ideas.
 
-It uses local LLMs (Qwen 2.5 via Ollama), cloud models (Gemini), vision analysis, and a living taxonomy to classify, route, and organize files across Ryan's creative workspace — then extends that intelligence into video generation (VEO), editing (DaVinci Resolve), and image synthesis (ComfyUI/Flux).
+It uses local LLMs (Qwen 2.5 via Ollama), cloud models (Gemini), vision analysis, and a living taxonomy to classify, route, and organize files across the user's creative workspace — then extends that intelligence into video generation (VEO), editing (DaVinci Resolve), and image synthesis (ComfyUI/Flux).
 
 The system runs across two machines connected via Tailscale:
 
@@ -81,14 +81,14 @@ Connected via Tailscale + Supabase real-time events.
 
 ## Part 3: Git History & Contributors
 
-### Repository: `github.com/thebearwithabite/ai-file-organizer`
+### Repository: `github.com/example-org/ai-file-organizer`
 
 **Active Contributors (last 80 commits):**
 
 | Contributor | Role | Commit Pattern |
 |-------------|------|----------------|
-| **RT Max** (Ryan) | Owner, architect, integrator | Merges, refactors, critical fixes, conflict resolution |
-| **The Bear With A Bite** (Ryan's GH) | Same, via GitHub UI | Direct edits, gitignore, config |
+| **RT Max** (the user) | Owner, architect, integrator | Merges, refactors, critical fixes, conflict resolution |
+| **The Bear With A Bite** (the user's GH) | Same, via GitHub UI | Direct edits, gitignore, config |
 | **google-labs-jules[bot]** | Automated perf optimizer | `⚡ Bolt:` prefixed commits — DB connection reuse, scandir, lazy hashing, dedup optimization |
 | **copilot-swe-agent[bot]** | Automated code agent | Unit tests, safety gate fixes, sub-PR work |
 | **Copilot** | VEO integration | Phase 1 VEO Prompt Machine integration (PR #39) |
@@ -230,7 +230,7 @@ The repo already has these docs. The overseer should read them in this order:
 
 | Role | Entity | Responsibility |
 |------|--------|---------------|
-| **Vision & Direction** | Ryan Thomson | Strategic direction, business rules, final approval. Handles merges, architectural decisions, and conflict resolution. |
+| **Vision & Direction** | the user Thomson | Strategic direction, business rules, final approval. Handles merges, architectural decisions, and conflict resolution. |
 | **Project Overseer** | OpenClaw (Claude) | Architectural review, drift detection, institutional memory, scope enforcement. Reviews and critiques — does NOT write code directly. |
 | **Builder (primary)** | Coding agent (to be assigned) | Executes approved designs, writes Python/React, subject to architectural review |
 | **Perf Optimizer** | Jules (google-labs-jules[bot]) | Automated performance optimization PRs. Currently generating unmerged branches — needs oversight. |
@@ -257,12 +257,12 @@ Goal: Make ai-file-organizer a self-documenting, standalone GitHub project that 
 | 3 | **Clean main.py** | Remove redundant code blocks, fix initialization race condition, resolve `system_service` NameError. | Not Started | Builder |
 | 4 | **Wire Triage to TaxonomyService** | Replace remaining hardcoded categories in Triage.tsx with live API call. | Partial (`b75bc5d`) | Builder |
 | 5 | **Fix adaptive learning trigger** | Change event type from `ai_observation` to `manual_move` so rule generation fires. | Not Started | Builder |
-| 6 | **Review & merge Jules branches** | 3 unmerged optimization PRs. Review, test, merge or close. | Not Started | Overseer + Ryan |
-| 7 | **Externalize architecture docs** | Write canonical `ARCHITECTURE.md` and `DECISIONS.md`. This dossier is the seed. Existing docs (SYSTEM_MANUAL, CLAUDE.md, ROADMAP.md) to be reconciled. | Not Started | Overseer + Ryan |
+| 6 | **Review & merge Jules branches** | 3 unmerged optimization PRs. Review, test, merge or close. | Not Started | Overseer + the user |
+| 7 | **Externalize architecture docs** | Write canonical `ARCHITECTURE.md` and `DECISIONS.md`. This dossier is the seed. Existing docs (SYSTEM_MANUAL, CLAUDE.md, ROADMAP.md) to be reconciled. | Not Started | Overseer + the user |
 | 8 | **Audit and tag stable baseline** | Run full smoke test, tag a `v0.1-stable` release on GitHub. | Not Started | Overseer + Builder |
 | 9 | **Complete path consolidation** | Finish migration to `~/Documents/AI_METADATA_SYSTEM`. Remove competing fallback patterns. Add `ensure_not_cloud_path()` guard to all modules. | Partial | Builder |
 | 10 | **Repo hygiene** | Remove log files from repo root (server.log, compile_log.txt, startup_*.log). Clean up .gitignore. Archive dead code. | Not Started | Builder |
-| 11 | **Clean up LaunchAgents** | Remove obsolete `com.modelrealignment.daemon.plist` entries. | Not Started | Ryan |
+| 11 | **Clean up LaunchAgents** | Remove obsolete `com.modelrealignment.daemon.plist` entries. | Not Started | the user |
 
 **Exit Criteria:** Backend starts cleanly, classification pipeline handles Ollama-down gracefully, Triage shows real taxonomy, all architecture is documented in-repo, GitHub release tagged, no stale branches.
 
@@ -289,19 +289,19 @@ Goal: Activate the creative pipeline — from script analysis through shot list 
 
 ### LATER — World Model Module Build-Out (Weeks 9+)
 
-Goal: The system develops a persistent understanding of Ryan's creative world — projects, themes, visual vocabulary, narrative patterns — and uses that understanding to anticipate, suggest, and generate.
+Goal: The system develops a persistent understanding of the user's creative world — projects, themes, visual vocabulary, narrative patterns — and uses that understanding to anticipate, suggest, and generate.
 
 | # | Item | Description | Status | Owner |
 |---|------|-------------|--------|-------|
-| 1 | **World model schema design** | Define data structures for Ryan's creative universe: projects, characters, locations, visual themes, narrative arcs, asset relationships. | Not Started | Overseer + Ryan |
+| 1 | **World model schema design** | Define data structures for the user's creative universe: projects, characters, locations, visual themes, narrative arcs, asset relationships. | Not Started | Overseer + the user |
 | 2 | **Observation → Learning loop** | System watches classification patterns, VEO sessions, manual corrections, and builds a model of creative preferences. Requires fixing adaptive learning trigger (NOW #5). | Blocked | Builder |
 | 3 | **Cross-modal linking** | Connect files, VEO sessions, Resolve timelines, and taxonomy into a unified knowledge graph. A character mentioned in a script links to their reference images, scenes, and taxonomy category. | Not Started | Builder |
 | 4 | **Proactive suggestion engine** | Based on world model, suggest: relevant reference files during VEO sessions, similar past shots during Resolve editing, taxonomy categories for new content. | Not Started | Builder |
-| 5 | **Creative memory & context** | System remembers what Ryan has worked on, aesthetic choices made, active narrative threads — surfaces relevant context automatically. | Not Started | Overseer + Builder |
-| 6 | **Public/private repo split** | Separate public spine (architecture, interfaces, core organizer) from private organs (Ryan's taxonomy rules, creative data, API keys). | Not Started | Ryan + Overseer |
+| 5 | **Creative memory & context** | System remembers what the user has worked on, aesthetic choices made, active narrative threads — surfaces relevant context automatically. | Not Started | Overseer + Builder |
+| 6 | **Public/private repo split** | Separate public spine (architecture, interfaces, core organizer) from private organs (the user's taxonomy rules, creative data, API keys). | Not Started | the user + Overseer |
 | 7 | **Agent accountability framework** | Formalize anti-drift system: artifact-gated logging, zero-result escalation, decision checkpoints, narrative compression. Bake into agent instructions. | Not Started | Overseer |
 
-**Exit Criteria:** The system has a persistent model of Ryan's creative practice that improves over time. New files, scripts, and sessions are contextualized against existing knowledge. Suggestions are relevant and non-intrusive.
+**Exit Criteria:** The system has a persistent model of the user's creative practice that improves over time. New files, scripts, and sessions are contextualized against existing knowledge. Suggestions are relevant and non-intrusive.
 
 ---
 
@@ -331,7 +331,7 @@ This dossier was synthesized from:
 **Git History:**
 - 80 commits analyzed (Jan 22 – Feb 6, 2026)
 - 4 contributors: RT Max, The Bear With A Bite, google-labs-jules[bot], copilot-swe-agent[bot]
-- Repo: `github.com/thebearwithabite/ai-file-organizer`
+- Repo: `github.com/example-org/ai-file-organizer`
 
 **Existing Repo Documentation:**
 - `CLAUDE.md` (52KB) — Agent code of conduct and full architecture

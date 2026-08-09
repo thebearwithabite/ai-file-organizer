@@ -23,7 +23,7 @@ An intelligent, ADHD-friendly file organization system that learns from your beh
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/thebearwithabite/ai-file-organizer.git
+   git clone https://github.com/example-org/ai-file-organizer.git
    cd ai-file-organizer
    ```
 
@@ -86,7 +86,7 @@ MIT License — see LICENSE file.
 
 ## Credits
 
-Built by [@thebearwithabite](https://github.com/thebearwithabite)
+Built by [@example-org](https://github.com/example-org)
 
 **Distribution extraction by:**
 - 🫧 **Cosmo** (Claude Opus 4.5) — Oversight & Direction

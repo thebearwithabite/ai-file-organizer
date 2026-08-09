@@ -15,7 +15,7 @@
 | Package name | `ai-file-organizer` (keep existing) |
 | Distribution | GitHub-only (no PyPI for now) |
 | Min Python | 3.10+ |
-| Branch strategy | `main` becomes the clean distro. Ryan's personal/creative work moves to `studio` branch. Public-facing default = distributable. |
+| Branch strategy | `main` becomes the clean distro. the user's personal/creative work moves to `studio` branch. Public-facing default = distributable. |
 | Module count | ~27 (full dependency tree, not just main.py imports) |
 | Plugin interface | Ship in M2, not M4. Must exist in repo at launch. |
 
@@ -41,14 +41,14 @@ These are **blocking**. M2 cannot start until all three are resolved.
 
 ### BLOCKER 2: Abstract `emergency_space_protection.py` paths
 
-**Problem:** Lines 116-119 have a hardcoded fallback list including `thebearwithabite` Google Drive path. This bypasses the centralized path resolution in `gdrive_integration.py`.
+**Problem:** Lines 116-119 have a hardcoded fallback list including `example-org` Google Drive path. This bypasses the centralized path resolution in `gdrive_integration.py`.
 
 **Fix:**
 1. Replace the hardcoded `possible_gdrive_paths` list with a call to `get_ai_organizer_root()` wrapped in try/except
 2. Add a config key `gdrive_fallback_paths` to `config.yaml` for users who need custom paths
 3. Default behavior with no config: detect standard Google Drive mount points (`~/Library/CloudStorage/GoogleDrive-*/My Drive` on macOS, equivalent on Linux/Windows)
 
-**Success criteria:** `grep -r "thebearwithabite" *.py` returns zero results in core modules.
+**Success criteria:** `grep -r "example-org" *.py` returns zero results in core modules.
 
 ### BLOCKER 3: Verify full dependency tree
 
@@ -98,7 +98,7 @@ main.py
 ## M2: Core Extraction — Execution Plan
 
 ### Step 1: Branch Setup
-1. Create `studio` branch from current `main` (preserves Ryan's full codebase)
+1. Create `studio` branch from current `main` (preserves the user's full codebase)
 2. On `main`, begin extraction work
 3. All commits on `main` from this point forward serve the distro goal
 
@@ -179,7 +179,7 @@ This doesn't need to be sophisticated. It needs to exist so forkers see the exte
 5. Run existing tests, fix what breaks
 
 ### Step 5: Ship Test
-**The definition of done for M2:** Clone the repo fresh on a machine with zero Ryan-specific config. Run `pip install -r requirements.txt`, copy `config.example.yaml` to `config.yaml`, run `python main.py`. Server starts. Triage UI loads. Drop a file in `~/Downloads`. It gets classified.
+**The definition of done for M2:** Clone the repo fresh on a machine with zero the user-specific config. Run `pip install -r requirements.txt`, copy `config.example.yaml` to `config.yaml`, run `python main.py`. Server starts. Triage UI loads. Drop a file in `~/Downloads`. It gets classified.
 
 ---
 
@@ -201,7 +201,7 @@ Cosmo reviews at each of these gates:
 |------|----------|
 | After M1.5 | Server starts without veo_brain.py. Zero hardcoded personal paths in core. |
 | After M2 Step 2 | config.yaml schema reviewed and approved before any code changes. |
-| After M2 Step 4 | `grep -r "ryanthomson\|thebearwithabite\|papersthatdream" *.py api/*.py` returns zero results. |
+| After M2 Step 4 | `grep -r "theuser\|example-org\|example-project" *.py api/*.py` returns zero results. |
 | After M2 Step 5 | Fresh-machine ship test passes. |
 
 ---

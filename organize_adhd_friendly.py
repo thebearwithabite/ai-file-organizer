@@ -19,7 +19,7 @@ from typing import List
 
 # Import our fixed classifier
 from interactive_classifier_fixed import ADHDFriendlyClassifier
-from gdrive_integration import get_ai_organizer_root
+from core.paths import get_ai_organizer_root
 
 class ADHDFriendlyOrganizer:
     """

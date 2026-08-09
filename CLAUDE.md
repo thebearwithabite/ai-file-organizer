@@ -21,7 +21,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Installation
 ```bash
-git clone https://github.com/ryan/ai-file-organizer
+git clone https://github.com/the user/ai-file-organizer
 cd ai-file-organizer
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
@@ -409,7 +409,7 @@ python vision_cli.py directory ~/Downloads --limit 5
 
 # Video project recognition
 python video_project_trainer.py analyze ~/Videos
-python video_project_trainer.py train --project "thebearwithabite"
+python video_project_trainer.py train --project "example-org"
 ```
 
 ### Interaction Modes & Learning:
@@ -517,7 +517,7 @@ The system now supports 5-level deep folder organization for creative projects:
 
 **Features:**
 - **Automatic Detection**: Detects project and episode from filenames
-  - "papers_that_dream_ep02_scene1.mp4" → The_Papers_That_Dream/Episode_02/Video/
+  - "example_project_ep02_scene1.mp4" → The_Papers_That_Dream/Episode_02/Video/
 - **Manual Override**: Optional project/episode inputs in web UI
 - **Media Type Classification**: Automatically organizes by file type (Video, Audio, Images, etc.)
 - **Intelligent Suggestions**: `hierarchical_organizer.py` provides complete path recommendations
@@ -926,7 +926,7 @@ ls ~/GoogleDrive/AI_Organizer/05_VEO_PROMPTS/*.json
 ### Computer Vision Contexts:
 - **General**: Standard image/video analysis
 - **Entertainment**: Entertainment industry focus (Client Name Wolfhard projects)
-- **Creative**: Creative projects (Papers That Dream, AI content, thebearwithabite)
+- **Creative**: Creative projects (Papers That Dream, AI content, example-org)
 
 ## 🎯 **ADHD-Specific Design Decisions**
 
@@ -1105,7 +1105,7 @@ python interactive_organizer.py organize --live
 
 # Search everything
 python enhanced_librarian.py search "consciousness papers" --mode semantic
-python tagging_cli.py search "finn,contract,active" --match-all
+python tagging_cli.py search "client,contract,active" --match-all
 
 # Emergency space recovery
 python gdrive_cli.py emergency --live

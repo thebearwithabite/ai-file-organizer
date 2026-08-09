@@ -24,7 +24,7 @@ except ImportError:
 from query_interface import QueryProcessor, QueryResult
 from content_extractor import ContentExtractor
 from unified_classifier import UnifiedClassificationService
-from gdrive_integration import get_ai_organizer_root
+from core.paths import get_ai_organizer_root
 
 @dataclass
 class EnhancedQueryResult:
@@ -77,7 +77,7 @@ class HybridLibrarian:
         """Initialize semantic search components (Local or Remote)"""
         # 1. Try to load remote configuration first
         try:
-            from gdrive_integration import get_metadata_root
+            from core.paths import get_metadata_root
             config_path = get_metadata_root() / "config" / "hybrid_config.json"
             if config_path.exists():
                 with open(config_path, 'r') as f:

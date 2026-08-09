@@ -4,13 +4,13 @@
 
 **Mission:** Transform the AI File Organizer from a collection of 70+ CLI tools into a unified, beautiful, ADHD-friendly web application that eliminates all terminal interactions.
 
-**User:** Ryan (Entertainment Manager + Creative Producer with ADHD)
+**User:** the user (Entertainment Manager + Creative Producer with ADHD)
 
-**Critical Context:** Ryan has not been able to use this powerful system because context-switching between 70+ CLI commands creates insurmountable cognitive load. This consolidation is not a "nice-to-have" — it's the difference between a system that works and one that doesn't.
+**Critical Context:** the user has not been able to use this powerful system because context-switching between 70+ CLI commands creates insurmountable cognitive load. This consolidation is not a "nice-to-have" — it's the difference between a system that works and one that doesn't.
 
 **Timeline:** 4 weeks (aggressive but achievable)
 
-**Success Metric:** Ryan can organize files, search content, manage VEO prompts, and control system settings **without ever opening the terminal**.
+**Success Metric:** the user can organize files, search content, manage VEO prompts, and control system settings **without ever opening the terminal**.
 
 ---
 
@@ -147,7 +147,7 @@ backend/
 - `ClassificationQueue` - Shows files being processed
 - `ConfidenceModeSelector` - Radio buttons: NEVER / MINIMAL / SMART / ALWAYS
 - `InteractiveQuestionModal` - Appears when AI needs input
-  - "Is this about Finn or business?" [A] [B]
+  - "Is this about the client or business?" [A] [B]
   - Shows file preview, confidence score, reasoning
 - `BatchProcessingPanel` - Upload folder, show progress
 - `LearningStatsPanel` - Collapsible sidebar with patterns learned
@@ -174,7 +174,7 @@ GET    /api/organize/stats             # Files organized today, confidence distr
 2. Spinner shows "Analyzing content..."
 3. Classification preview appears: "Entertainment → Contracts → Management (85% confident)"
 4. If >85%, auto-files with success toast
-5. If <85%, modal asks: "Is this about Finn or general business?" [A] [B]
+5. If <85%, modal asks: "Is this about the client or general business?" [A] [B]
 6. User clicks [A], file organized, system learns
 
 *Flow 2: Batch Processing*
@@ -367,7 +367,7 @@ GET    /api/settings/services/:name/logs
 Components:
 - `StatsCard` - Total patterns learned, classifications made, corrections applied
 - `PatternsTable` - List of discovered patterns
-  - Pattern: "Files mentioning 'Finn' + 'contract' → Entertainment/Contracts"
+  - Pattern: "Files mentioning 'the client' + 'contract' → Entertainment/Contracts"
   - Confidence: 94%
   - Used: 47 times
 - `ExportButton` - Download learning data (JSON)
@@ -556,7 +556,7 @@ GET    /api/dedup/stats                # Space saved, history
 - [ ] `ResultsList` with virtualization (react-window)
 - [ ] `FileResultCard`, `EmailResultCard`, `ClipResultCard`
 - [ ] Enhance `/api/search` to accept filters
-- [ ] Test: Search for "Finn contracts", see PDF + email results
+- [ ] Test: Search for "the client contracts", see PDF + email results
 
 **Days 3-4: Analysis Section**
 - [ ] `AnalysisQueue` component
@@ -601,7 +601,7 @@ GET    /api/dedup/stats                # Space saved, history
 - [ ] Performance: Code splitting, lazy loading
 - [ ] Accessibility: ARIA labels, keyboard navigation
 - [ ] Final UI polish: spacing, colors, animations
-- [ ] User testing with Ryan
+- [ ] User testing with the user
 - [ ] Bug fixes + refinements
 
 **Week 4 Deliverable:** ✅ Production-ready UI replacing all 70+ CLI tools
@@ -785,7 +785,7 @@ Don't try to build everything at once. Get the core loop working:
 This is the trust mechanism. If this doesn't work flawlessly, the whole system fails.
 
 ### 3. Test with Real Files
-Use Ryan's actual PDFs, contracts, emails, audio files. Don't test with `test.txt`.
+Use the user's actual PDFs, contracts, emails, audio files. Don't test with `test.txt`.
 
 ### 4. ADHD-First UX Review
 After each component:
@@ -795,7 +795,7 @@ After each component:
 - Does it cause anxiety? (If yes, redesign)
 
 ### 5. Performance Matters
-Ryan has ADHD - slow UIs create frustration and abandonment.
+the user has ADHD - slow UIs create frustration and abandonment.
 - Target: <100ms UI response for all interactions
 - Use optimistic updates (React Query)
 - Lazy load heavy components (Monaco editor, D3 graph)
@@ -808,7 +808,7 @@ Ryan has ADHD - slow UIs create frustration and abandonment.
 2. **Install dependencies**: See Frontend Stack section
 3. **Create design tokens**: `tailwind.config.ts` with liquid glass variables
 4. **Build Layout component**: Sidebar + Header + Outlet
-5. **Implement Dashboard**: First page Ryan will see
+5. **Implement Dashboard**: First page the user will see
 6. **Start with Day 1 tasks**: Follow Week 1 plan above
 
 ---
@@ -828,7 +828,7 @@ When stuck:
 3. Ask specific questions with context
 
 ### Demos
-Weekly demo to Ryan:
+Weekly demo to the user:
 - Screen recording of new features
 - Request feedback on UX
 - Adjust based on his ADHD experience
@@ -839,14 +839,14 @@ Weekly demo to Ryan:
 
 This project is complete when:
 
-1. ✅ Ryan can use the system for 1 week without opening the terminal
+1. ✅ the user can use the system for 1 week without opening the terminal
 2. ✅ All 70+ CLI commands have UI equivalents
 3. ✅ Rollback system works flawlessly (tested with real mistakes)
 4. ✅ Search finds files across all sources (local, Drive, emails, VEO)
 5. ✅ UI feels fast, beautiful, and calming (not overwhelming)
 6. ✅ System status is always visible (no "is this even working?" anxiety)
 
-**Final Test:** Ask Ryan: "Would you recommend this to another person with ADHD?"
+**Final Test:** Ask the user: "Would you recommend this to another person with ADHD?"
 
 If yes, **mission accomplished**. 🎉
 

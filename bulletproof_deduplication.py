@@ -17,7 +17,7 @@ from typing import Dict, List, Optional, Tuple, Set, Iterator, Union
 import time
 import json
 from datetime import datetime
-from gdrive_integration import get_metadata_root
+from core.paths import get_metadata_root
 
 # Ensure we're running with Python 3
 if sys.version_info[0] < 3:
@@ -221,36 +221,8 @@ class BulletproofDeduplicator:
             return None
 
     def check_if_hash_exists_in_gdrive(self, secure_hash: str) -> Optional[str]:
-        """
-        Check if a file hash already exists in Google Drive
-        
-        Args:
-            secure_hash: SHA-256 hash to check
-            
-        Returns:
-            Path to existing file if found, None otherwise
-        """
-        if not secure_hash:
-            return None
-            
-        try:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                # Look for this hash where the path contains 'GoogleDrive'
-                cursor.execute("""
-                    SELECT file_path FROM file_hashes 
-                    WHERE secure_hash = ? AND file_path LIKE '%GoogleDrive%'
-                    LIMIT 1
-                """, (secure_hash,))
-                
-                result = cursor.fetchone()
-                if result:
-                    return result[0]
-                return None
-        except Exception as e:
-            print(f"⚠️ Error checking hash existence: {e}")
-            return None
-
+        """V2: Google Drive removed — local dedup only."""
+        return None
     def is_database_or_learned_data(self, file_path: Union[Path, str, os.DirEntry]) -> bool:
         """
         Check if file is a database or contains learned data
@@ -598,139 +570,8 @@ class BulletproofDeduplicator:
         return results
 
     def clean_local_duplicates_of_gdrive(self, gdrive_dirs: List[Path], local_dirs: List[Path], execute: bool = False) -> Dict:
-        """
-        Find files in local directories that already exist in Google Drive and delete local copies
-
-        Args:
-            gdrive_dirs: List of Google Drive directories to use as reference
-            local_dirs: List of local directories to clean
-            execute: If True, actually delete local duplicates
-
-        Returns:
-            Cleanup results with statistics
-        """
-
-        print("🔍 CROSS-DIRECTORY DUPLICATE CLEANUP")
-        print(f"🛡️  Mode: {'EXECUTE' if execute else 'DRY RUN'}")
-        print()
-
-        results = {
-            "gdrive_files_scanned": 0,
-            "local_files_scanned": 0,
-            "duplicates_found": 0,
-            "space_recoverable": 0,
-            "deleted_files": 0,
-            "errors": []
-        }
-
-        # STEP 1: Build hash index of Google Drive files
-        print("📁 STEP 1: Indexing Google Drive staging areas...")
-        gdrive_hashes = {}  # secure_hash -> file_path
-
-        # Optimization: Reuse database connection for batch processing
-        with sqlite3.connect(self.db_path) as conn:
-            for gdrive_dir in gdrive_dirs:
-                if not gdrive_dir.exists():
-                    print(f"   ⚠️  Skipping non-existent: {gdrive_dir}")
-                    continue
-
-                print(f"   📂 Scanning: {gdrive_dir.name}")
-
-                for entry, stat in self._fast_scan(gdrive_dir):
-                    # Skip database/learned data (check on entry directly)
-                    if self.is_database_or_learned_data(entry):
-                        continue
-
-                    file_path = entry.path # Store as string
-                    secure_hash = self.calculate_secure_hash(file_path, db_connection=conn,
-                                                           file_size=stat.st_size, last_modified=stat.st_mtime)
-                    if secure_hash:
-                        gdrive_hashes[secure_hash] = file_path
-                        results["gdrive_files_scanned"] += 1
-
-                        if results["gdrive_files_scanned"] % 50 == 0:
-                            print(f"      Progress: {results['gdrive_files_scanned']} files indexed")
-
-            print(f"   ✅ Indexed {results['gdrive_files_scanned']} Google Drive files")
-            print()
-
-            # STEP 2: Scan local directories and compare
-            print("💻 STEP 2: Scanning local directories for duplicates...")
-
-            for local_dir in local_dirs:
-                if not local_dir.exists():
-                    print(f"   ⚠️  Skipping non-existent: {local_dir}")
-                    continue
-
-                print(f"   📂 Scanning: {local_dir}")
-
-                for entry, stat in self._fast_scan(local_dir):
-                    # Skip database/learned data (ABSOLUTE PROTECTION)
-                    if self.is_database_or_learned_data(entry):
-                        continue
-
-                    # Check protected paths on string (faster)
-                    entry_path_str = entry.path
-                    if any(protected in entry_path_str for protected in self.protected_paths):
-                        continue
-
-                    results["local_files_scanned"] += 1
-
-                    if results["local_files_scanned"] % 50 == 0:
-                        print(f"      Progress: {results['local_files_scanned']} local files scanned")
-
-                    file_path = entry_path_str # Store as string
-
-                    # Calculate hash and check if exists in Google Drive
-                    secure_hash = self.calculate_secure_hash(file_path, db_connection=conn,
-                                                           file_size=stat.st_size, last_modified=stat.st_mtime)
-
-                    if secure_hash and secure_hash in gdrive_hashes:
-                        # Found a duplicate!
-                        gdrive_path = gdrive_hashes[secure_hash]
-                        results["duplicates_found"] += 1
-
-                        try:
-                            file_size = stat.st_size
-                            results["space_recoverable"] += file_size
-
-                            print(f"   🔗 DUPLICATE FOUND:")
-                            print(f"      Local:  {file_path}")
-                            print(f"      GDrive: {gdrive_path}")
-                            print(f"      Size:   {file_size / (1024*1024):.1f} MB")
-
-                            if execute:
-                                os.remove(file_path)
-                                results["deleted_files"] += 1
-                                print(f"      ✅ Deleted local copy")
-                            else:
-                                print(f"      🔍 Would delete (dry-run)")
-
-                            print()
-
-                        except Exception as e:
-                            error_msg = f"Failed to process {file_path}: {e}"
-                            results["errors"].append(error_msg)
-                            print(f"      ❌ {error_msg}")
-
-        # STEP 3: Summary
-        print("=" * 80)
-        print("📊 CROSS-DIRECTORY CLEANUP SUMMARY:")
-        print(f"   Google Drive files indexed: {results['gdrive_files_scanned']}")
-        print(f"   Local files scanned: {results['local_files_scanned']}")
-        print(f"   Duplicates found: {results['duplicates_found']}")
-        print(f"   Space recoverable: {results['space_recoverable'] / (1024*1024):.1f} MB")
-
-        if execute:
-            print(f"   Files deleted: {results['deleted_files']}")
-            print(f"   Errors: {len(results['errors'])}")
-        else:
-            print(f"   🔍 DRY RUN - No files were deleted")
-
-        print("=" * 80)
-
-        return results
-
+        """V2: Google Drive removed — local dedup only."""
+        return {"gdrive_files_scanned": 0, "duplicates_removed": 0, "freed_bytes": 0}
 def main():
     parser = argparse.ArgumentParser(description='Bulletproof Deduplication with SHA-256')
     parser.add_argument('--folder', required=True, help='Directory to scan for duplicates')

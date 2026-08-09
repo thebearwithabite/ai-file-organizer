@@ -13,7 +13,7 @@ from datetime import datetime
 import hashlib
 import mimetypes
 from contextlib import contextmanager
-from gdrive_integration import get_ai_organizer_root, get_metadata_root, ensure_safe_local_path
+from core.paths import get_ai_organizer_root, get_metadata_root, ensure_safe_local_path
 
 class ContentExtractor:
     """
@@ -183,7 +183,7 @@ class ContentExtractor:
             filename_lower = file_path.name.lower()
             path_lower = str(file_path).lower()
             
-            if any(term in path_lower for term in ['finn', 'wolfhard', 'stranger', 'things', 'netflix', 'sag']):
+            if any(term in path_lower for term in ['client', 'clientname', 'stranger', 'things', 'streaming service', 'union']):
                 context = 'entertainment'
             elif any(term in path_lower for term in ['creative', 'podcast', 'papers', 'dream', 'ai', 'consciousness']):
                 context = 'creative'

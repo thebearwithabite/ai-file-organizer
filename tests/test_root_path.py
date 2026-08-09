@@ -1,5 +1,5 @@
 
-from gdrive_integration import get_ai_organizer_root
+from core.paths import get_ai_organizer_root
 from pathlib import Path
 
 root = get_ai_organizer_root()

@@ -27,9 +27,9 @@ class HierarchicalOrganizer:
 
     # Static Seed (Fallback)
     STATIC_KNOWLEDGE = {
-        'the_papers_that_dream': 'The Papers That Dream',
-        'papers_that_dream': 'The Papers That Dream',
-        'ptd': 'The Papers That Dream',
+        'the_example_project': 'The Example Project',
+        'example_project': 'The Example Project',
+        'ptd': 'The Example Project',
         'attention_island': 'Attention Island',
         'attentionisland': 'Attention Island',
         'csc': 'The_Papers_That_Dream',
@@ -67,7 +67,7 @@ class HierarchicalOrganizer:
         else:
             try:
                 from taxonomy_service import get_taxonomy_service
-                from gdrive_integration import get_metadata_root
+                from core.paths import get_metadata_root
                 self.taxonomy_service = get_taxonomy_service(get_metadata_root() / "config")
             except Exception as e:
                 self.logger.error(f"Failed to load TaxonomyService: {e}")
@@ -293,7 +293,7 @@ class HierarchicalOrganizer:
         return None
 
     def detect_client_from_filename(self, filename: str) -> Optional[str]:
-        """Detect client name from filename (e.g. Finn Wolhard)"""
+        """Detect client name from filename (e.g. Client Name)"""
         # For now, let's use a simple list or assume if it's in Business/Clients root it's a client
         # In the future, we can query a dynamic_clients.json
         tokens = self._tokens(filename)
@@ -301,7 +301,7 @@ class HierarchicalOrganizer:
         
         # Hardcoded seeding from user's examples
         seed_clients = {
-            "Finn Wolhard": ["finn", "wolhard"],
+            "Client Name": ["client", "wolhard"],
             "Danielle Reha": ["danielle", "reha"]
         }
         

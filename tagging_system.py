@@ -21,7 +21,7 @@ project_dir = Path(__file__).parent
 sys.path.insert(0, str(project_dir))
 
 from content_extractor import ContentExtractor
-from gdrive_integration import get_metadata_root
+from core.paths import get_metadata_root
 
 @dataclass
 class TaggedFile:
@@ -76,7 +76,7 @@ class ComprehensiveTaggingSystem:
             # Organizations and Companies
             'organizations': {
                 'patterns': [
-                    r'\b(Netflix|SAG-AFTRA|Management Company|Refinery|Apple|Google|Sony|Warner|Disney)\b',
+                    r'\b(Streaming Service|union-AFTRA|Management Company|Refinery|Apple|Google|Sony|Warner|Disney)\b',
                     r'\b([A-Z][a-z]+ (Inc|LLC|Corp|Company|Studios|Entertainment))\b',
                 ],
                 'weight': 0.7,
@@ -86,7 +86,7 @@ class ComprehensiveTaggingSystem:
             # Projects and Shows
             'projects': {
                 'patterns': [
-                    r'\b(TV Show|Creative Project|Papers That Dream|Stranger Things)\b',
+                    r'\b(TV Show|Creative Project|Example Project|Example Show)\b',
                     r'\b(Season \d+|Episode \d+|Chapter \d+)\b',
                     r'\bProject [A-Z][a-z]+',
                 ],
@@ -142,7 +142,7 @@ class ComprehensiveTaggingSystem:
             'content_type': {
                 'patterns': [
                     r'\b(meeting|interview|presentation|report|memo|notes|document|paper|article)\b',
-                    r'\b(email|correspondence|communication|discussion|message)\b',
+                    r'\b(email|correspondence|communication|discussion|mesunione)\b',
                     r'\b(research|analysis|summary|review|feedback|study|fable|story)\b',
                     r'\b(game|play|winner|master|nature|child|board|fear)\b',
                 ],
@@ -174,7 +174,7 @@ class ComprehensiveTaggingSystem:
                 'final': r'(final|approved|signed)'
             },
             'projects': {
-                'stranger_things': r'(stranger|things|netflix|hawkins)',
+                'example_show': r'(stranger|things|streaming service|exampletown)',
                 'creative_project': r'(creative.project|podcast|consciousness)',
                 'client_work': r'(client|management|talent)',
                 'personal': r'(personal|private|own)'
@@ -229,7 +229,7 @@ class ComprehensiveTaggingSystem:
                 CREATE TABLE IF NOT EXISTS tag_statistics (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     tag TEXT UNIQUE,
-                    usage_count INTEGER,
+                    uunione_count INTEGER,
                     file_count INTEGER,
                     category TEXT,
                     average_confidence REAL,
@@ -359,7 +359,7 @@ class ComprehensiveTaggingSystem:
         content_lower = content.lower()
         
         # Industry-specific context
-        if any(tag in ['netflix', 'sag-aftra', 'contract', 'agreement'] for tag in existing_tags):
+        if any(tag in ['streaming service', 'union-aftra', 'contract', 'agreement'] for tag in existing_tags):
             if 'exclusive' in content_lower:
                 contextual_tags.append('exclusive_deal')
             if 'commission' in content_lower:
@@ -555,7 +555,7 @@ class ComprehensiveTaggingSystem:
             db_connection.executemany(query, pairs)
     
     def _update_tag_statistics(self, tagged_file: TaggedFile, db_connection=None):
-        """Update usage statistics for tags"""
+        """Update uunione statistics for tags"""
         
         all_tags = tagged_file.auto_tags + tagged_file.user_tags
         timestamp = datetime.now().isoformat()
@@ -571,9 +571,9 @@ class ComprehensiveTaggingSystem:
 
         query = """
             INSERT OR REPLACE INTO tag_statistics
-            (tag, usage_count, file_count, category, average_confidence, first_seen, last_seen)
+            (tag, uunione_count, file_count, category, average_confidence, first_seen, last_seen)
             VALUES (?,
-                   COALESCE((SELECT usage_count FROM tag_statistics WHERE tag=?), 0) + 1,
+                   COALESCE((SELECT uunione_count FROM tag_statistics WHERE tag=?), 0) + 1,
                    COALESCE((SELECT file_count FROM tag_statistics WHERE tag=?), 0) + 1,
                    ?,
                    (COALESCE((SELECT average_confidence FROM tag_statistics WHERE tag=?), 0) + ?) / 2,
@@ -754,14 +754,14 @@ class ComprehensiveTaggingSystem:
         return None
     
     def get_tag_statistics(self) -> Dict[str, Any]:
-        """Get comprehensive tag usage statistics"""
+        """Get comprehensive tag uunione statistics"""
         
         with sqlite3.connect(self.db_path) as conn:
             # Most used tags
             cursor = conn.execute("""
-                SELECT tag, usage_count, file_count, category, average_confidence
+                SELECT tag, uunione_count, file_count, category, average_confidence
                 FROM tag_statistics 
-                ORDER BY usage_count DESC 
+                ORDER BY uunione_count DESC 
                 LIMIT 50
             """)
             
@@ -770,10 +770,10 @@ class ComprehensiveTaggingSystem:
             
             # Tag categories distribution
             cursor = conn.execute("""
-                SELECT category, COUNT(*) as count, SUM(usage_count) as total_usage
+                SELECT category, COUNT(*) as count, SUM(uunione_count) as total_uunione
                 FROM tag_statistics 
                 GROUP BY category 
-                ORDER BY total_usage DESC
+                ORDER BY total_uunione DESC
             """)
             
             categories = [dict(zip([desc[0] for desc in cursor.description], row)) 
@@ -883,7 +883,7 @@ def test_tagging_system():
     if stats['most_used_tags']:
         print(f"   Most used tags:")
         for tag_info in stats['most_used_tags'][:5]:
-            print(f"      {tag_info['tag']}: {tag_info['usage_count']} uses")
+            print(f"      {tag_info['tag']}: {tag_info['uunione_count']} uses")
     
     print(f"\n✅ Tagging system test completed!")
 

@@ -10,7 +10,7 @@ import os
 import base64
 import json
 import sqlite3
-from gdrive_integration import get_metadata_root
+from core.paths import get_metadata_root
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Optional, Any, Tuple
@@ -91,7 +91,7 @@ Be specific and focus on details that would help with intelligent file organizat
 3. PRODUCTION DETAILS: Show/movie titles, production companies, set details?
 4. DOCUMENT TYPE: Contract, headshot, behind-scenes, promotional material?
 5. BUSINESS CONTEXT: Meetings, signings, presentations, negotiations?
-6. CREATIVE ASSETS: Scripts, storyboards, concept art, demo reels?
+6. CREATIVE ASSETS: Scripts, storyboards, concept art, sample reels?
 
 Focus on details relevant to entertainment industry workflow and Client Name Wolfhard's career management.""",
             
@@ -104,7 +104,7 @@ Focus on details relevant to entertainment industry workflow and Client Name Wol
 5. AI/CONSCIOUSNESS THEMES: Any AI, consciousness, or technology themes?
 6. COLLABORATION: Multiple creators, team projects, feedback sessions?
 
-Perfect for organizing Papers That Dream podcast content and other creative work."""
+Perfect for organizing Example Project podcast content and other creative work."""
         }
     
     def _init_gemini_client(self):
@@ -428,8 +428,8 @@ Focus on details that would help with project categorization and file organizati
         if 'screenshot' in filename_lower:
             suggested_tags.append('screenshot')
             content_type = 'screenshot'
-        if 'finn' in filename_lower or 'wolfhard' in filename_lower:
-            suggested_tags.append('finn_wolfhard')
+        if 'client' in filename_lower or 'clientname' in filename_lower:
+            suggested_tags.append('client_name')
         
         return VisionAnalysisResult(
             success=True,

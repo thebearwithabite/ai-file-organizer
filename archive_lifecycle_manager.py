@@ -230,8 +230,8 @@ class ArchiveLifecycleManager:
         
         # Content-specific indicators
         high_importance_terms = [
-            'finn wolfhard', 'stranger things', 'contract', 'agreement',
-            'tax', 'payment', 'invoice', 'papers that dream',
+            'client name', 'example show', 'contract', 'agreement',
+            'tax', 'payment', 'invoice', 'example project',
             'current', 'active', 'pending', 'urgent'
         ]
         
@@ -247,7 +247,7 @@ class ArchiveLifecycleManager:
             score += 2
         
         # Personal connection boost (ADHD: emotional relevance = higher retention)
-        personal_terms = ['ryan', 'personal', 'important', 'remember']
+        personal_terms = ['user', 'personal', 'important', 'remember']
         if any(term in content.lower() for term in personal_terms):
             score += 1
         

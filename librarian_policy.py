@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 # V3 Integration
 from unified_classifier import UnifiedClassificationService
 from taxonomy_service import TaxonomyService, get_taxonomy_service
-from gdrive_integration import get_metadata_root
+from core.paths import get_metadata_root
 
 # Standard Policy Config
 STALE_THRESHOLD_DAYS = 7
@@ -68,10 +68,10 @@ class LibrarianPolicyEngine:
         # This preserves the specific folder structure required by the user
         self.drive_folder_map = {
             # 01_ENTERTAINMENT_MANAGEMENT
-            "entertainment_finn_active": "01_ENTERTAINMENT_MANAGEMENT/Current_Clients/Client Name/2025_Active_Contracts",
-            "entertainment_finn_remittances": "01_ENTERTAINMENT_MANAGEMENT/Current_Clients/Client Name/Financial_Remittances", 
-            "entertainment_finn_publicity": "01_ENTERTAINMENT_MANAGEMENT/Current_Clients/Client Name/Publicity_Projects",
-            "entertainment_finn_immigration": "01_ENTERTAINMENT_MANAGEMENT/Current_Clients/Client NameImmigration_Visa",
+            "entertainment_client_active": "01_ENTERTAINMENT_MANAGEMENT/Current_Clients/Client Name/2025_Active_Contracts",
+            "entertainment_client_remittances": "01_ENTERTAINMENT_MANAGEMENT/Current_Clients/Client Name/Financial_Remittances", 
+            "entertainment_client_publicity": "01_ENTERTAINMENT_MANAGEMENT/Current_Clients/Client Name/Publicity_Projects",
+            "entertainment_client_immigration": "01_ENTERTAINMENT_MANAGEMENT/Current_Clients/Client NameImmigration_Visa",
             
             # 02_CREATIVE_PRODUCTIONS
             "creative_tptd_episodes": "02_CREATIVE_PRODUCTIONS/The_Papers_That_Dream/Episode_Name",
@@ -198,7 +198,7 @@ class LibrarianPolicyEngine:
 
     def _generate_standardized_filename(self, file_path: Path, category: str, analysis: Dict) -> str:
         """
-        Legacy Renaming Logic (Ported from recovered_gdrive_librarian)
+        Legacy Renaming Logic
         Generates consistent filenames based on content patterns.
         """
         original_name = file_path.stem.lower()
@@ -215,15 +215,15 @@ class LibrarianPolicyEngine:
         content_text = " ".join(keywords).lower() if keywords else original_name
 
         # --- Wolfhard / Entertainment ---
-        if "wolfhard" in content_text or "stranger things" in content_text:
+        if "clientname" in content_text or "example show" in content_text:
             stub = "Document"
             if "contract" in content_text: stub = "Contract"
             elif "invoice" in content_text: stub = "Invoice"
             elif "schedule" in content_text: stub = "Schedule"
-            return f"WOLFHARD, FINN - {stub} - {date_str}{extension}"
+            return f"CLIENT NAME - {stub} - {date_str}{extension}"
 
-        # --- Papers That Dream (Creative) ---
-        if "papers that dream" in content_text or "tptd" in content_text:
+        # --- Example Project (Creative) ---
+        if "example project" in content_text or "tptd" in content_text:
             return f"TPTD - Asset - {date_str}{extension}"
 
         # --- Financials ---

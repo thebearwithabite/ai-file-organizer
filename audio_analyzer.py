@@ -7,6 +7,7 @@ with all external dependencies removed for integration with the unified classifi
 """
 
 import os
+from audio_numpy_helpers import _safe_float, _safe_int
 import json
 import pickle
 from pathlib import Path
@@ -82,7 +83,7 @@ class AudioAnalyzer:
         self.use_local_whisper = FASTER_WHISPER_AVAILABLE
         
         # Learning system files
-        from gdrive_integration import get_metadata_root
+        from core.paths import get_metadata_root
         metadata_dir = get_metadata_root()
         self.learning_data_file = Path(learning_data_path) if learning_data_path else metadata_dir / "learning_data.pkl"
         self.discovered_categories_file = Path(categories_data_path) if categories_data_path else metadata_dir / "discovered_categories.json"
@@ -112,7 +113,7 @@ class AudioAnalyzer:
     def _load_remote_config(self):
         """Load remote powerhouse configuration"""
         try:
-            from gdrive_integration import get_metadata_root
+            from core.paths import get_metadata_root
             config_path = get_metadata_root() / "config" / "hybrid_config.json"
             if config_path.exists():
                 with open(config_path, 'r') as f:
@@ -282,7 +283,8 @@ class AudioAnalyzer:
 
             # Detect BPM (tempo)
             tempo, beat_frames = librosa.beat.beat_track(y=y, sr=sr)
-            bpm = float(tempo)
+            import numpy as np
+            bpm = _safe_float(tempo)
 
             # Calculate spectral features
             spectral_centroids = librosa.feature.spectral_centroid(y=y, sr=sr)[0]
@@ -303,22 +305,22 @@ class AudioAnalyzer:
             harmonic_ratio = harmonic_energy / total_energy if total_energy > 0 else 0
 
             # Determine brightness (high frequency content)
-            brightness = float(np.mean(spectral_centroids))
+            brightness = _safe_float(np.mean(spectral_centroids))
             brightness_normalized = min(1.0, brightness / 4000.0)  # Normalize to 0-1
 
             # Determine texture based on spectral features
             texture = self._determine_texture(
-                spectral_bandwidth=np.mean(spectral_bandwidth),
+                spectral_bandwidth=_safe_float(np.mean(spectral_bandwidth)),
                 zero_crossing_rate=np.mean(zero_crossing_rate),
                 harmonic_ratio=harmonic_ratio
             )
 
             # Calculate energy level (0.0 to 1.0)
-            energy_level = float(np.mean(rms))
+            energy_level = _safe_float(np.mean(rms))
             energy_level_normalized = min(1.0, energy_level * 10)  # Normalize
 
             # Calculate energy level as 0-10 scale
-            energy_level_scale = int(energy_level_normalized * 10)
+            energy_level_scale = _safe_int(energy_level_normalized * 10)
 
             # Determine mood based on spectral features
             mood = self._determine_mood_from_spectral(
@@ -347,11 +349,11 @@ class AudioAnalyzer:
                     'brightness_normalized': brightness_normalized,
                     'texture': texture,
                     'harmonic_ratio': harmonic_ratio,
-                    'spectral_centroid_mean': float(np.mean(spectral_centroids)),
-                    'spectral_rolloff_mean': float(np.mean(spectral_rolloff)),
-                    'spectral_bandwidth_mean': float(np.mean(spectral_bandwidth)),
-                    'zero_crossing_rate_mean': float(np.mean(zero_crossing_rate)),
-                    'rms_energy_mean': float(np.mean(rms))
+                    'spectral_centroid_mean': _safe_float(np.mean(spectral_centroids)),
+                    'spectral_rolloff_mean': _safe_float(np.mean(spectral_rolloff)),
+                    'spectral_bandwidth_mean': _safe_float(np.mean(spectral_bandwidth)),
+                    'zero_crossing_rate_mean': _safe_float(np.mean(zero_crossing_rate)),
+                    'rms_energy_mean': _safe_float(np.mean(rms))
                 },
                 'analysis_duration': max_duration
             }

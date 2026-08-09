@@ -4,7 +4,7 @@ from typing import Dict, Any, List, Optional
 from pathlib import Path
 from pydantic import BaseModel
 
-from gdrive_integration import get_metadata_root, get_ai_organizer_root
+from core.paths import get_metadata_root, get_ai_organizer_root
 from taxonomy_service import TaxonomyService, get_taxonomy_service as get_service_factory
 
 router = APIRouter(prefix="/api/taxonomy", tags=["taxonomy"])

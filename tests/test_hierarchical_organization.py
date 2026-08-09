@@ -28,7 +28,7 @@ def test_hierarchical_organization():
         ("design_mockup.png", "image"),
 
         # Business files
-        ("contract_finn_jones.pdf", "financial"),
+        ("contract_client_jones.pdf", "financial"),
     ]
 
     print("🧪 Testing Hierarchical Organization System\n")

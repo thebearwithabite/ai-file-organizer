@@ -9,12 +9,12 @@
     <!-- Program to Run -->
     <key>ProgramArguments</key>
     <array>
-        <string>/Users/ryanthomson/Github/ai-file-organizer/start_adaptive_monitor.sh</string>
+        <string>/Users/theuser/Github/ai-file-organizer/start_adaptive_monitor.sh</string>
     </array>
 
     <!-- Working Directory -->
     <key>WorkingDirectory</key>
-    <string>/Users/ryanthomson/Github/ai-file-organizer</string>
+    <string>/Users/theuser/Github/ai-file-organizer</string>
 
     <!-- Run at Load (Login) -->
     <key>RunAtLoad</key>
@@ -36,10 +36,10 @@
 
     <!-- Standard Output/Error Logging -->
     <key>StandardOutPath</key>
-    <string>/Users/ryanthomson/Library/Logs/ai-organizer-monitor-stdout.log</string>
+    <string>/Users/theuser/Library/Logs/ai-organizer-monitor-stdout.log</string>
 
     <key>StandardErrorPath</key>
-    <string>/Users/ryanthomson/Library/Logs/ai-organizer-monitor-stderr.log</string>
+    <string>/Users/theuser/Library/Logs/ai-organizer-monitor-stderr.log</string>
 
     <!-- Environment Variables -->
     <key>EnvironmentVariables</key>

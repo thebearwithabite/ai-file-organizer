@@ -355,7 +355,7 @@ Examples:
   creative_cli.py directory /Users/user/Creative --pattern "*.txt"
   
   # View project information
-  creative_cli.py project "Stranger Things"
+  creative_cli.py project "Example Show"
   creative_cli.py list-projects
   
   # Find characters

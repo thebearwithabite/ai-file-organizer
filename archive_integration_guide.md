@@ -35,8 +35,8 @@ This guide integrates your previous Google Drive analysis with the current AI Fi
 ├── 🔵 02_ARCHIVE_HISTORICAL/       # Completed work (12+ months) 
 │   ├── Entertainment_Archive/
 │   │   ├── by_year/                # 2023/, 2022/, etc.
-│   │   ├── by_project/             # stranger_things/, completed_contracts/
-│   │   └── by_client/              # finn_wolfhard/ (complete history)
+│   │   ├── by_project/             # example_show/, completed_contracts/
+│   │   └── by_client/              # client_wolfhard/ (complete history)
 │   ├── Business_Archive/
 │   │   ├── by_year/                # tax_years/, financial_statements/
 │   │   └── by_category/            # completed_contracts/, vendor_history/

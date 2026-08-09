@@ -1,83 +1,72 @@
-#!/usr/bin/env python3
 """
-Unified Librarian Orchestrator
-The central integration point that composes Policy, Cloud, Search, and Classification.
+UnifiedLibrarian — V2 shim for backward compatibility with api/services.py.
 """
+from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Dict, Any, Optional, List
+from typing import Optional
 
-from librarian_policy import LibrarianPolicyEngine, PolicyDecision
-from gdrive_librarian import GoogleDriveLibrarian
-from unified_classifier import UnifiedClassificationService
-from gdrive_integration import get_metadata_root, get_ai_organizer_root
+from backend.file_operations import get_file_operations
+from backend.query import QueryService
+from backend.context import ContextStore
+from core.paths import get_ai_organizer_root, get_metadata_root
 
 logger = logging.getLogger(__name__)
 
+
+class CloudFacade:
+    """Shim for librarian.cloud.hybrid_librarian.search()."""
+    def __init__(self):
+        self.hybrid_librarian = self
+
+    def search(self, query: str, search_mode: str = "auto", limit: int = 50) -> list:
+        qs = QueryService()
+        result = qs.search_files(query_text=query, limit=limit)
+        return result.rows
+
+
 class UnifiedLibrarian:
-    """
-    High-level orchestrator for the AI File Organizer.
-    Composes all lower-level services into a single point of entry.
-    """
-    
-    _instance: Optional['UnifiedLibrarian'] = None
+    """V2 shim — wraps V2 components behind the pre-V2 interface."""
+    _instance: Optional["UnifiedLibrarian"] = None
+
+    def __init__(self):
+        self.cloud = CloudFacade()
+        self.file_ops = get_file_operations()
+        self.metadata_root = get_metadata_root()
+        self.organizer_root = get_ai_organizer_root()
+        self.context_store = ContextStore()
+        self._classifier = None
 
     @classmethod
-    def get_instance(cls) -> 'UnifiedLibrarian':
-        """Singleton access for the Unified Librarian"""
+    def get_instance(cls) -> "UnifiedLibrarian":
         if cls._instance is None:
             cls._instance = cls()
         return cls._instance
 
-    def __init__(self):
-        """Initialize the orchestration layer"""
-        logger.info("🎼 Initializing Unified Librarian Orchestrator...")
-        
-        self.metadata_root = get_metadata_root()
-        self.config_dir = self.metadata_root / "config"
-        
-        # 1. Classification Brain
-        self.classifier = UnifiedClassificationService()
-        
-        # 2. Policy Engine (Rules & Business Logic)
-        self.policy = LibrarianPolicyEngine()
-        
-        # 3. Cloud & Search System
-        self.cloud = GoogleDriveLibrarian(
-            config_dir=self.config_dir,
-            auto_sync=False # Managed by orchestration
+    @property
+    def classifier(self):
+        if self._classifier is None:
+            from unified_classifier import UnifiedClassificationService
+            self._classifier = UnifiedClassificationService()
+        return self._classifier
+
+    def get_organized_files(self, category: Optional[str] = None) -> list:
+        return self.file_ops.list_organized_files(category)
+
+    def get_staging_files(self) -> list:
+        return self.file_ops.list_staging_files()
+
+    def move_to_organized(self, source: Path, category: str) -> Path:
+        return self.file_ops.move_to_organized(source, category)
+
+    def record_correction(self, file_path: str, predicted: str, corrected: str, confidence: float = 0.0, source: str = "api"):
+        from backend.context import CorrectionEvent
+        event = CorrectionEvent(
+            file_path=file_path,
+            predicted_category=predicted,
+            corrected_category=corrected,
+            confidence=confidence,
+            source=source,
         )
-        
-        logger.info("✅ Unified Librarian Ready")
-
-    def decide_and_act(self, file_path: Path, dry_run: bool = True) -> Dict[str, Any]:
-        """
-        The core loop for a single file:
-        1. Query Policy (which queries Classifier)
-        2. Perform Cloud/Local actions based on Decision
-        """
-        file_path = Path(file_path)
-        if not file_path.exists():
-            return {"status": "error", "message": f"File not found: {file_path}"}
-
-        # Step 1: Get Decision from Policy Engine
-        decision = self.policy.analyze_file(file_path)
-        
-        # Step 2: Execute based on decision action
-        # (This will be fleshed out as we unify orchestrate_staging.py)
-        
-        return {
-            "file": file_path.name,
-            "decision": decision,
-            "dry_run": dry_run
-        }
-
-    def get_status(self) -> Dict[str, Any]:
-        """Unified status for the entire backend system"""
-        return {
-            "librarian": "online",
-            "cloud": self.cloud.get_system_status(),
-            "policy": "active",
-            "classifier": "ready"
-        }
+        return self.context_store.record_correction(event)

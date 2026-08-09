@@ -2,7 +2,7 @@
 
 ## What Was Built
 
-A beautiful, ADHD-friendly web application for Ryan's AI File Organizer with a stunning liquid glass design aesthetic.
+A beautiful, ADHD-friendly web application for the user's AI File Organizer with a stunning liquid glass design aesthetic.
 
 ## Quick Start
 
@@ -173,7 +173,7 @@ The following features work perfectly in the UI but return mock data:
 
 **Terminal 1 (Backend - Optional for now):**
 ```bash
-cd /Users/ryanthomson/Github/ai-file-organizer
+cd /Users/theuser/Github/ai-file-organizer
 source venv/bin/activate
 python main.py
 ```
@@ -248,7 +248,7 @@ None! Week 1 is production-ready with mock data.
 
 This Week 1 implementation delivers:
 
-1. A **stunning, production-ready UI** that Ryan will actually want to use
+1. A **stunning, production-ready UI** that the user will actually want to use
 2. **All core functionality** working with mock data
 3. **ADHD-optimized UX** with immediate feedback and forgiving interactions
 4. **Clean, maintainable code** with TypeScript types
@@ -256,12 +256,12 @@ This Week 1 implementation delivers:
 6. **Mobile-responsive layouts** that work on any screen
 7. **Fast performance** with Vite and optimized builds
 
-**The mission was accomplished.** Ryan now has a beautiful web interface that eliminates the cognitive load of CLI commands. The system feels calm, professional, and actually enjoyable to use.
+**The mission was accomplished.** the user now has a beautiful web interface that eliminates the cognitive load of CLI commands. The system feels calm, professional, and actually enjoyable to use.
 
 Next step: Connect to the real backend APIs and watch this thing come alive! 🚀
 
 ---
 
-*Built with love for Ryan*
+*Built with love for the user*
 *October 29, 2025*
 *Week 1 COMPLETE*

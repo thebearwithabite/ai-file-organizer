@@ -7,9 +7,9 @@ description: Build a unified, ADHD-friendly web UI that consolidates 70+ CLI too
 
 ## Overview
 
-Transform the AI File Organizer from 70+ scattered CLI tools (31,415 lines of Python) into a unified, beautiful web application that eliminates all terminal interactions. The user (Ryan) has ADHD and cannot use the current system due to overwhelming context-switching between commands. This consolidation is mission-critical.
+Transform the AI File Organizer from 70+ scattered CLI tools (31,415 lines of Python) into a unified, beautiful web application that eliminates all terminal interactions. The user (the user) has ADHD and cannot use the current system due to overwhelming context-switching between commands. This consolidation is mission-critical.
 
-**Success Metric:** Ryan can organize files, search content, manage VEO prompts, and control system settings without ever opening the terminal.
+**Success Metric:** the user can organize files, search content, manage VEO prompts, and control system settings without ever opening the terminal.
 
 **Timeline:** 4 weeks (28 days)
 
@@ -96,7 +96,7 @@ See `references/adhd-design-principles.md` for complete guidelines. Core tenets:
 1. Build ConfidenceModeSelector (NEVER/MINIMAL/SMART/ALWAYS)
 2. Create `/api/settings/confidence` endpoints
 3. Build InteractiveQuestionModal
-   - "Is this about Finn or business?" [A] [B]
+   - "Is this about the client or business?" [A] [B]
    - Shows file preview, confidence score, reasoning
 4. **Test:** Low-confidence file triggers question
 
@@ -128,7 +128,7 @@ See `references/adhd-design-principles.md` for complete guidelines. Core tenets:
 2. Build FilterPanel (date, category, location)
 3. Build ResultsList with react-window virtualization
 4. Create FileResultCard, EmailResultCard, ClipResultCard
-5. **Test:** Search "Finn contracts" → see PDF + email results
+5. **Test:** Search "the client contracts" → see PDF + email results
 
 **Days 3-4: Analysis Section**
 1. Build AnalysisQueue component
@@ -171,7 +171,7 @@ See `references/adhd-design-principles.md` for complete guidelines. Core tenets:
 2. Performance optimization (code splitting, lazy loading)
 3. Accessibility (ARIA labels, keyboard navigation)
 4. Final UI polish
-5. **Test with Ryan:** 1 week of daily use without terminal
+5. **Test with the user:** 1 week of daily use without terminal
 
 **Week 4 Deliverable:** ✅ Production-ready UI replacing all CLI tools
 
@@ -267,7 +267,7 @@ See `references/api-endpoints.md` for complete API specification covering all 70
 
 1. **Start with Dashboard + Basic Organize** - Get core loop working first
 2. **Rollback Center is Non-Negotiable** - This is the trust mechanism
-3. **Test with Real Files** - Use Ryan's actual PDFs, contracts, emails
+3. **Test with Real Files** - Use the user's actual PDFs, contracts, emails
 4. **ADHD-First UX Review** - After each component: "Can I do this without thinking?"
 5. **Performance Matters** - Target <100ms UI response for all interactions
 
@@ -275,14 +275,14 @@ See `references/api-endpoints.md` for complete API specification covering all 70
 
 This project is complete when:
 
-1. ✅ Ryan uses the system for 1 week without opening the terminal
+1. ✅ the user uses the system for 1 week without opening the terminal
 2. ✅ All 70+ CLI commands have UI equivalents
 3. ✅ Rollback system works flawlessly (tested with real mistakes)
 4. ✅ Search finds files across all sources (local, Drive, emails, VEO)
 5. ✅ UI feels fast, beautiful, and calming (not overwhelming)
 6. ✅ System status is always visible (no "is this working?" anxiety)
 
-**Final Test:** Ask Ryan: "Would you recommend this to another person with ADHD?"
+**Final Test:** Ask the user: "Would you recommend this to another person with ADHD?"
 
 If yes, **mission accomplished.** 🎉
 

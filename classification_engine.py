@@ -12,7 +12,7 @@ from typing import Dict, List, Tuple, Optional
 from dataclasses import dataclass
 from datetime import datetime
 import mimetypes
-from gdrive_integration import get_ai_organizer_root, get_metadata_root
+from core.paths import get_ai_organizer_root, get_metadata_root
 
 @dataclass
 class ClassificationResult:
@@ -67,13 +67,13 @@ class FileClassificationEngine:
             # Enhanced v3.0 rules structure with better integration
             self.rules = {
                 "people_indicators": {
-                    "finn_Client": ["finn", "client", "finn wolfhard", "stranger things", "netflix", "hawkins"],
+                    "client_A": ["client", "client", "client name", "example show", "streaming service", "exampletown"],
                     "business_contacts": ["refinery", "refinery artist mgmt", "payment report", "contract", "agreement", "commission", "residual"],
-                    "creative_contacts": ["papers that dream", "podcast", "episode", "ai consciousness"]
+                    "creative_contacts": ["example project", "podcast", "episode", "ai consciousness"]
                 },
                 "project_indicators": {
-                    "stranger_things": ["stranger", "things", "netflix", "hawkins", "finn", "demo reel"], 
-                    "papers_that_dream": ["papers", "dream", "podcast", "episode", "elevenlabs", "tts", "voice"],
+                    "example_show": ["stranger", "things", "streaming service", "exampletown", "client", "sample reel"], 
+                    "example_project": ["papers", "dream", "podcast", "episode", "elevenlabs", "tts", "voice"],
                     "refinery_business": ["refinery", "artist", "mgmt", "commission", "residual", "bank feed"],
                     "threads_development": ["threads", "exporter", "downloader", "dataset", "react", "typescript"],
                     "creative_production": ["creative", "audio", "music", "sound", "production", "editing"]
@@ -123,12 +123,12 @@ class FileClassificationEngine:
             # Create default rules if none exist
             self.rules = {
                 "people_indicators": {
-                    "finn_Client": ["finn", "Client", "TV Show", "netflix"],
+                    "client_A": ["client", "Client", "TV Show", "streaming service"],
                     "business_contacts": ["refinery", "payment report", "contract", "agreement"]
                 },
                 "project_indicators": {
-                    "stranger_things": ["stranger", "things", "netflix", "hawkins"],
-                    "papers_that_dream": ["papers", "dream", "screenplay"],
+                    "example_show": ["stranger", "things", "streaming service", "exampletown"],
+                    "example_project": ["papers", "dream", "screenplay"],
                     "refinery": ["refinery", "payment", "residual"]
                 },
                 "document_types": {
@@ -298,13 +298,13 @@ class FileClassificationEngine:
         special_patterns = {
             "chatgpt image": ("visual_media", 0.4),
             "screenshot": ("visual_media", 0.4),
-            "demo reel": ("entertainment_industry", 0.4),
+            "sample reel": ("entertainment_industry", 0.4),
             "bank feed": ("financial_documents", 0.5),
             "commission": ("financial_documents", 0.4),
             "residual": ("financial_documents", 0.4),
             "refinery artist mgmt": ("financial_documents", 0.5),
             "elevenlabs": ("creative_projects", 0.4),
-            "papers that dream": ("creative_projects", 0.5),
+            "example project": ("creative_projects", 0.5),
             "threads": ("development_projects", 0.3),
             "vhs style": ("visual_media", 0.4),
             "animation": ("visual_media", 0.3),
@@ -355,7 +355,7 @@ class FileClassificationEngine:
             # Creative projects - high precedence for audio/creative content
             {
                 'category': 'creative_projects', 
-                'triggers': ['papers that dream', 'elevenlabs', 'episode', 'podcast', 'audio production'],
+                'triggers': ['example project', 'elevenlabs', 'episode', 'podcast', 'audio production'],
                 'boost': 0.25
             },
             # Reference documents - medium precedence
@@ -373,7 +373,7 @@ class FileClassificationEngine:
             # Entertainment industry - base precedence
             {
                 'category': 'entertainment_industry',
-                'triggers': ['finn wolfhard', 'stranger things', 'demo reel', 'netflix'],
+                'triggers': ['client name', 'example show', 'sample reel', 'streaming service'],
                 'boost': 0.1
             }
         ]

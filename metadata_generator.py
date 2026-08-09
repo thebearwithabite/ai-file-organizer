@@ -22,7 +22,7 @@ sys.path.insert(0, str(project_dir))
 from content_extractor import ContentExtractor
 from classification_engine import FileClassificationEngine
 from interaction_modes import InteractionModeManager
-from gdrive_integration import get_metadata_root
+from core.paths import get_metadata_root
 
 class MetadataGenerator:
     """
@@ -395,7 +395,7 @@ class MetadataGenerator:
         
         # Common people patterns (extend based on your needs)
         people_patterns = [
-            'client name', 'finn', 'client', 'netflix', 'user',
+            'client name', 'client', 'client', 'streaming service', 'user',
             'alex', 'maya', 'torres', 'detective', 'dr. chen'
         ]
         
@@ -405,7 +405,7 @@ class MetadataGenerator:
         
         # Organization patterns
         org_patterns = [
-            'netflix', 'management company', 'refinery', 'sag-aftra',
+            'streaming service', 'management company', 'refinery', 'union-aftra',
             'apple', 'google', 'sony', 'warner', 'disney'
         ]
         

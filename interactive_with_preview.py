@@ -210,7 +210,7 @@ def run_interactive_batch():
     for file_path in staging_dir.iterdir():
         if file_path.is_file() and not file_path.name.startswith('.'):
             name_lower = file_path.name.lower()
-            if any(keyword in name_lower for keyword in ['Client', 'finn', 'management', 'island', 'ai', 'commission']):
+            if any(keyword in name_lower for keyword in ['Client', 'client', 'management', 'island', 'ai', 'commission']):
                 test_files.append(file_path)
         if len(test_files) >= 5:
             break

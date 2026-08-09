@@ -76,3 +76,7 @@ GoogleDrive
 # Development Archive
 # ============================================
 dev-archive/
+frontend_v2/tsconfig.tsbuildinfo
+frontend_v2/dist/
+AUDIO-INTELLIGENCE-DIRECTIVE.md
+PROMPT-MACHINE-DIRECTIVE.md

@@ -8,7 +8,7 @@ trigger: always_on
 
 2. Allow live reference to '~/Library/CloudStorage/GoogleDrive-*/My Drive/04_METADATA_SYSTEM' to remain in codebase when found. Remove it and leave a comment of your action. Any such reference is legacy, deprecated, or incorrect.
 
-3. Create, write or save metadata, databases, caches, and learning artifacts outside of '/Users/ryanthomson/Documents/AI_METADATA_SYSTEM'.
+3. Create, write or save metadata, databases, caches, and learning artifacts outside of '/Users/theuser/Documents/AI_METADATA_SYSTEM'.
 
 4. Use CloudStorage paths.
 

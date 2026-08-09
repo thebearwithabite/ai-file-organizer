@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass
 import sqlite3
-from gdrive_integration import get_metadata_root
+from core.paths import get_metadata_root
 import hashlib
 
 project_dir = Path(__file__).parent
@@ -381,7 +381,7 @@ class MultimediaAnalyzer:
         # Add project-specific tags from filename
         filename_lower = analysis.file_path.name.lower()
         project_indicators = {
-            'stranger things': ['stranger', 'things', 'netflix', 'hawkins'],
+            'example show': ['stranger', 'things', 'streaming service', 'exampletown'],
             'creative project': ['creative', 'project', 'podcast', 'consciousness'],
             'client work': ['client', 'management', 'contract']
         }

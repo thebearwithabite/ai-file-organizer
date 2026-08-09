@@ -8,11 +8,11 @@
       "keywords": [
         "Client Name Wolfhard",
         "Client Name",
-        "Stranger Things",
+        "Example Show",
         "TV Show",
-        "Netflix",
-        "Hawkins",
-        "SAG-AFTRA",
+        "Streaming Service",
+        "Example Town",
+        "union-AFTRA",
         "Actor Agreement",
         "Deal Memo",
         "Casting",
@@ -31,15 +31,15 @@
         "Agreement"
       ],
       "patterns": [
-        "*finn*",
+        "*client*",
         "*Client*",
         "*stranger*things*",
         "*TV*Show*",
-        "*netflix*",
+        "*streaming service*",
         "*refinery*",
         "*artist*mgmt*",
         "*management*",
-        "*sag*aftra*",
+        "*union*aftra*",
         "*contract*",
         "*agreement*",
         "*deal*memo*",
@@ -60,12 +60,12 @@
         ".csv"
       ],
       "confidence_weights": {
-        "finn_wolfhard": 0.95,
-        "stranger_things": 0.95,
+        "client_name": 0.95,
+        "example_show": 0.95,
         "refinery_artist_mgmt": 0.9,
         "demo_reel": 0.9,
-        "sag_aftra": 0.9,
-        "netflix": 0.85,
+        "union_aftra": 0.9,
+        "streaming service": 0.85,
         "contract": 0.8,
         "casting": 0.75,
         "commission": 0.8,
@@ -429,9 +429,9 @@
       "age_threshold_months": 12,
       "retention_years": 7,
       "high_priority_patterns": [
-        "*finn*",
+        "*client*",
         "*stranger*things*",
-        "*netflix*",
+        "*streaming service*",
         "*demo*reel*"
       ]
     },
@@ -587,7 +587,7 @@
       "temp": "🟡"
     },
     "decision_shortcuts": {
-      "finn_documents": "Entertainment_Industry (active if current year)",
+      "client_documents": "Entertainment_Industry (active if current year)",
       "refinery_documents": "Business_Operations/Financial",
       "demo_reel": "Entertainment_Industry/Demo_Reels",
       "chatgpt_image": "Visual_Assets/Generated_Images",
@@ -606,7 +606,7 @@
         "creative": "Keep current projects active, archive completed"
       },
       "person_based_filing": {
-        "finn_priority": "All Client Name-related files get high priority classification",
+        "client_priority": "All Client Name-related files get high priority classification",
         "refinery_business": "Refinery files automatically go to Business_Operations"
       },
       "project_based_filing": {
@@ -658,7 +658,7 @@
       ".wav"
     ],
     "high_priority_keywords": [
-      "finn",
+      "client",
       "refinery",
       "papers",
       "demo",

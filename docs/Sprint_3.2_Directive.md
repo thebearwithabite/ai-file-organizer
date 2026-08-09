@@ -3,7 +3,7 @@ title: "Sprint 3.2 — Full Wiring Pass"
 date: 2025-11-04
 status: In Progress
 phase: 3.2
-owner: Ryan Thomson
+owner: the user Thomson
 ---
 
 # 🧭 Sprint 3.2 — Full Wiring Pass
@@ -144,4 +144,4 @@ Hook into new `/api/rollback` endpoints.
 
 ---
 
-*Logged by Claude (backend agent) · Drafted by Ryan Thomson · Reviewed by Max (system supervisor)*
+*Logged by Claude (backend agent) · Drafted by the user Thomson · Reviewed by Max (system supervisor)*

@@ -36,7 +36,7 @@ from background_monitor import EnhancedBackgroundMonitor
 from universal_adaptive_learning import UniversalAdaptiveLearning
 from confidence_system import ADHDFriendlyConfidenceSystem, ConfidenceLevel
 from bulletproof_deduplication import BulletproofDeduplicator
-from gdrive_integration import get_ai_organizer_root, get_metadata_root, GoogleDriveIntegration
+from core.paths import get_ai_organizer_root, get_metadata_root
 from easy_rollback_system import EasyRollbackSystem
 from staging_monitor import StagingMonitor
 
@@ -162,13 +162,8 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
             "rules_created": 0,
             "user_corrections_learned": 0
         })
-
-        # Initialize Google Drive Integration with error handling
-        try:
-            self.gdrive = GoogleDriveIntegration()
-        except Exception as e:
-            self.logger.warning(f"Google Drive Integration not available: {e}")
-            self.gdrive = None
+# V2: StorageProvider handles cloud tiering.
+        self.cloud = None
 
         # Track last execution times
         self.last_emergency_check_time = None
@@ -185,7 +180,7 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
         if not self._taxonomy_service:
             try:
                 from taxonomy_service import get_taxonomy_service
-                from gdrive_integration import get_metadata_root
+                from core.paths import get_metadata_root
                 self._taxonomy_service = get_taxonomy_service(get_metadata_root() / "config")
             except Exception as e:
                 self.logger.error(f"Failed to load TaxonomyService: {e}")
@@ -989,36 +984,8 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
         return False
 
     def _run_weekly_temp_cleanup(self):
-        """Run weekly temporary file cleanup"""
-        self.logger.info("🚀 Starting weekly scheduled temp file cleanup...")
-        
-        try:
-            # We reuse the logic from EmergencySpaceProtection but run it as a normal task
-            from emergency_space_protection import EmergencySpaceProtection, SpaceEmergency
-            protector = EmergencySpaceProtection(str(self.base_dir))
-            
-            # Create a mock emergency object to reuse the cleanup logic
-            mock_emergency = SpaceEmergency(
-                emergency_id=f"weekly_maint_{datetime.now().strftime('%Y%m%d')}",
-                detection_time=datetime.now(),
-                severity="scheduled",
-                disk_path="/",
-                total_space_gb=0,
-                free_space_gb=0,
-                usage_percent=0,
-                projected_full_hours=None,
-                recommended_actions=["cleanup_temp_files"],
-                affected_directories=[str(config['path']) for config in self.watch_directories.values() if config['path'].exists()]
-            )
-            
-            freed_gb = protector._cleanup_temp_files(mock_emergency)
-            
-            self._record_maintenance_run("weekly_temp_cleanup", True, f"Freed {freed_gb:.2f} GB of temporary files")
-            self.logger.info(f"✅ Weekly temp cleanup completed. Freed {freed_gb:.2f} GB")
-            
-        except Exception as e:
-            self.logger.error(f"❌ Weekly temp cleanup failed: {e}")
-            self._record_maintenance_run("weekly_temp_cleanup", False, str(e))
+        """V2: Replaced by backend/storage/tiering.py."""
+        return
 
     def _run_biweekly_deduplication(self):
         """Run bi-weekly deduplication across all watched paths"""
@@ -1146,48 +1113,9 @@ class AdaptiveBackgroundMonitor(EnhancedBackgroundMonitor):
             
         except Exception as e:
             self.logger.error(f"Error handling emergency: {e}")
-
-    def _handle_disk_space_emergency(self, emergency_dict: Dict[str, Any]):
-        """Handle critical disk space emergency"""
-        
-        location = emergency_dict['location']
-        self.logger.warning(f"Critical disk space at {location}")
-        
-        try:
-            # Re-use the logic from EmergencySpaceProtection
-            from emergency_space_protection import EmergencySpaceProtection, SpaceEmergency
-            protector = EmergencySpaceProtection(str(self.base_dir))
-            
-            # Create a real emergency object for the protector
-            disk_path = protector._get_disk_path(Path(location))
-            total, used, free = shutil.disk_usage(disk_path)
-            
-            emergency = SpaceEmergency(
-                emergency_id=f"auto_{int(time.time())}",
-                detection_time=datetime.now(),
-                severity="emergency" if (used/total) > 0.95 else "critical",
-                disk_path=disk_path,
-                total_space_gb=total / (1024**3),
-                free_space_gb=free / (1024**3),
-                usage_percent=(used/total)*100,
-                projected_full_hours=None,
-                recommended_actions=["emergency_offload"],
-                affected_directories=[location]
-            )
-            
-            self.logger.info(f"Initiating emergency recovery for {location}...")
-            
-            # Run the same response logic as the dedicated service
-            if emergency.severity == "emergency":
-                protector._execute_emergency_offloading(emergency)
-            else:
-                protector._execute_critical_cleanup(emergency)
-                
-            self.logger.info("Emergency space recovery check complete.")
-            
-        except Exception as e:
-            self.logger.error(f"Error in emergency space recovery: {e}")
-
+    def _handle_disk_space_emergency(self, emergency_dict: dict):
+        """V2: Replaced by backend/storage/tiering.py."""
+        return
     def _handle_duplicate_emergency(self, emergency: Dict[str, Any]):
         """Handle duplicate file crisis"""
         

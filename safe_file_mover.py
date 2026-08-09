@@ -17,7 +17,7 @@ import json
 import sqlite3
 from dataclasses import dataclass
 from enum import Enum
-from gdrive_integration import get_metadata_root
+from core.paths import get_metadata_root
 
 project_dir = Path(__file__).parent
 sys.path.insert(0, str(project_dir))

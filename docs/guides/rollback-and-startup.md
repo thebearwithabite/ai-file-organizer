@@ -61,7 +61,7 @@ Created three files for macOS LaunchAgent setup:
 
 **Install the startup service:**
 ```bash
-cd /Users/ryanthomson/Github/ai-file-organizer
+cd /Users/theuser/Github/ai-file-organizer
 ./install_startup_service.sh
 ```
 

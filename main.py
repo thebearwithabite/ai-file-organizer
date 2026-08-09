@@ -25,24 +25,22 @@ import logging
 import threading
 from pathlib import Path
 from typing import Optional
-from dotenv import load_dotenv
+from secret_manager import load_secrets
 from datetime import datetime
 
-# Load environment variables from .env file
-load_dotenv()
+# Load secrets from Google Secret Manager
+load_secrets()
 
 # Import our services
 from api.services import SystemService, SearchService, TriageService
 from api.rollback_service import RollbackService
 from api.veo_prompts_api import router as veo_router, clip_router
 from security_utils import sanitize_filename, validate_path_within_base
-from gdrive_integration import get_metadata_root, get_ai_organizer_root
+from core.paths import get_metadata_root, get_ai_organizer_root
 from universal_adaptive_learning import UniversalAdaptiveLearning
 from easy_rollback_system import ensure_rollback_db
 from adaptive_background_monitor import AdaptiveBackgroundMonitor
 from confidence_system import ADHDFriendlyConfidenceSystem, ConfidenceLevel
-from automated_deduplication_service import AutomatedDeduplicationService
-from emergency_space_protection import EmergencySpaceProtection
 from orchestrate_staging import orchestrate
 
 # Configure logging
@@ -212,8 +210,9 @@ async def lifespan(app: FastAPI):
 
     # 3. Start Emergency Services
     try:
-        app.state.space_protection = EmergencySpaceProtection()
-        app.state.space_protection.start_space_protection()
+        # V2: Emergency space protection replaced by backend/storage/tiering.py
+        app.state.space_protection = None  # see tiering.py
+        # app.state.space_protection.start_space_protection()
         logger.info("🛡️  Space Protection Active")
     except Exception as e:
         logger.error(f"❌ Space Protection Failed: {e}")
@@ -274,6 +273,9 @@ if veo_brain_router:
     app.include_router(veo_brain_router)
 app.include_router(taxonomy_router)
 app.include_router(identity_router)
+# V2 Routes (Phase 3)
+from api.v2_routes import router as v2_router
+app.include_router(v2_router)
 
 # Initialize FastAPI with lifespan
 app.router.lifespan_context = lifespan
@@ -326,7 +328,8 @@ def get_confidence_system():
 def get_deduplication_service():
     global _deduplication_service
     if _deduplication_service is None:
-        _deduplication_service = AutomatedDeduplicationService()
+        from bulletproof_deduplication import BulletproofDeduplicator
+        _deduplication_service = BulletproofDeduplicator()
     return _deduplication_service
 
 def get_space_protection(request: Request):

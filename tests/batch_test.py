@@ -29,7 +29,7 @@ def get_interesting_files():
         name_lower = file_path.name.lower()
         
         # Client Name related
-        if 'Client' in name_lower or 'finn' in name_lower:
+        if 'Client' in name_lower or 'client' in name_lower:
             interesting_files.append(file_path)
         
         # Management/business

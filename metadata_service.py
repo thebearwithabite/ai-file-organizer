@@ -20,7 +20,7 @@ from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Optional, Any, Union
 
-from gdrive_integration import get_metadata_root, ensure_safe_local_path
+from core.paths import get_metadata_root, ensure_safe_local_path
 
 class MetadataService:
     def __init__(self, db_name: str = "unified_metadata.db"):

@@ -28,7 +28,7 @@ import logging
 project_dir = Path(__file__).parent
 sys.path.insert(0, str(project_dir))
 
-from gdrive_integration import get_ai_organizer_root, get_metadata_root, ensure_safe_local_path
+from core.paths import get_ai_organizer_root, get_metadata_root, ensure_safe_local_path
 
 @dataclass
 class LearningEvent:

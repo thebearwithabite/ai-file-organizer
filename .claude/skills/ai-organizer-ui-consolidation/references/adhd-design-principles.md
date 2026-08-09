@@ -16,15 +16,15 @@ Make finding and organizing files as effortless as having a conversation. Reduce
   ```jsx
   // Good
   <div>
-    <p>Is this about Finn or business?</p>
-    <button>Finn</button>
+    <p>Is this about the client or business?</p>
+    <button>the client</button>
     <button>Business</button>
   </div>
 
   // Bad
   <select>
-    <option>Finn - Entertainment</option>
-    <option>Finn - Contracts</option>
+    <option>the client - Entertainment</option>
+    <option>the client - Contracts</option>
     <option>Business - General</option>
     <option>Business - Tax</option>
     <option>Creative - Podcast</option>
@@ -221,7 +221,7 @@ Make finding and organizing files as effortless as having a conversation. Reduce
 
 - **URL Reflects State:**
   ```
-  /search?q=finn+contracts&mode=semantic&date_from=2024-01-01
+  /search?q=client+contracts&mode=semantic&date_from=2024-01-01
 
   # User can bookmark, share, or refresh without losing query
   ```
@@ -418,14 +418,14 @@ Make finding and organizing files as effortless as having a conversation. Reduce
 
       {/* Binary question */}
       <div>
-        <p className="mb-3 font-semibold">Is this about Finn or business?</p>
+        <p className="mb-3 font-semibold">Is this about the client or business?</p>
         <div className="grid grid-cols-2 gap-3">
           <button
-            onClick={() => handleAnswer('finn')}
+            onClick={() => handleAnswer('client')}
             className="p-4 bg-white/10 hover:bg-white/20 rounded-lg text-left"
           >
             <div className="text-2xl mb-1">👤</div>
-            <div className="font-semibold">Finn</div>
+            <div className="font-semibold">the client</div>
             <div className="text-sm text-muted">Entertainment/Client work</div>
           </button>
 
@@ -631,4 +631,4 @@ If the answer is "maybe" or "I don't know," the design needs more work.
 ---
 
 *Last Updated: 2025-10-29*
-*Reference: Ryan's actual ADHD experience + proven UI patterns*
+*Reference: the user's actual ADHD experience + proven UI patterns*

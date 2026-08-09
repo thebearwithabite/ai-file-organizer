@@ -6,7 +6,7 @@ Provides system status and monitoring functionality
 
 import logging
 import os
-import shutil
+from backend.file_operations import get_file_operations
 import subprocess
 import json
 from pathlib import Path
@@ -14,9 +14,8 @@ from typing import Dict, Any, Optional, List
 import datetime as dt_module
 
 from taxonomy_service import TaxonomyService
-from google_drive_auth import GoogleDriveAuth
-from unified_librarian import UnifiedLibrarian
-from gdrive_integration import get_ai_organizer_root, get_metadata_root
+from unified_librarian import UnifiedLibrarian  # V2 shim
+from core.paths import get_ai_organizer_root, get_metadata_root
 from hierarchical_organizer import HierarchicalOrganizer
 from security_utils import validate_path_within_base
 from universal_adaptive_learning import UniversalAdaptiveLearning
@@ -115,34 +114,13 @@ class SystemService:
                 "stats": {"processed_files": 0, "errors_24h": 0, "last_scan": None}
             }
 
-        # Get Google Drive status
+        # V2: cloud status from StorageProvider
         gdrive_status = {
             "connected": False,
             "user_name": None,
             "quota_used_gb": 0,
             "quota_total_gb": 0
         }
-
-        librarian = self.get_librarian()
-        if librarian and librarian.cloud:
-            try:
-                # Get detailed status from librarian
-                lib_status = librarian.cloud.get_system_status()
-                
-                if lib_status.get("authenticated", False):
-                    auth_info = lib_status.get("auth_info", {})
-                    gdrive_status = {
-                        "connected": True,
-                        "user_name": auth_info.get("user_name", "Unknown"),
-                        "quota_used_gb": auth_info.get("storage_used_gb", 0),
-                        "quota_total_gb": auth_info.get("storage_quota_gb", 0),
-                        "drive_root": lib_status.get("drive_root")
-                    }
-            except Exception as e:
-                logger.error(f"Error getting Google Drive status: {e}")
-
-        # DEBUG LOGGING for Status Issue
-        logger.info(f"SystemStatus Debug - Sending Google Drive Status: {gdrive_status}")
 
         # Orchestration Status (Read from shared JSON)
         orchestration_info = {
@@ -183,8 +161,11 @@ class SystemService:
             Dict with free_gb, total_gb, percent_used, and status
         """
         try:
-            # Use shutil.disk_usage for reliable cross-platform stats
-            total, used, free = shutil.disk_usage("/")
+            # V2: disk usage via FileOperationsService
+            usage = get_file_operations().disk_usage()
+            total = usage["total_bytes"]
+            used = usage["used_bytes"]
+            free = usage["free_bytes"]
             
             total_gb = round(total / (1024**3), 1)
             free_gb = round(free / (1024**3), 1)
@@ -221,7 +202,7 @@ class SystemService:
             Dict with moved_count, freed_mb, and status
         """
         try:
-            gdrive_staging = Path.home() / "Google Drive" / "My Drive" / "99_STAGING_EMERGENCY"
+            local_staging = Path.home() / ".ai-file-organizer" / "staging"
             downloads = Path.home() / "Downloads"
 
             # Find large files (>50MB)
@@ -237,12 +218,12 @@ class SystemService:
             moved_count = 0
             freed_mb = 0
 
-            gdrive_staging.mkdir(parents=True, exist_ok=True)
+            local_staging.mkdir(parents=True, exist_ok=True)
 
             for file_path, size_mb in large_files[:10]:  # Move up to 10 largest
                 try:
-                    dest_path = gdrive_staging / file_path.name
-                    shutil.move(str(file_path), str(dest_path))
+                    dest_path = local_staging / file_path.name
+                    get_file_operations().move_to_organized(file_path, category=str(dest_path.parent.name))
                     moved_count += 1
                     freed_mb += size_mb
                     logger.info(f"Moved {file_path.name} to Google Drive staging")
@@ -266,7 +247,7 @@ class SystemService:
     def get_maintenance_logs(self, limit: int = 50) -> List[Dict[str, Any]]:
         """Get recent maintenance task logs from adaptive_rules.db"""
         import sqlite3
-        from gdrive_integration import get_metadata_root
+        from core.paths import get_metadata_root
         
         db_path = get_metadata_root() / "databases" / "adaptive_rules.db"
         logs = []
@@ -291,7 +272,7 @@ class SystemService:
     def get_emergency_logs(self, limit: int = 50) -> List[Dict[str, Any]]:
         """Get recent emergency events from adaptive_rules.db"""
         import sqlite3
-        from gdrive_integration import get_metadata_root
+        from core.paths import get_metadata_root
         
         db_path = get_metadata_root() / "databases" / "adaptive_rules.db"
         logs = []
@@ -429,7 +410,7 @@ class TriageService:
             self.base_dir / "99_STAGING_EMERGENCY",  # Emergency staging for bulk file dumps
             self.base_dir / "00_INBOX_STAGING",  # New Primary Input Queue
             # Add iCloud Staging
-            Path.home() / "Library/Mobile Documents/com~apple~CloudDocs/Documents/GDRIVE_STAGING"
+            None  # GDRIVE_STAGING removed in V2
         ]
 
         # Security: Validate all staging areas are within allowed base directories
@@ -905,10 +886,10 @@ class TriageService:
                 original_full_path = str(file_obj.absolute())
                 # original_name defined at top now
                 
-                # Use shutil.move to handle cross-device moves (Local -> Google Drive)
-                import shutil
+                # V2: route through FileOperationsService
+                from backend.file_operations import get_file_operations
                 new_file_path.parent.mkdir(parents=True, exist_ok=True)
-                shutil.move(original_full_path, str(new_file_path))
+                get_file_operations().move_to_organized(Path(original_full_path), category=str(new_file_path.parent.name))
                 
                 logger.info(f"Successfully moved and renamed file to: {new_file_path}")
 

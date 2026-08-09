@@ -3,7 +3,7 @@ title: "Sprint 3.3 — UI Integration & Controls"
 date: 2025-11-05
 status: Complete
 phase: 3.3
-owner: Ryan Thomson
+owner: the user Thomson
 completed: 2025-11-07
 ---
 
@@ -142,4 +142,4 @@ Sprint 3.3 now surfaces these features in the UI.
 
 ---
 
-*Drafted by Max — Validated by Ryan Thomson — Implements Sprint 3.2 backend features for front-end control.*
+*Drafted by Max — Validated by the user Thomson — Implements Sprint 3.2 backend features for front-end control.*

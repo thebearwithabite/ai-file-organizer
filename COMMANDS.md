@@ -72,7 +72,7 @@ python enhanced_librarian.py search "meeting schedules" --mode hybrid
 
 # Advanced search options
 python enhanced_librarian.py search "creative collaboration" --limit 20 --verbose
-python enhanced_librarian.py search "stranger things" --mode semantic --limit 5
+python enhanced_librarian.py search "example show" --mode semantic --limit 5
 
 # System operations
 python enhanced_librarian.py status           # Show system status
@@ -163,7 +163,7 @@ python video_project_trainer.py analyze ~/Videos
 python video_project_trainer.py analyze ~/Downloads --pattern "*.mp4"
 
 # Train on specific projects
-python video_project_trainer.py train --project "thebearwithabite"
+python video_project_trainer.py train --project "example-org"
 python video_project_trainer.py train --project "Papers That Dream"
 
 # View learned patterns and statistics
@@ -250,8 +250,8 @@ python tagging_cli.py cleanup                 # Remove orphaned tags
 ```
 
 **Tag Categories**:
-- **People**: finn, client_name, ryan, etc.
-- **Projects**: stranger_things, creative_project, papers_that_dream
+- **People**: client, client_name, the user, etc.
+- **Projects**: example_show, creative_project, example_project
 - **Document Types**: contract, script, invoice, email
 - **Content**: creative, consciousness, business, entertainment
 - **Status**: active, draft, completed, archived
@@ -293,7 +293,7 @@ python gdrive_cli.py organize --file contract.pdf --folder "Legal Documents"
 
 # Search and status
 python gdrive_cli.py search --query "contract"
-python gdrive_cli.py search --query "finn" --folder "Entertainment_Industry"
+python gdrive_cli.py search --query "client" --folder "Entertainment_Industry"
 python gdrive_cli.py status                    # Storage status
 python gdrive_cli.py folders                  # List folder structure
 
@@ -607,7 +607,7 @@ python enhanced_librarian.py search "today's meetings" --mode auto
 python vision_cli.py analyze contract_scan.pdf --context entertainment
 
 # 2. Tag for easy finding
-python tagging_cli.py tag contract.pdf --user-tags "finn,active,2025"
+python tagging_cli.py tag contract.pdf --user-tags "client,active,2025"
 
 # 3. Organize to correct location
 python interactive_organizer.py file contract.pdf --live

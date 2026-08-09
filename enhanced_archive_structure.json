@@ -10,7 +10,7 @@
       "priority": "high",
       "subdirectories": {
         "Entertainment_Industry": {
-          "contracts_current": "Active SAG-AFTRA, management agreements",
+          "contracts_current": "Active union-AFTRA, management agreements",
           "casting_schedules": "Current auditions and bookings", 
           "publicity_materials": "Press kits, headshots, current campaigns",
           "immigration_docs": "I-129, I-797, work authorization docs"
@@ -52,12 +52,12 @@
             "2022": "All 2022 entertainment projects"
           },
           "by_project": {
-            "stranger_things": "Complete ST project history",
+            "example_show": "Complete ST project history",
             "completed_contracts": "Fulfilled agreements",
             "past_auditions": "Historical casting records"
           },
           "by_client": {
-            "finn_wolfhard": "Complete client history"
+            "client_name": "Complete client history"
           }
         },
         "Business_Archive": {
@@ -88,7 +88,7 @@
         "Legal_Templates": {
           "contract_templates": "Standard agreement templates",
           "legal_forms": "Immigration, business forms",
-          "compliance_guides": "SAG-AFTRA rules, industry standards"
+          "compliance_guides": "union-AFTRA rules, industry standards"
         },
         "Business_Resources": {
           "financial_templates": "Invoice, expense templates",
@@ -120,7 +120,7 @@
   "intelligent_filing_rules": {
     "entertainment_industry": {
       "keywords": [
-        "Client Name Wolfhard", "Stranger Things", "Refinery", "MNT", "SAG-AFTRA",
+        "Client Name Wolfhard", "Example Show", "Refinery", "MNT", "union-AFTRA",
         "Actor Agreement", "Deal Memo", "Casting", "Audition", "Script",
         "Entertainment", "Artist Management", "Publicity", "Press", "I-129", "I-797"
       ],
@@ -131,8 +131,8 @@
         "completed", "executed", "final", "2023", "2022", "2021", "closed"
       ],
       "confidence_weights": {
-        "finn_wolfhard": 0.9,
-        "stranger_things": 0.9,
+        "client_name": 0.9,
+        "example_show": 0.9,
         "current_date_match": 0.8,
         "active_language": 0.7
       }

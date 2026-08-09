@@ -3,7 +3,7 @@ title: "Sprint 3.4 — API Completion & Integration Testing"
 date: 2025-11-05
 status: Planned
 phase: 3.4
-owner: Ryan Thomson
+owner: the user Thomson
 ---
 
 # ⚙️ Sprint 3.4 — API Completion & Integration Testing
@@ -68,7 +68,7 @@ Output → `docs/API_Endpoints.md`.
 **Deliverables:**
 - Verify `.env.example` includes all required variables but no secrets
 - Add/confirm `.git/hooks/pre-push` PII scanner (TruffleHog + detect-secrets + git-secrets)
-- Run full repository sweep for identifiers (`Ryan Thomson`, `user`, `Finn`, `client`, `contract`, `invoice`)
+- Run full repository sweep for identifiers (`the user Thomson`, `user`, `the client`, `client`, `contract`, `invoice`)
 - Add `scripts/run_all_tests.sh` for one-command local validation (runs pytest, PII scan, and lint)
 - Document clean-install steps in `README.md` under "Local Environment Setup"
 
@@ -126,4 +126,4 @@ Output → `docs/API_Endpoints.md`.
 
 ---
 
-*Drafted by Max — Verified by Ryan Thomson — Focus: Security & Reliability Alignment.*
+*Drafted by Max — Verified by the user Thomson — Focus: Security & Reliability Alignment.*

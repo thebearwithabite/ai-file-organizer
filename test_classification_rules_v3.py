@@ -48,13 +48,13 @@ class ClassificationRulesV3Tester:
             # Entertainment Industry - Client Name Wolfhard specific
             {
                 'name': 'Client Name_Wolfhard_Demo_Reel_2024.mov',
-                'content': 'Client Name Wolfhard Demo Reel for 2024 submissions. Stranger Things footage. High priority casting material.',
+                'content': 'Client Name Demo Reel for 2024 submissions. Example Show footage. High priority casting material.',
                 'category': 'entertainment_industry',
                 'age_days': 15
             },
             {
-                'name': 'Stranger_Things_Season_5_Contract.pdf',
-                'content': 'SAG-AFTRA agreement for Client Name Wolfhard, Stranger Things Season 5. Netflix production. Current active contract.',
+                'name': 'Example_Show_Season_5_Contract.pdf',
+                'content': 'Union agreement for Client Name, Example Show Season 5. Streaming production. Current active contract.',
                 'category': 'entertainment_industry', 
                 'age_days': 45
             },
@@ -65,10 +65,10 @@ class ClassificationRulesV3Tester:
                 'age_days': 90
             },
             
-            # Creative Projects - Papers That Dream
+            # Creative Projects - Example Project
             {
                 'name': 'Papers_That_Dream_Episode_23_Script.docx',
-                'content': 'Papers That Dream podcast episode 23. AI consciousness and attention mechanisms. Research on LLMs.',
+                'content': 'Example Project podcast episode 23. AI consciousness and attention mechanisms. Research on LLMs.',
                 'category': 'creative_projects',
                 'age_days': 3
             },
@@ -80,7 +80,7 @@ class ClassificationRulesV3Tester:
             },
             {
                 'name': 'Papers_That_Dream_Audio_Episode_20.mp3',
-                'content': 'Final audio for Papers That Dream episode 20. Published content. Ready for archive.',
+                'content': 'Final audio for Example Project episode 20. Published content. Ready for archive.',
                 'category': 'creative_projects',
                 'age_days': 180
             },
@@ -197,20 +197,20 @@ class ClassificationRulesV3Tester:
         else:
             self.test_results.append(f"❌ Keyword classification: {accuracy:.1f}% accuracy (needs work)")
     
-    def test_finn_wolfhard_priority(self):
+    def test_client_wolfhard_priority(self):
         """Test that Client Name Wolfhard files get highest priority classification"""
         
         print("\n🧪 Testing Client Name Wolfhard Priority Classification...")
         
-        finn_files = [
+        client_files = [
             'Client Name_Wolfhard_Demo_Reel_2024.mov',
-            'Stranger_Things_Season_5_Contract.pdf', 
+            'Example_Show_Season_5_Contract.pdf', 
             'I-797_Approval_Notice_Client Name_2024.pdf'
         ]
         
         high_priority_count = 0
         
-        for filename in finn_files:
+        for filename in client_files:
             file_path = self.temp_dir / filename
             
             if file_path.exists():
@@ -343,8 +343,8 @@ class ClassificationRulesV3Tester:
             
             # Check high priority patterns
             high_priority = entertainment.get('high_priority_patterns', [])
-            finn_patterns = [p for p in high_priority if 'finn' in p.lower()]
-            if finn_patterns:
+            client_patterns = [p for p in high_priority if 'client' in p.lower()]
+            if client_patterns:
                 self.test_results.append("✅ Archive: Client Name patterns marked high priority")
             else:
                 self.test_results.append("⚠️ Archive: Client Name patterns not found in high priority")
@@ -360,7 +360,7 @@ class ClassificationRulesV3Tester:
         
         # Run all test categories
         self.test_keyword_classification()
-        self.test_finn_wolfhard_priority()
+        self.test_client_wolfhard_priority()
         self.test_adhd_friendly_features()
         self.test_confidence_thresholds()
         self.test_archive_lifecycle_rules()

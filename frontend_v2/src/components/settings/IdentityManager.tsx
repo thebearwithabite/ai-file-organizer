@@ -254,7 +254,7 @@ export default function IdentityManager() {
                                         disabled={!!editingId}
                                         value={formData.id}
                                         onChange={(e) => setFormData({ ...formData, id: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '') })}
-                                        placeholder="e.g. ryan_human"
+                                        placeholder="e.g. user_handle"
                                         className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 disabled:opacity-50"
                                     />
                                 </div>
@@ -264,7 +264,7 @@ export default function IdentityManager() {
                                         type="text"
                                         value={formData.name}
                                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                        placeholder="e.g. Ryan"
+                                        placeholder="e.g. User Name"
                                         className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50"
                                     />
                                 </div>

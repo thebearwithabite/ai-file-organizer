@@ -410,7 +410,7 @@ grep "Initializing.*first" logs/app.log
 If optimizations cause issues:
 
 ```bash
-cd /Users/ryanthomson/Github/ai-file-organizer
+cd /Users/theuser/Github/ai-file-organizer
 git checkout api/services.py unified_classifier.py gdrive_librarian.py main.py
 ```
 

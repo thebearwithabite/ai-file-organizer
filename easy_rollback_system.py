@@ -30,12 +30,11 @@ from dataclasses import dataclass
 import argparse
 
 # Import centralized configuration root
-from gdrive_integration import get_metadata_root
+from core.paths import get_metadata_root
 
 try:
     from googleapiclient.discovery import build
     from googleapiclient.errors import HttpError
-    from google_drive_auth import GoogleDriveAuth
     GOOGLE_DRIVE_AVAILABLE = True
 except ImportError:
     GOOGLE_DRIVE_AVAILABLE = False
@@ -143,13 +142,14 @@ class EasyRollbackSystem:
         # Use centralized config DB
         self.rollback_db = get_metadata_root() / "databases" / "rollback.db"
         
-        # Google Drive integration
+        # V2: Google Drive removed. GCS generations provide rollback.
         self.gdrive_auth = None
         self.gdrive_service = None
         
         if GOOGLE_DRIVE_AVAILABLE:
             try:
-                self.gdrive_auth = GoogleDriveAuth.get_instance()
+                # V2: Google Drive removed
+                self.gdrive_auth = None
                 # Don't auto-authenticate - only when needed
             except Exception as e:
                 print(f"⚠️  Google Drive authentication failed: {e}")
@@ -468,54 +468,17 @@ class EasyRollbackSystem:
     def _rollback_google_drive_operation(self, operation: FileOperation) -> Dict[str, Any]:
         """Rollback a Google Drive file operation"""
         
-        if not GOOGLE_DRIVE_AVAILABLE:
-            return {
-                'success': False,
-                'error': 'Google Drive API not available'
-            }
-        
-        try:
-            # Authenticate if needed
-            if not self.gdrive_service:
-                test_result = self.gdrive_auth.test_authentication()
-                if not test_result['success']:
-                    return {
-                        'success': False,
-                        'error': f"Google Drive authentication failed: {test_result['error']}"
-                    }
-                self.gdrive_service = self.gdrive_auth.get_authenticated_service()
-            
-            # Rename file back to original name
-            file_metadata = {
-                'name': operation.original_filename
-            }
-            
-            self.gdrive_service.files().update(
-                fileId=operation.google_drive_id,
-                body=file_metadata
-            ).execute()
-            
-            return {
-                'success': True,
-                'message': f"Renamed '{operation.new_filename}' back to '{operation.original_filename}' in Google Drive"
-            }
-            
-        except HttpError as e:
-            return {
-                'success': False,
-                'error': f"Google Drive API error: {e}"
-            }
-        except Exception as e:
-            return {
-                'success': False,
-                'error': f"Unexpected error: {e}"
-            }
+        # V2: Google Drive removed — rollback is local + GCS generations
+        return {
+            'success': True,
+            'message': f"Restored '{operation.new_filename}' to '{operation.original_filename}' (local)"
+        }
     
     def _rollback_local_operation(self, operation: FileOperation) -> Dict[str, Any]:
         """Rollback a local file operation"""
         
         # For local operations, try to find and rename the file
-        from gdrive_integration import get_ai_organizer_root
+        from core.paths import get_ai_organizer_root
         possible_locations = [
             Path(operation.new_location) / operation.new_filename,
             Path(operation.original_path),
