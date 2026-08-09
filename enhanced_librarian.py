@@ -12,7 +12,7 @@ from typing import List, Dict, Any
 
 from hybrid_librarian import HybridLibrarian
 from librarian import LibrarianCLI
-from gdrive_integration import get_ai_organizer_root
+from core.paths import get_ai_organizer_root
 
 class EnhancedLibrarianCLI(LibrarianCLI):
     """
@@ -78,7 +78,7 @@ class EnhancedLibrarianCLI(LibrarianCLI):
             index_locations = [Path(target_folder)]
         else:
             # Index key locations - local only
-            from gdrive_integration import get_metadata_root
+            from core.paths import get_metadata_root
             index_locations = [
                 self.base_dir / "00_ACTIVE_PROJECTS",
                 self.base_dir / "01_UNIVERSAL_ASSETS",

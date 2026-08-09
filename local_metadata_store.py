@@ -34,7 +34,7 @@ import time
 import hashlib
 import logging
 import threading
-from gdrive_integration import get_metadata_root, ensure_safe_local_path
+from core.paths import get_metadata_root, ensure_safe_local_path
 from pathlib import Path
 from typing import Dict, List, Optional, Any, Tuple, Union
 from datetime import datetime, timedelta

@@ -19,7 +19,7 @@ from typing import Dict, List, Optional
 import hashlib
 
 # Import centralized metadata root
-from gdrive_integration import get_metadata_root
+from core.paths import get_metadata_root
 
 class StagingMonitor:
     """
@@ -32,7 +32,7 @@ class StagingMonitor:
         if base_dir:
             self.base_dir = Path(base_dir)
         else:
-            # Default to checking Desktop/Downloads if no GDrive path provided
+            # Default to checking Desktop/Downloads
             self.base_dir = Path.home()
         
         # Internal state MUST be local (RULE ONE)

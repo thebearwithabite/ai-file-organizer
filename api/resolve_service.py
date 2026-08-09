@@ -40,7 +40,7 @@ class ResolveService:
             # Check for Remote Powerhouse configuration
             remote_url = None
             try:
-                from gdrive_integration import get_metadata_root
+                from core.paths import get_metadata_root
                 config_path = get_metadata_root() / "config" / "hybrid_config.json"
                 if config_path.exists():
                     with open(config_path, 'r') as f:

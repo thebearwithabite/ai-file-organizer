@@ -45,10 +45,9 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 try:
-    import gdrive_integration
-    from gdrive_integration import get_ai_organizer_root, GoogleDriveIntegration
+    from core.paths import get_ai_organizer_root
 except Exception as e:
-    print("❌ ERROR: Could not import gdrive_integration / get_ai_organizer_root")
+    print("❌ ERROR: Could not import core.paths / get_ai_organizer_root")
     traceback.print_exc()
     sys.exit(1)
 
@@ -116,8 +115,10 @@ def check_gdrive_root():
     print(f"    AI_ORGANIZER_GDRIVE_ROOT  = {env_root}")
 
     try:
-        gd = GoogleDriveIntegration()
-        status = gd.get_status()
+        # V2: Google Drive removed. Organizer root is local.
+        gd_root = get_ai_organizer_root()
+        # V2: Google Drive removed. Organizer root is local.
+        gd_root = get_ai_organizer_root()
         root = gd.get_ai_organizer_root()
         direct_root = get_ai_organizer_root()
 

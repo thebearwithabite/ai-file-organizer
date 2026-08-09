@@ -17,10 +17,10 @@ The system now **automatically discovers patterns** in your file usage and **cre
 Multi-source auto-tagging that understands your content deeply:
 
 - **Auto-Tagging Sources**: Filename patterns + content analysis + user additions
-- **Entertainment Industry Patterns**: Recognizes "Example Client", "SAG-AFTRA", "example_show"
+- **Entertainment Industry Patterns**: Recognizes "Example Client", "SAG-AFTRA", "Example Show"
 - **Confidence Scoring**: Shows how certain the system is about each tag
 - **Smart Categories**: People, Projects, Document_Types, Status, Time_Periods
-- **CLI Access**: `python tagging_cli.py directory ~/Downloads`, `python tagging_cli.py search "ExampleClient,active"`
+- **CLI Access**: `python tagging_cli.py directory ~/Downloads`, `python tagging_cli.py search "client,active"`
 
 ### ☁️ 46-Folder Google Drive Structure
 Complete professional workspace organization:

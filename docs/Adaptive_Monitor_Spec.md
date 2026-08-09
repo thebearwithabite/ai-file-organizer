@@ -3,7 +3,7 @@ title: "Adaptive Monitor Behavior & Configuration Specification"
 date: 2025-11-05
 status: Active
 phase: 3.2 → 3.3
-owner: user
+owner: the user
 ---
 
 # 🔭 Adaptive Monitor Behavior & Configuration

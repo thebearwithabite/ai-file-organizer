@@ -143,8 +143,8 @@ Manually trigger a scan for files that need review (low confidence classificatio
   "files": [
     {
       "file_id": "xyz789",
-      "file_name": "papers_that_dream_ep02_scene1.mp4",
-      "file_path": "/Users/user/Downloads/papers_that_dream_ep02_scene1.mp4",
+      "file_name": "example_project_ep02_scene1.mp4",
+      "file_path": "/Users/user/Downloads/example_project_ep02_scene1.mp4",
       "classification": {
         "category": "creative",
         "confidence": 0.72,
@@ -181,8 +181,8 @@ Retrieve cached list of files pending manual review (from previous scan).
   "files": [
     {
       "file_id": "xyz789",
-      "file_name": "papers_that_dream_ep02_scene1.mp4",
-      "file_path": "/Users/user/Downloads/papers_that_dream_ep02_scene1.mp4",
+      "file_name": "example_project_ep02_scene1.mp4",
+      "file_path": "/Users/user/Downloads/example_project_ep02_scene1.mp4",
       "classification": {
         "category": "creative",
         "confidence": 0.72,
@@ -215,7 +215,7 @@ Confirm classification for a file and organize it with optional hierarchical str
 **Request Body**:
 ```json
 {
-  "file_path": "/Users/user/Downloads/papers_that_dream_ep02_scene1.mp4",
+  "file_path": "/Users/user/Downloads/example_project_ep02_scene1.mp4",
   "confirmed_category": "creative",
   "project": "The_Papers_That_Dream",
   "episode": "Episode_02"
@@ -234,8 +234,8 @@ Confirm classification for a file and organize it with optional hierarchical str
 ```json
 {
   "success": true,
-  "file_path": "/Users/user/Downloads/papers_that_dream_ep02_scene1.mp4",
-  "destination_path": "/Users/user/GoogleDrive/AI_Organizer/01_ACTIVE_PROJECTS/Creative_Projects/The_Papers_That_Dream/Episode_02/Video/papers_that_dream_ep02_scene1.mp4",
+  "file_path": "/Users/user/Downloads/example_project_ep02_scene1.mp4",
+  "destination_path": "/Users/user/GoogleDrive/AI_Organizer/01_ACTIVE_PROJECTS/Creative_Projects/The_Papers_That_Dream/Episode_02/Video/example_project_ep02_scene1.mp4",
   "hierarchical_metadata": {
     "project": "The_Papers_That_Dream",
     "episode": "Episode_02",
@@ -623,7 +623,7 @@ API versioning follows the main project version. Breaking changes will increment
 
 - **Documentation**: [CLAUDE.md](CLAUDE.md)
 - **Changelog**: [CHANGELOG.md](CHANGELOG.md)
-- **Issues**: [GitHub Issues](https://github.com/thebearwithabite/ai-file-organizer/issues)
+- **Issues**: [GitHub Issues](https://github.com/example-org/ai-file-organizer/issues)
 
 ---
 

@@ -15,7 +15,7 @@ from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass, asdict
 import sqlite3
 import hashlib
-from gdrive_integration import get_metadata_root
+from core.paths import get_metadata_root
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -155,7 +155,7 @@ class AudioAIAnalyzer:
         
         # Creative project patterns
         self.project_patterns = {
-            'example_show': ['example', 'show', 'example_town', 'example_hero', 'example_place', 'example_place_two'],
+            'example_show': ['example', 'show', 'town', 'protagonist', 'alternate', 'dimension'],
             'creative_project': ['creative', 'project', 'consciousness', 'ai', 'podcast'],
             'client_work': ['client', 'management', 'talent', 'representation'],
             'personal': ['personal', 'own', 'test', 'demo', 'practice']

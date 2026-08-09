@@ -22,7 +22,7 @@ from api.resolve_service import resolve_instance
 
 logger = logging.getLogger(__name__)
 
-from gdrive_integration import get_metadata_root
+from core.paths import get_metadata_root
 DB_PATH = get_metadata_root() / "databases" / "metadata.db"
 
 router = APIRouter(prefix="/api/veo", tags=["veo"])

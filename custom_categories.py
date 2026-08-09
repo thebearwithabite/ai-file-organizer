@@ -14,7 +14,7 @@ from datetime import datetime
 from typing import Dict, List, Optional, Any, Tuple
 import re
 
-from gdrive_integration import get_metadata_root
+from core.paths import get_metadata_root
 from content_extractor import ContentExtractor
 
 class CustomCategoryManager:

@@ -16,7 +16,7 @@ class IdentityService:
 
     def __init__(self, config_dir: Optional[Path] = None):
         if not config_dir:
-            from gdrive_integration import get_metadata_root
+            from core.paths import get_metadata_root
             config_dir = get_metadata_root() / "config"
         
         self.config_dir = config_dir

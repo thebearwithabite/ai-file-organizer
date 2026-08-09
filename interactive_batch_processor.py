@@ -34,7 +34,7 @@ sys.path.insert(0, str(project_dir))
 from universal_adaptive_learning import UniversalAdaptiveLearning
 from confidence_system import ADHDFriendlyConfidenceSystem, ConfidenceLevel
 from content_extractor import ContentExtractor
-from gdrive_integration import get_ai_organizer_root, get_metadata_root
+from core.paths import get_ai_organizer_root, get_metadata_root
 from easy_rollback_system import EasyRollbackSystem
 
 @dataclass
@@ -902,7 +902,7 @@ class InteractiveBatchProcessor:
     # Helper methods
     def _resolve_category_path(self, category: str) -> Path:
         """Resolve category to a path relative to base_dir"""
-        # Map categories to Google Drive structure (simplified version of GDriveIntegration)
+        # Map categories to organizer taxonomy
         category_mapping = {
             "creative": "01_ACTIVE_PROJECTS/Creative_Projects",
             "entertainment": "01_ACTIVE_PROJECTS/Entertainment_Industry",

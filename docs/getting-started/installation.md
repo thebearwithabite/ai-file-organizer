@@ -20,7 +20,7 @@ Virtual environments prevent dependency conflicts and keep your system Python cl
 
 ```bash
 # Clone the repository
-git clone https://github.com/thebearwithabite/ai-file-organizer
+git clone https://github.com/example-org/ai-file-organizer
 cd ai-file-organizer
 
 # Create virtual environment
@@ -52,7 +52,7 @@ If you prefer to install globally or already manage Python environments:
 
 ```bash
 # Clone the repository
-git clone https://github.com/thebearwithabite/ai-file-organizer
+git clone https://github.com/example-org/ai-file-organizer
 cd ai-file-organizer
 
 # Install dependencies

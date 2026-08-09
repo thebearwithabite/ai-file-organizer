@@ -8,7 +8,7 @@ import sqlite3
 import json
 from pathlib import Path
 from datetime import datetime, timedelta
-from gdrive_integration import get_metadata_root
+from core.paths import get_metadata_root
 
 def generate_report():
     db_path = get_metadata_root() / "databases" / "adaptive_learning.db"

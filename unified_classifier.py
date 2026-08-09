@@ -20,6 +20,12 @@ from audio_analyzer import AudioAnalyzer
 from vision_analyzer import VisionAnalyzer
 from semantic_text_analyzer import SemanticTextAnalyzer
 
+# LLM abstraction layer (Phase 2)
+from backend.llm import AutoDetectOllama, ClassificationOutput
+
+# Grounded context store (Phase 2.2)
+from backend.context import ContextStore, CorrectionEvent
+
 # Import the learning system
 from universal_adaptive_learning import UniversalAdaptiveLearning
 
@@ -42,6 +48,8 @@ class UnifiedClassificationService:
         self._audio_analyzer = None
         self._vision_analyzer = None
         self._semantic_text_analyzer = None
+        self._llm_client = None
+        self._context_store = None
         self.learning_enabled = True
         self.vision_enabled = True
         self.semantic_text_enabled = True
@@ -49,7 +57,7 @@ class UnifiedClassificationService:
 
         # Initialize Taxonomy Service (V3 Source of Truth)
         from taxonomy_service import get_taxonomy_service
-        from gdrive_integration import get_metadata_root
+        from core.paths import get_metadata_root
         
         config_dir = get_metadata_root() / "config"
         self.taxonomy_service = get_taxonomy_service(config_dir)
@@ -79,7 +87,7 @@ class UnifiedClassificationService:
         """Lazy load audio analyzer on first use"""
         if self._audio_analyzer is None:
             print("🎵 Loading audio analyzer...")
-            openai_api_key = os.getenv('OPENAI_API_KEY')
+            openai_api_key = None  # V2: local only('OPENAI_API_KEY')
             self._audio_analyzer = AudioAnalyzer(
                 base_dir=str(self.base_dir),
                 confidence_threshold=0.7,
@@ -129,6 +137,32 @@ class UnifiedClassificationService:
                 self.semantic_text_enabled = False
                 print(f"⚠️  Semantic text analysis disabled: {e}")
         return self._semantic_text_analyzer
+
+    @property
+    def llm_client(self):
+        """Lazy-load LLM client, preferring remote Ollama (5090)."""
+        if self._llm_client is None:
+            try:
+                print("Loading LLM client...")
+                self._llm_client = AutoDetectOllama.from_vision_config(
+                    self._vision_analyzer, model="gemma4:12b"
+                )
+                if self._llm_client.health_check():
+                    print(f"LLM client ready: {self._llm_client.model} @ {self._llm_client.base_url}")
+                else:
+                    print("Ollama not reachable. Classification will use local heuristics.")
+                    self._llm_client = None
+            except Exception as e:
+                print(f"LLM client unavailable: {e}")
+                self._llm_client = None
+        return self._llm_client
+
+    @property
+    def context_store(self):
+        """Lazy-load grounded context store."""
+        if self._context_store is None:
+            self._context_store = ContextStore()
+        return self._context_store
 
     def _normalize_confidence(self, result: Dict[str, Any], file_path: Path, file_type: str) -> Dict[str, Any]:
         """
@@ -704,7 +738,7 @@ class UnifiedClassificationService:
             # Perform spectral analysis first (works without OpenAI API)
             spectral_result = self.audio_analyzer.analyze_audio_spectral(file_path, max_duration=30)
 
-            # Use AudioAnalyzer for intelligent classification (requires OpenAI API)
+            # Use AudioAnalyzer for intelligent classification (local faster-whisper)
             classification_result = self.audio_analyzer.classify_audio_file(file_path, project_context=project_context)
 
             if classification_result:
@@ -1059,61 +1093,46 @@ class UnifiedClassificationService:
         except Exception as e:
             print(f"❌ Failed to save metadata sidecar for {file_path.name}: {e}")
 
-    def _classify_text_remote(self, text: str, filename: str, allowed_categories: List[Dict[str, str]]) -> Dict[str, Any]:
-        """Dispatch text classification to remote Ollama server (5090)"""
-        import requests
+    def _classify_text_remote(self, text: str, filename: str, allowed_categories: list) -> dict:
+        """Dispatch text classification through LLM abstraction layer (Phase 2)."""
+        llm = self.llm_client
+        if llm is None or llm.is_degraded:
+            return {"success": False, "error": "LLM unavailable or degraded"}
+
+        cats = "\n".join([f"- {c['id']}: {c['name']}" for c in allowed_categories])
+        prompt = (
+            "Analyze this document and output STRICT JSON.\n\n"
+            f'Filename: "{filename}"\n\n'
+            "ALLOWED CATEGORIES (pick the best fit):\n"
+            f"{cats}\n\n"
+            "Task:\n"
+            "1. Determine the document type (e.g., Legal Contract, Invoice).\n"
+            "2. Assign a confidence score (0.0 to 1.0).\n"
+            "3. Extract 3-5 keywords.\n"
+            "4. Pick the BEST category ID from the list above.\n"
+            "5. Suggest a descriptive filename (preserve extension).\n\n"
+            "Text (first 2000 chars):\n"
+            f"{text[:2000]}\n\n"
+            "Output ONLY valid JSON with keys: category, document_type, "
+            "confidence, summary, keywords, reasoning, suggested_filename."
+        )
+
         try:
-            prompt = f"""
-            Analyze this document text and strictly output JSON.
-            
-            Filename: "{filename}"
-            
-            ALLOWED CATEGORIES (Pick the best fit from this list):
-            {chr(10).join([f"- {c['id']}: {c['name']}" for c in allowed_categories])}
-            
-            Task:
-            1. Determine the exact document type (e.g., "Legal Contract", "Meeting Minutes", "Invoice", "Screenplay", "Technical Spec", "Financial Report").
-            2. Assign a confidence score (0.0 to 1.0).
-            3. Extract 3-5 key topics/entities.
-            4. Suggest the BEST category ID from the list above. If NO category fits, suggest a new slug.
-            5. Suggest a descriptive filename (IMPORTANT: preserve the extension).
-            
-            Text Content (First 2000 chars):
-            \"\"\"
-            {text[:2000]}
-            \"\"\"
-            
-            Output JSON Format:
-            {{
-                "category": "category_id",
-                "document_type": "Human Readable Type",
-                "confidence": 0.85,
-                "summary": "1-sentence summary",
-                "keywords": ["tag1", "tag2"],
-                "reasoning": "Why you chose this category",
-                "suggested_filename": "New_Filename.ext"
-            }}
-            """
-
-            url = f"http://{self.vision_analyzer.remote_ip}:{self.vision_analyzer.remote_ollama_port}/api/generate"
-            payload = {
-                "model": "qwen2.5:7b", # Using standard Qwen 2.5 for text
-                "prompt": prompt,
-                "stream": False,
-                "format": "json"
-            }
-
-            response = requests.post(url, json=payload, timeout=30)
-            response.raise_for_status()
-            
-            result = response.json()
-            response_text = result.get("response", "{}")
-            
-            import json
-            parsed = json.loads(response_text)
-            parsed["success"] = True
-            return parsed
-
+            result, ok = llm.generate_structured(
+                prompt, ClassificationOutput, degrade_value=None
+            )
+            if ok and result:
+                return {
+                    "success": True,
+                    "category": result.category,
+                    "document_type": result.document_type,
+                    "confidence": result.confidence,
+                    "summary": result.summary,
+                    "keywords": result.keywords,
+                    "reasoning": result.reasoning,
+                    "suggested_filename": result.suggested_filename,
+                }
+            return {"success": False, "error": "Schema validation failed"}
         except Exception as e:
             print(f"Error in remote text classification: {e}")
             return {"success": False, "error": str(e)}

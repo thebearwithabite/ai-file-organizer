@@ -8,7 +8,7 @@ Based on AudioAI learning patterns but focused on document organization
 import sys
 import os
 import sqlite3
-from gdrive_integration import get_metadata_root
+from core.paths import get_metadata_root
 import pandas as pd
 from pathlib import Path
 from datetime import datetime, timedelta

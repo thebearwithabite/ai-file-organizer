@@ -34,8 +34,6 @@ sys.path.insert(0, str(project_dir))
 from universal_adaptive_learning import UniversalAdaptiveLearning
 from confidence_system import ADHDFriendlyConfidenceSystem, ConfidenceLevel
 from adaptive_background_monitor import AdaptiveBackgroundMonitor
-from automated_deduplication_service import AutomatedDeduplicationService
-from emergency_space_protection import EmergencySpaceProtection
 from interactive_batch_processor import InteractiveBatchProcessor
 
 @dataclass

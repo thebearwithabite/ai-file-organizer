@@ -24,11 +24,11 @@ from staging_monitor import StagingMonitor
 from staging_monitor import StagingMonitor
 from unified_classifier import UnifiedClassificationService
 from taxonomy_service import TaxonomyService
-from gdrive_integration import get_metadata_root
+from core.paths import get_metadata_root
 from dataclasses import dataclass, field
 
 from safe_file_recycling import SafeFileRecycling
-from gdrive_integration import get_ai_organizer_root
+from core.paths import get_ai_organizer_root
 from audio_ai_analyzer import AudioAIAnalyzer
 
 @dataclass

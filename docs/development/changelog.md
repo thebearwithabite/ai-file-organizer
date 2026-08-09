@@ -289,6 +289,6 @@ Revolutionary adaptive learning system that learns from file movements and decis
 
 ## Links
 
-- [Repository](https://github.com/thebearwithabite/ai-file-organizer)
+- [Repository](https://github.com/example-org/ai-file-organizer)
 - [Documentation](CLAUDE.md)
-- [Issues](https://github.com/thebearwithabite/ai-file-organizer/issues)
+- [Issues](https://github.com/example-org/ai-file-organizer/issues)

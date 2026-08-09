@@ -5,7 +5,7 @@ from pathlib import Path
 import logging
 
 from identity_service import IdentityService
-from gdrive_integration import get_metadata_root
+from core.paths import get_metadata_root
 
 router = APIRouter(prefix="/api/identities", tags=["identities"])
 logger = logging.getLogger(__name__)

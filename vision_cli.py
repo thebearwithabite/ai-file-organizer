@@ -179,7 +179,7 @@ Examples:
 Context Options:
   general       - General image/video analysis
   entertainment - Entertainment industry focus (Example Client, etc.)
-  creative      - Creative projects (Papers That Dream, AI content)
+  creative      - Creative projects (Example Project, AI content)
         """
     )
     

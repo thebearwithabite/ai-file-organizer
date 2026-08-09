@@ -387,3 +387,68 @@ export const api = {
     return await response.json()
   },
 }
+
+  // ===== V2 Endpoints (Phase 3) =====
+
+  // Query service — NL search over metadata DB
+  queryFiles: async (query: string, filters?: { category?: string; file_type?: string; tier?: string }) => {
+    const params = new URLSearchParams({ q: query })
+    if (filters?.category) params.append('category', filters.category)
+    if (filters?.file_type) params.append('file_type', filters.file_type)
+    if (filters?.tier) params.append('tier', filters.tier)
+    const response = await fetch(API_BASE + '/api/v2/query?' + params)
+    if (!response.ok) throw new Error('Query failed')
+    return await response.json()
+  },
+
+  // Context store — record a correction (closes the learning loop)
+  recordCorrection: async (filePath: string, predicted: string, corrected: string, confidence?: number) => {
+    const response = await fetch(API_BASE + '/api/v2/corrections', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        file_path: filePath,
+        predicted_category: predicted,
+        corrected_category: corrected,
+        confidence: confidence ?? 0,
+        source: 'ui',
+      }),
+    })
+    if (!response.ok) throw new Error('Failed to record correction')
+    return await response.json()
+  },
+
+  // Learnings — recent correction patterns
+  getRecentLearnings: async (limit: number = 10) => {
+    const response = await fetch(API_BASE + '/api/v2/learnings?limit=' + limit)
+    if (!response.ok) throw new Error('Failed to fetch learnings')
+    return await response.json()
+  },
+
+  // Tiering status — what's local vs cloud
+  getTieringStatus: async () => {
+    const response = await fetch(API_BASE + '/api/v2/tiering/status')
+    if (!response.ok) throw new Error('Failed to fetch tiering status')
+    return await response.json()
+  },
+
+  // Activity log — what the organizer did + learnings citations
+  getActivityLog: async (limit: number = 20) => {
+    const response = await fetch(API_BASE + '/api/v2/activity?limit=' + limit)
+    if (!response.ok) throw new Error('Failed to fetch activity log')
+    return await response.json()
+  },
+
+  // Stream a cold-tier file via signed URL
+  getStreamUrl: async (key: string) => {
+    const response = await fetch(API_BASE + '/api/v2/stream?key=' + encodeURIComponent(key))
+    if (!response.ok) throw new Error('Failed to get stream URL')
+    return await response.json()
+  },
+
+  // Review queue — files awaiting human decision
+  getReviewQueue: async () => {
+    const response = await fetch(API_BASE + '/api/v2/review-queue')
+    if (!response.ok) throw new Error('Failed to fetch review queue')
+    return await response.json()
+  },

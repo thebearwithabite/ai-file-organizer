@@ -29,7 +29,7 @@ project_dir = Path(__file__).parent
 sys.path.insert(0, str(project_dir))
 
 from universal_adaptive_learning import UniversalAdaptiveLearning
-from gdrive_integration import get_ai_organizer_root, get_metadata_root
+from core.paths import get_ai_organizer_root, get_metadata_root
 
 class ConfidenceLevel(Enum):
     """Confidence levels for ADHD-friendly interaction"""

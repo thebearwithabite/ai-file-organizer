@@ -16,9 +16,9 @@ project_dir = Path(__file__).parent
 sys.path.insert(0, str(project_dir))
 
 try:
-    from gdrive_integration import get_metadata_root, get_ai_organizer_root
+    from core.paths import get_metadata_root, get_ai_organizer_root
 except ImportError:
-    print("❌ Critical Error: Could not import gdrive_integration.py")
+    print("❌ Critical Error: Could not import core.paths")
     sys.exit(1)
 
 def check_path(path: Path, description: str, must_exist: bool = True, must_be_writable: bool = False) -> bool:

@@ -36,7 +36,7 @@ This guide integrates your previous Google Drive analysis with the current AI Fi
 │   ├── Entertainment_Archive/
 │   │   ├── by_year/                # 2023/, 2022/, etc.
 │   │   ├── by_project/             # example_show/, completed_contracts/
-│   │   └── by_client/              # ExampleClient/ (complete history)
+│   │   └── by_client/              # example_client/ (complete history)
 │   ├── Business_Archive/
 │   │   ├── by_year/                # tax_years/, financial_statements/
 │   │   └── by_category/            # completed_contracts/, vendor_history/
