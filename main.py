@@ -269,6 +269,15 @@ app.include_router(identity_router)
 from api.v2_routes import router as v2_router
 app.include_router(v2_router)
 
+# Prompt Machine (Phase 1) — graceful degradation if dependencies missing
+try:
+    from api.prompt_machine_router import router as prompt_machine_router
+except ImportError:
+    prompt_machine_router = None
+    logging.getLogger(__name__).warning("prompt_machine_router unavailable - skipping")
+if prompt_machine_router:
+    app.include_router(prompt_machine_router)
+
 # Initialize FastAPI with lifespan
 app.router.lifespan_context = lifespan
 

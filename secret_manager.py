@@ -51,6 +51,16 @@ def _get_secret_value(secret_id: str) -> Optional[str]:
         return None
 
 
+def get_secret(key: str) -> Optional[str]:
+    """Fetch ONE secret from GCP Secret Manager without touching os.environ.
+
+    Used for keys that must never reach a subprocess environment
+    (e.g. DEEPSEEK_API_KEY — PROMPT-MACHINE-DIRECTIVE v1.2: not in
+    SECRET_KEYS, so load_secrets() never places it on os.environ).
+    """
+    return _get_secret_value(key)
+
+
 def load_secrets() -> dict[str, str]:
     """
     Load all configured secrets from Google Secret Manager into os.environ.
