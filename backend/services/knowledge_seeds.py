@@ -3,10 +3,14 @@
 Three seeds land in the existing ``knowledge`` table (organizer.db, parent
 2.2 pattern — same table ContextStore uses):
 
-  - FILMMAKING_PRINCIPLES — engine-agnostic film craft. Authored fresh
-    (2026-08-09): the legacy asset was searched and does not exist in this
-    repo, dev-archive/, or /tmp/veo_latest_repo. This file is the canonical
-    version per the directive.
+  - FILMMAKING_PRINCIPLES — engine-agnostic film craft. Canonical version is
+    the recovered legacy asset (2026-08-10, provided by Ryan): its
+    shot-type/framing tables, movement keywords, scene-type cues and prompt
+    vocabulary are preserved, merged with the engine-agnostic craft
+    principles (coverage, continuity, performance, frame hygiene) authored
+    during Phase 1. Two surgical adaptations: the VEO-schema intro was
+    neutralized, and the scene-type expression column was converted to
+    physical cues (the ShotSpec validator rejects emotion labels).
   - LTX23_PROMPT_GUIDE      — the prompt-compiler emitter rules as prose, for
     the director LLM (and prompt QA).
   - ENGINE_ROUTING          — render engine selection + GPU co-residency and
@@ -27,7 +31,55 @@ from core.paths import get_metadata_root
 logger = logging.getLogger(__name__)
 
 FILMMAKING_PRINCIPLES = """\
-FILMMAKING PRINCIPLES — engine-agnostic craft rules for shot planning.
+FILMMAKING PRINCIPLES — cinematic language for shot planning (engine-agnostic).
+
+This guide details the cinematic language required to direct the shot-schema
+fields: scene (context, visual style, lighting, mood), camera (shot call,
+movement, negatives), and character (expression cues, behavior).
+
+## Shot Types & Framing
+
+| Shot Type | Use / Purpose | Pacing Guideline |
+| :--- | :--- | :--- |
+| **Extreme Wide Shot (EWS)** | Establish grand scale, show character as small in environment. | Slow Pacing (7-8s) |
+| **Wide Shot (WS)** | Establish location, show full body and spatial relationships. | Slow Pacing (6-8s) |
+| **Medium Shot (MS)** | Character interaction, body language, conversations. | Medium Pacing (5-7s) |
+| **Close-Up (CU)** | Emotion, detail, intimacy, reaction shots. | Medium Pacing (3-5s) |
+| **Extreme Close-Up (ECU)** | Detail focus, tension (e.g., eyes, hands, small objects). | Fast Pacing (3-4s) |
+
+## Camera Movements & Effect
+
+| Movement Type | Movement Keyword | Cinematic Effect | Use Case |
+| :--- | :--- | :--- | :--- |
+| **Static** | "Static, tripod-locked" | Stable, controlled, observational. | Dialogue, contemplative moments. |
+| **Push-In / Dolly In** | "Slow Dolly In over 5s" | Increasing intimacy, focus, tension. | Revealing detail, building emotion. |
+| **Pull-Out / Dolly Out** | "Pull-out revealing context" | Revealing context, isolation, environment. | Showing character in environment. |
+| **Pan** | "Pan left or right" | Following action, revealing space horizontally. | Tracking movement, showing relationships. |
+| **Crane / Boom** | "Crane up or down" | Scale, grandeur, shifting perspective. | Establishing shots, dramatic reveals. |
+| **Handheld** | "Handheld with gentle micro-jitter" | Urgency, subjectivity, tension, reality. | Confrontation, action sequences. |
+
+## Scene Type Keywords
+
+Expression cues are PHYSICAL ONLY — never emit emotion labels (vulnerable,
+tense, distant, surprised); render the physical evidence.
+
+| Scene Type | Key camera / expression / lighting Cues |
+| :--- | :--- |
+| **Intimate Confession** | Framing: CU or MCU. Movement: Static or slow push-in. Expression cues: direct eye contact, soft open posture, small hesitant gestures. Lighting: Soft, directional, low-key. |
+| **Confrontation** | Framing: MS to show body language. Movement: Handheld or slowly circling. Expression cues: hard fixed gaze or darting avoidant eyes, tight jaw, rigid shoulders. Lighting: High contrast, harsh. |
+| **Contemplation** | Framing: Wide or medium wide. Movement: Slow dolly or static. Expression cues: unfocused gaze, slow blink, still posture. Lighting: Soft, natural, atmospheric. |
+| **Discovery** | Framing: CU on face, then pull to reveal. Movement: Push-in then pull-out. Expression cues: eyebrows rise and eyes widen, then a slow settle as understanding lands. Lighting: Shift from shadow to light. |
+
+## Prompt Best Practices Vocabulary
+
+| Category | Example Keywords |
+| :--- | :--- |
+| **Lighting** | "harsh overhead fluorescent", "golden hour backlight", "three-point lighting setup", "rim lighting", "diffused ambient light" |
+| **Color Palette** | "warm amber tones", "cool cyan and blue", "desaturated, muted colors", "high contrast noir", "pastel spring palette" |
+| **Voice Profile** | "warm, conversational tone", "urgent, slightly breathless", "calm, measured delivery", "hesitant with vocal fry", "whispered, intimate" |
+| **Camera Angle** | "eye level", "low angle" (for power), "high angle" (for isolation), "Dutch angle" |
+
+## Craft Principles — coverage, continuity, performance, frame hygiene
 
 Coverage:
 - Open a scene with an establishing beat that orients the viewer (location, time, spatial layout).
@@ -120,7 +172,7 @@ SEEDS = {
     "FILMMAKING_PRINCIPLES": {
         "display_name": "Filmmaking Principles (engine-agnostic)",
         "description": FILMMAKING_PRINCIPLES,
-        "keywords": ["coverage", "continuity", "camera", "performance", "frame hygiene"],
+        "keywords": ["shot types", "framing", "camera movement", "scene keywords", "lighting", "vocabulary", "coverage", "continuity", "performance", "frame hygiene"],
         "examples": [],
         "naming_rules": "",
     },
