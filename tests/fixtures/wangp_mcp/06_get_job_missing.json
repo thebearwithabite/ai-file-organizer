@@ -1,0 +1,1 @@
+{"jsonrpc":"2.0","id":6,"result":{"content":[{"type":"text","text":"Error executing tool wangp_get_job: 'Unknown WanGP job_id: spike-nonexistent-job-000'"}],"isError":true}}
