@@ -386,7 +386,6 @@ export const api = {
     if (!response.ok) throw new Error('Failed to create VEO project')
     return await response.json()
   },
-}
 
   // ===== V2 Endpoints (Phase 3) =====
 
@@ -452,3 +451,4 @@ export const api = {
     if (!response.ok) throw new Error('Failed to fetch review queue')
     return await response.json()
   },
+}
