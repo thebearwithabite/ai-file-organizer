@@ -20,7 +20,6 @@ SECRET_KEYS = [
     "OPENAI_API_KEY",           # OpenAI API key for GPT-4o classification
     "GEMINI_API_KEY",           # Google Gemini API key (vision, analysis)
     "GOOGLE_API_KEY",           # Fallback Google API key (can be same as GEMINI)
-    "KIE_API_KEY",              # KIE client API key
 
     # === Google Drive OAuth ===
     "GDRIVE_OAUTH_CREDENTIALS", # Full JSON of Google Drive OAuth client secrets

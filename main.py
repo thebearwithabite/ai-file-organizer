@@ -258,19 +258,11 @@ except ImportError:
     veo_studio_router = None
     logging.getLogger(__name__).warning("veo_studio_api unavailable - skipping")
 
-try:
-    from api.veo_brain_api import router as veo_brain_router
-except ImportError:
-    veo_brain_router = None
-    logging.getLogger(__name__).warning("veo_brain_api unavailable - skipping")
-
 # Include VEO API routers
 app.include_router(veo_router)
 app.include_router(clip_router)
 if veo_studio_router:
     app.include_router(veo_studio_router)
-if veo_brain_router:
-    app.include_router(veo_brain_router)
 app.include_router(taxonomy_router)
 app.include_router(identity_router)
 # V2 Routes (Phase 3)

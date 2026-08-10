@@ -7,7 +7,6 @@ const Dashboard = lazy(() => import('./pages/Dashboard'))
 const Organize = lazy(() => import('./pages/Organize'))
 const Triage = lazy(() => import('./pages/Triage'))
 const Search = lazy(() => import('./pages/Search'))
-const VeoStudio = lazy(() => import('./pages/VeoStudio'))
 const Analysis = lazy(() => import('./pages/Analysis'))
 const RollbackCenter = lazy(() => import('./pages/RollbackCenter'))
 const Settings = lazy(() => import('./pages/Settings'))
@@ -22,7 +21,6 @@ export default function App() {
           <Route path="organize" element={<Organize />} />
           <Route path="triage" element={<Triage />} />
           <Route path="search" element={<Search />} />
-          <Route path="veo" element={<VeoStudio />} />
           <Route path="analysis" element={<Analysis />} />
           <Route path="rollback" element={<RollbackCenter />} />
           <Route path="duplicates" element={<Duplicates />} />
