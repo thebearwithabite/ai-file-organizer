@@ -711,6 +711,8 @@ class ContentExtractor:
     
     def _is_content_cached(self, file_path: Path, file_hash: str, db_connection: Optional[sqlite3.Connection] = None) -> bool:
         """Check if content is already cached and up to date"""
+        if db_connection:
+            cursor = db_connection.execute(
         with self._get_connection(db_connection) as conn:
             cursor = conn.execute(
                 "SELECT file_hash FROM content_index WHERE file_path = ?",
@@ -718,11 +720,19 @@ class ContentExtractor:
             )
             result = cursor.fetchone()
             return result and result[0] == file_hash
+        else:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.execute(
+                    "SELECT file_hash FROM content_index WHERE file_path = ?",
+                    (str(file_path),)
+                )
+                result = cursor.fetchone()
+                return result and result[0] == file_hash
     
     def _get_cached_content(self, file_path: Path, db_connection: Optional[sqlite3.Connection] = None) -> Dict[str, Any]:
         """Get cached content"""
-        with self._get_connection(db_connection) as conn:
-            cursor = conn.execute("""
+        if db_connection:
+            cursor = db_connection.execute("""
                 SELECT extracted_text, metadata, extraction_method, extraction_success
                 FROM content_index WHERE file_path = ?
             """, (str(file_path),))
@@ -738,22 +748,46 @@ class ContentExtractor:
                     'metadata': metadata,
                     'method': method + '_cached'
                 }
+            return {
+                'success': False,
+                'text': '',
+                'metadata': {'error': 'Cache miss'},
+                'method': 'cache_error'
+            }
+        else:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.execute("""
+                    SELECT extracted_text, metadata, extraction_method, extraction_success
+                    FROM content_index WHERE file_path = ?
+                """, (str(file_path),))
+
+                row = cursor.fetchone()
+                if row:
+                    extracted_text, metadata_json, method, success = row
+                    metadata = json.loads(metadata_json) if metadata_json else {}
+
+                    return {
+                        'success': bool(success),
+                        'text': extracted_text or '',
+                        'metadata': metadata,
+                        'method': method + '_cached'
+                    }
         
-        return {
-            'success': False,
-            'text': '',
-            'metadata': {'error': 'Cache miss'},
-            'method': 'cache_error'
-        }
+            return {
+                'success': False,
+                'text': '',
+                'metadata': {'error': 'Cache miss'},
+                'method': 'cache_error'
+            }
     
     def _cache_content(self, file_path: Path, file_hash: str, result: Dict[str, Any], db_connection: Optional[sqlite3.Connection] = None):
         """Cache extracted content"""
         try:
             content_hash = hashlib.md5(result['text'].encode()).hexdigest()
             
-            with self._get_connection(db_connection) as conn:
+            if db_connection:
                 # Store in main index
-                conn.execute("""
+                db_connection.execute("""
                     INSERT OR REPLACE INTO content_index 
                     (file_path, file_hash, content_hash, extracted_text, metadata, 
                      extraction_method, extracted_at, file_size, content_length, extraction_success)
@@ -767,10 +801,31 @@ class ContentExtractor:
                 
                 # Store in FTS index if extraction successful
                 if result['success'] and result['text']:
-                    conn.execute("""
+                    db_connection.execute("""
                         INSERT OR REPLACE INTO content_fts (file_path, extracted_text, metadata)
                         VALUES (?, ?, ?)
                     """, (str(file_path), result['text'], self._safe_json_dumps(result['metadata'])))
+            else:
+                with sqlite3.connect(self.db_path) as conn:
+                    # Store in main index
+                    conn.execute("""
+                        INSERT OR REPLACE INTO content_index
+                        (file_path, file_hash, content_hash, extracted_text, metadata,
+                         extraction_method, extracted_at, file_size, content_length, extraction_success)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (
+                        str(file_path), file_hash, content_hash, result['text'],
+                        self._safe_json_dumps(result['metadata']), result['method'],
+                        datetime.now(), file_path.stat().st_size if file_path.exists() else 0,
+                        len(result['text']), result['success']
+                    ))
+
+                    # Store in FTS index if extraction successful
+                    if result['success'] and result['text']:
+                        conn.execute("""
+                            INSERT OR REPLACE INTO content_fts (file_path, extracted_text, metadata)
+                            VALUES (?, ?, ?)
+                        """, (str(file_path), result['text'], self._safe_json_dumps(result['metadata'])))
                 
         except Exception as e:
             print(f"Error caching content for {file_path}: {e}")

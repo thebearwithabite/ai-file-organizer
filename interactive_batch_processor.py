@@ -236,15 +236,10 @@ class InteractiveBatchProcessor:
         # This prevents N+1 connection overhead (opens 1 connection instead of 2*N)
         try:
             with sqlite3.connect(self.batch_db_path) as conn:
-                # Also reuse content index connection
-                content_db_path = self.content_extractor.db_path
-                with sqlite3.connect(content_db_path) as content_conn:
+                # OPTIMIZATION: Also reuse content extractor connection
+                with sqlite3.connect(self.content_extractor.db_path) as content_db_conn:
                     for file_path in files_found:
-                        preview = self._generate_file_preview(
-                            file_path,
-                            db_connection=conn,
-                            content_db_connection=content_conn
-                        )
+                        preview = self._generate_file_preview(file_path, db_connection=conn, content_db_connection=content_db_conn)
                         if preview:
                             file_previews.append(preview)
 
