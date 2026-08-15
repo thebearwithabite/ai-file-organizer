@@ -170,9 +170,9 @@ def test_golden_script_keyless_shots():
     result = svc.generate_shot_list(script=script, project_id="golden_test")
 
     # The gate requires a local provider; if none is up the test must say so loudly.
-    assert result.provider in ("vllm", "ollama"), (
+    assert result.provider == "ollama", (
         f"no local provider available (provider={result.provider}); "
-        f"start vLLM (localhost:8000) or Ollama (gemma4:12b) and re-run"
+        f"start Ollama (qwen3.5:4b) and re-run"
     )
     assert not result.degraded, f"director degraded: {result.reason}"
 
@@ -309,7 +309,7 @@ def test_review_table_migration_adds_degrade_reason(tmp_path):
 def test_provider_kwargs_pins_seed_and_temperature():
     from backend.services.llm_resolver import DIRECTOR_SEED, provider_kwargs
 
-    for name in ("vllm", "deepseek", "ollama"):
+    for name in ("deepseek", "ollama"):
         kw = provider_kwargs(name)
         assert kw["seed"] == DIRECTOR_SEED, f"{name} seed not pinned"
         assert kw["temperature"] == 0.1, f"{name} temperature not pinned"

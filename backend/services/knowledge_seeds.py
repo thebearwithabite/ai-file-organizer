@@ -141,24 +141,19 @@ ENGINE ROUTING — which renderer for which job, and the GPU rules.
 - ComfyUI (Gateway REST :3000): precision passes — effect LoRAs, style
   transfer, upscale. Never direct websockets.
 
-GPU co-residency (RTX 5090 Laptop 24.5 GB):
-- vLLM (Qwen3.5-4B) at --gpu-memory-utilization 0.7 commits ~17 GiB for the
-  life of the process. It has died unprompted twice (2026-08-09 overnight,
-  2026-08-10 between sessions) with the card idle — no OOM, no contention.
-  Managed by a systemd user unit (vllm-qwen35.service, Restart=on-failure)
-  since 2026-08-10. Until proven otherwise, "golden test degraded through
-  Ollama" means vLLM is down.
-- INVALIDATED 2026-08-10: the Q4 co-residency measurement (peak
-  24,038/24,463 MiB on a 9-frame job) was taken with vLLM at its UNCAPPED
-  default (baseline 13,182 MiB; the render needed ~10.6 GiB above baseline).
-  With vLLM capped at 0.7 (~17 GiB), only 7.5 GiB is free — 3 GiB short of
-  what the render consumed. Q4 co-residency is NOT established at the
-  current config. THE LIFECYCLE RULE APPLIES TO EVERY JOB (Q4 included)
-  until the sweep is re-run at the current config (harness:
+GPU co-residency (RTX 5090 Laptop 24.5 GB, measured 2026-08-15):
+- vLLM RETIRED 2026-08-15 (systemd unit disabled). Local inference = Ollama
+  qwen3.5:4b (3.4 GB weights): ~5.7 GiB resident with KV + vision, text AND
+  image inputs, think:false (no reasoning leak). One third of vLLM's 16.5 GiB.
+- Ollama qwen3.5:4b (5.7 GiB) + Q4 GGUF render (~10.6 GiB above baseline)
+  ≈ 16.3 GiB — FITS with ~8 GiB headroom. Q4 co-residency re-established
+  at the current config; re-sweep to confirm the exact peak (harness:
   tests/fixtures/wangp_mcp/run_sweep.sh).
-- int8 renders (ltx2_22B_distilled) DO NOT co-reside: the memory scheduler
-  stalls silently (done:false, no error, flat VRAM). Stop vLLM before
-  dispatching int8-class jobs; start it after (~2 min warmup).
+- int8-class renders (ltx2_22B_distilled, 19.5 GiB) still exceed the card
+  with Ollama resident (5.7 + 19.5 > 24.5): unload qwen3.5:4b before
+  dispatching (curl localhost:11434/api/generate -d '{"model":"qwen3.5:4b",
+  "keep_alive":0}'); it reloads on the next call (~2 min).
+- "Golden test degraded through Ollama" now means Ollama itself is down.
 - Residency policy is PER-JOB-SIZE, not per-model, until a frame x pixel
   budget is measured at production resolution. Above the budget, the
   lifecycle rule applies regardless of model.

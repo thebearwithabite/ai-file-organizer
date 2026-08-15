@@ -3,9 +3,10 @@
 Extracted from DirectorService (Phase 1) so AssetService uses the identical
 chain instead of duplicating it:
 
-    vLLM (localhost:8000, qwen3.5:4b)  →  Ollama (gemma4:12b)  →  DeepSeek (key + consent only)
+    Ollama (qwen3.5:4b, think:false)  →  DeepSeek (key + consent only)
 
-Local-first. The cloud fallback is reachable ONLY when a DEEPSEEK_API_KEY
+Local-first (vLLM retired 2026-08-15 — Ollama serves the same model at a
+third of the VRAM). The cloud fallback is reachable ONLY when a DEEPSEEK_API_KEY
 exists in GCP Secret Manager AND the caller explicitly allows script content
 to leave the box (``allow_cloud_script=True``).
 
@@ -19,14 +20,14 @@ import logging
 from enum import Enum
 from typing import Optional, Tuple
 
-from backend.llm import LLMProvider, VLLMClient
+from backend.llm import LLMProvider
 from backend.llm.ollama_client import OllamaClient
 from backend.llm.deepseek_client import DeepSeekClient
 from backend.audio.review_queue import ReviewQueue
 
 logger = logging.getLogger(__name__)
 
-DIRECTOR_LOCAL_FALLBACK_MODEL = "gemma4:12b"
+DIRECTOR_LOCAL_FALLBACK_MODEL = "qwen3.5:4b"  # local director/vision model (vLLM retired)
 SHOT_LIST_MAX_TOKENS = 6000
 
 # Pinned for reproducible shot books: the same script must produce the same
@@ -53,10 +54,6 @@ def resolve_provider(
     if injected is not None:
         return injected, "injected"
 
-    vllm = VLLMClient()
-    if vllm.health_check():
-        return vllm, "vllm"
-
     ollama = OllamaClient(model=DIRECTOR_LOCAL_FALLBACK_MODEL)
     if ollama.health_check():
         return ollama, "ollama"
@@ -72,11 +69,13 @@ def resolve_provider(
 
 
 def provider_kwargs(provider_name: str, max_tokens: int = SHOT_LIST_MAX_TOKENS) -> dict:
-    """Per-provider generation kwargs. vLLM/DeepSeek speak max_tokens; Ollama
-    speaks num_predict. Temperature and seed are pinned for reproducibility."""
-    if provider_name in ("vllm", "deepseek"):
+    """Per-provider generation kwargs. DeepSeek speaks max_tokens; Ollama
+    speaks num_predict. Temperature and seed are pinned for reproducibility;
+    Ollama gets think=False so reasoning tokens never leak (the vLLM-era
+    guarantee, preserved)."""
+    if provider_name == "deepseek":
         return {"max_tokens": max_tokens, "temperature": 0.1, "seed": DIRECTOR_SEED}
-    return {"num_predict": max_tokens, "temperature": 0.1, "seed": DIRECTOR_SEED}
+    return {"num_predict": max_tokens, "temperature": 0.1, "seed": DIRECTOR_SEED, "think": False}
 
 
 def enqueue_llm_degrade(
