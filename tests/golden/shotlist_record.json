@@ -1,17 +1,13 @@
 {
-  "provider": "vllm",
-  "shot_count": 11,
+  "provider": "ollama",
+  "shot_count": 7,
   "shot_ids": [
     "sc01_sh01",
     "sc01_sh02",
     "sc01_sh03",
     "sc01_sh04",
-    "sc01_sh05",
     "sc02_sh01",
     "sc02_sh02",
-    "sc02_sh03",
-    "sc02_sh04",
-    "sc02_sh05",
-    "sc02_sh06"
+    "sc02_sh03"
   ]
 }
