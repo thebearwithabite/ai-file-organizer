@@ -27,7 +27,7 @@ class OllamaClient(LLMProvider):
         model: str = "qwen3:32b",
         base_url: str = "http://localhost:11434",
         max_retries: int = 3,
-        timeout: int = 60,
+        timeout: int = 180,
     ):
         super().__init__(model=model, max_retries=max_retries)
         self.base_url = base_url.rstrip("/")
@@ -47,8 +47,15 @@ class OllamaClient(LLMProvider):
         if use_json_mode:
             payload["format"] = "json"
 
-        # Additional Ollama options
-        payload.update(kwargs)
+        # Ollama API: sampling params live under "options"; "think" and other
+        # top-level flags (keep_alive, images, format) stay at the top.
+        SAMPLING_KEYS = {"num_predict", "seed", "temperature", "top_p", "top_k",
+                         "repeat_penalty", "num_ctx", "stop", "num_keep", "min_p"}
+        options = {k: v for k, v in kwargs.items() if k in SAMPLING_KEYS}
+        top_level = {k: v for k, v in kwargs.items() if k not in SAMPLING_KEYS}
+        if options:
+            payload["options"] = {**payload.get("options", {}), **options}
+        payload.update(top_level)
 
         response = requests.post(url, json=payload, timeout=self.timeout)
         response.raise_for_status()
