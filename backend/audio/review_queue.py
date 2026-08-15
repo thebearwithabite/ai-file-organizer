@@ -33,6 +33,12 @@ def ensure_review_table(db_path: Path | None = None) -> None:
                 UNIQUE(file_path, reason)
             )
         """)
+        # Migration: degrade_reason column (provider_unreachable | schema_invalid
+        # | token_limit | consent_denied) — distinguishes "service is down" from
+        # "model produced bad schema" in the review queue.
+        cols = {r[1] for r in conn.execute("PRAGMA table_info(review_queue)")}
+        if "degrade_reason" not in cols:
+            conn.execute("ALTER TABLE review_queue ADD COLUMN degrade_reason TEXT")
         conn.commit()
 
 
@@ -56,6 +62,7 @@ class ReviewQueue:
         reason: str,
         category_hint: str = "",
         batch_group: str = "general",
+        degrade_reason: str = "",
     ) -> bool:
         """
         Add an item to the review queue.
@@ -73,9 +80,9 @@ class ReviewQueue:
                 return False
 
             conn.execute(
-                """INSERT INTO review_queue (file_path, reason, category_hint, surfaced_on, batch_group)
-                   VALUES (?, ?, ?, NULL, ?)""",
-                (file_path, reason, category_hint, batch_group),
+                """INSERT INTO review_queue (file_path, reason, category_hint, surfaced_on, batch_group, degrade_reason)
+                   VALUES (?, ?, ?, NULL, ?, ?)""",
+                (file_path, reason, category_hint, batch_group, degrade_reason),
             )
 
             # Count how many already surfaced today

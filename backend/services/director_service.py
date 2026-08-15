@@ -24,25 +24,27 @@ import logging
 import sqlite3
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 from core.paths import get_metadata_root
 
-from backend.llm import LLMProvider, VLLMClient
-from backend.llm.ollama_client import OllamaClient
-from backend.llm.deepseek_client import DeepSeekClient
-from backend.audio.review_queue import ReviewQueue
+from backend.llm import LLMProvider
+from backend.services.llm_resolver import (
+    DegradeReason,
+    enqueue_llm_degrade,
+    provider_kwargs,
+    resolve_provider,
+)
 
 from .shot_spec import (
+    EXCLUSIONS_TABLE_DDL,
+    SHOTS_TABLE_DDL,
     ScenePlan,
     ShotListOutput,
     ShotSpec,
 )
 
 logger = logging.getLogger(__name__)
-
-DIRECTOR_LOCAL_FALLBACK_MODEL = "gemma4:12b"
-SHOT_LIST_MAX_TOKENS = 6000
 
 # One example ShotSpec — shown to the LLM as the output shape to copy.
 EXAMPLE_SHOT = {
@@ -120,23 +122,39 @@ class DirectorService:
 
     def _init_shots_table(self) -> None:
         with sqlite3.connect(str(self.db_path)) as conn:
-            conn.execute(
-                """CREATE TABLE IF NOT EXISTS shots (
-                    shot_id TEXT PRIMARY KEY,
-                    project_id TEXT NOT NULL DEFAULT '',
-                    sequence_index INTEGER NOT NULL DEFAULT 0,
-                    status TEXT NOT NULL DEFAULT 'draft',
-                    version INTEGER NOT NULL DEFAULT 1,
-                    shot_json TEXT NOT NULL,
-                    created_at REAL DEFAULT (strftime('%s','now')),
-                    updated_at REAL DEFAULT (strftime('%s','now'))
-                )"""
-            )
+            conn.execute(SHOTS_TABLE_DDL)
+            conn.execute(EXCLUSIONS_TABLE_DDL)
             conn.commit()
 
     def _persist_shots(self, shots: List[ShotSpec], project_id: str = "") -> None:
+        """Replace the project's shot list atomically.
+
+        Delete-then-insert scoped to (project_id) inside ONE transaction: a
+        regeneration that yields fewer shots must remove the orphans that
+        plain INSERT OR REPLACE leaves behind (observed live: a 10-shot run
+        followed by a 6-shot run left 4 stale rows on the project).
+
+        Stored asset bindings are carried forward by shot_id, so manual
+        toggles survive regeneration — the human's selection outranks the
+        LLM's guess on the same shot.
+        """
         with sqlite3.connect(str(self.db_path)) as conn:
+            old = conn.execute(
+                "SELECT shot_id, shot_json FROM shots WHERE project_id = ?", (project_id,)
+            ).fetchall()
+            old_assets: dict[str, list] = {}
+            for sid, sj in old:
+                try:
+                    spec = ShotSpec.model_validate_json(sj)
+                    if spec.assets:
+                        old_assets[sid] = spec.assets
+                except Exception:
+                    continue  # unparseable old row — do not let it block the replace
+
+            conn.execute("DELETE FROM shots WHERE project_id = ?", (project_id,))
             for i, shot in enumerate(shots):
+                if shot.shot_id in old_assets:
+                    shot.assets = old_assets[shot.shot_id]
                 conn.execute(
                     """INSERT OR REPLACE INTO shots
                        (shot_id, project_id, sequence_index, status, version, shot_json)
@@ -150,8 +168,17 @@ class DirectorService:
                         shot.model_dump_json(),
                     ),
                 )
+            # Orphan hygiene for exclusions: a shot removed by this regeneration
+            # takes its deselection rows with it.
+            gone = {sid for sid, _ in old} - {s.shot_id for s in shots}
+            if gone:
+                placeholders = ",".join("?" * len(gone))
+                conn.execute(
+                    f"DELETE FROM shot_asset_exclusions WHERE shot_id IN ({placeholders})",
+                    tuple(gone),
+                )
             conn.commit()
-        logger.info("Persisted %d shots (project=%s)", len(shots), project_id or "(none)")
+        logger.info("Replaced %d shots (project=%s)", len(shots), project_id or "(none)")
 
     # ------------------------------------------------------------------
     # Knowledge
@@ -171,50 +198,32 @@ class DirectorService:
             return ""
 
     # ------------------------------------------------------------------
-    # Provider resolution
-    # ------------------------------------------------------------------
-
-    def _resolve_provider(self, allow_cloud_script: bool = False) -> Tuple[Optional[LLMProvider], str]:
-        if self._provider is not None:
-            return self._provider, "injected"
-
-        vllm = VLLMClient()
-        if vllm.health_check():
-            return vllm, "vllm"
-
-        ollama = OllamaClient(model=DIRECTOR_LOCAL_FALLBACK_MODEL)
-        if ollama.health_check():
-            return ollama, "ollama"
-
-        if allow_cloud_script:
-            from secret_manager import get_secret
-
-            key = get_secret("DEEPSEEK_API_KEY")
-            if key:
-                return DeepSeekClient(api_key=key), "deepseek"
-
-        return None, "none"
-
-    # ------------------------------------------------------------------
-    # Scene plan
+    # Provider resolution (shared with AssetService — see llm_resolver.py)
     # ------------------------------------------------------------------
 
     def analyze_script(self, script: str, project_id: str = "", allow_cloud_script: bool = False) -> dict:
         """Script → engine-agnostic ScenePlan (beats, runtime goals, extend policy)."""
-        provider, name = self._resolve_provider(allow_cloud_script)
+        provider, name = resolve_provider(allow_cloud_script, injected=self._provider)
         if provider is None:
-            self._enqueue_degrade(script, project_id, "no local LLM provider available")
+            enqueue_llm_degrade(
+                script, project_id, "no local LLM provider available",
+                degrade_reason=DegradeReason.provider_unreachable.value,
+            )
             return {"plan": ScenePlan(), "provider": "none", "degraded": True,
                     "reason": "no local LLM provider available (vLLM and Ollama unreachable)"}
 
         prompt = self._build_scene_plan_prompt(script)
-        kwargs = self._provider_kwargs(name)
+        kwargs = provider_kwargs(name)
         plan, ok = provider.generate_structured(prompt, ScenePlan, degrade_value=None, **kwargs)
 
         if not ok or plan is None:
-            self._enqueue_degrade(script, project_id, f"scene plan schema failure ({name})")
+            reason = getattr(provider, "last_failure", "") or DegradeReason.schema_invalid.value
+            enqueue_llm_degrade(
+                script, project_id, f"scene plan generation failed ({name})",
+                degrade_reason=reason,
+            )
             return {"plan": ScenePlan(), "provider": name, "degraded": True,
-                    "reason": f"scene plan schema failure after retries ({name})"}
+                    "reason": f"scene plan generation failed after retries ({name})"}
 
         return {"plan": plan, "provider": name, "degraded": False, "reason": ""}
 
@@ -229,20 +238,27 @@ class DirectorService:
         allow_cloud_script: bool = False,
     ) -> ShotListResult:
         """Script → validated ShotSpec[] (Pydantic-validated, bounded retry, degrade-to-queue)."""
-        provider, name = self._resolve_provider(allow_cloud_script)
+        provider, name = resolve_provider(allow_cloud_script, injected=self._provider)
         if provider is None:
-            self._enqueue_degrade(script, project_id, "no local LLM provider available")
+            enqueue_llm_degrade(
+                script, project_id, "no local LLM provider available",
+                degrade_reason=DegradeReason.provider_unreachable.value,
+            )
             return ShotListResult(provider="none", degraded=True,
                                   reason="no local LLM provider available (vLLM and Ollama unreachable)")
 
         prompt = self._build_shot_list_prompt(script)
-        kwargs = self._provider_kwargs(name)
+        kwargs = provider_kwargs(name)
         output, ok = provider.generate_structured(prompt, ShotListOutput, degrade_value=None, **kwargs)
 
         if not ok or output is None:
-            self._enqueue_degrade(script, project_id, f"shot list schema failure ({name})")
+            reason = getattr(provider, "last_failure", "") or DegradeReason.schema_invalid.value
+            enqueue_llm_degrade(
+                script, project_id, f"shot list generation failed ({name})",
+                degrade_reason=reason,
+            )
             return ShotListResult(provider=name, degraded=True,
-                                  reason=f"shot list schema failure after retries ({name})")
+                                  reason=f"shot list generation failed after retries ({name})")
 
         shots = output.shots
         # Normalize project_id + sequence index before persisting
@@ -255,11 +271,6 @@ class DirectorService:
     # ------------------------------------------------------------------
     # Prompts
     # ------------------------------------------------------------------
-
-    def _provider_kwargs(self, provider_name: str) -> dict:
-        if provider_name in ("vllm", "deepseek"):
-            return {"max_tokens": SHOT_LIST_MAX_TOKENS, "temperature": 0.1}
-        return {"num_predict": SHOT_LIST_MAX_TOKENS, "temperature": 0.1}
 
     def _build_scene_plan_prompt(self, script: str) -> str:
         principles = self._load_knowledge("FILMMAKING_PRINCIPLES")
@@ -325,21 +336,3 @@ Hard constraints:
 SCRIPT:
 {script}
 """
-
-    # ------------------------------------------------------------------
-    # Degrade path
-    # ------------------------------------------------------------------
-
-    def _enqueue_degrade(self, script: str, project_id: str, reason: str) -> None:
-        """Push a failed script into the review queue (daily cap enforced)."""
-        try:
-            pseudo_path = f"script:{project_id or 'untitled'}:{abs(hash(script)) % 100000}"
-            ReviewQueue().enqueue(
-                file_path=pseudo_path,
-                reason=f"director failed: {reason}",
-                category_hint="prompt_machine",
-                batch_group="director-degrade",
-            )
-            logger.warning("Director degrade enqueued: %s", pseudo_path)
-        except Exception as e:  # never let the degrade path take the API down
-            logger.error("Review queue enqueue failed: %s", e)

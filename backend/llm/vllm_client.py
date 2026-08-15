@@ -39,7 +39,7 @@ class VLLMClient(LLMProvider):
             api_key="not-needed",  # vLLM serves without auth
             timeout=self.timeout,
         )
-        response = client.chat.completions.create(
+        create_kwargs = dict(
             model=self.model,
             messages=[{"role": "user", "content": prompt}],
             temperature=kwargs.get("temperature", 0.1),
@@ -47,6 +47,9 @@ class VLLMClient(LLMProvider):
             # The whole point: vLLM honours this exactly, zero reasoning tokens.
             extra_body={"chat_template_kwargs": {"enable_thinking": False}},
         )
+        if kwargs.get("seed") is not None:
+            create_kwargs["seed"] = kwargs["seed"]  # pinned for reproducible shot books
+        response = client.chat.completions.create(**create_kwargs)
         return response.choices[0].message.content or ""
 
     def health_check(self) -> bool:

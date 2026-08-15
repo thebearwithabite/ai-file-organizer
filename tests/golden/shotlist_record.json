@@ -1,6 +1,6 @@
 {
   "provider": "vllm",
-  "shot_count": 8,
+  "shot_count": 11,
   "shot_ids": [
     "sc01_sh01",
     "sc01_sh02",
@@ -9,6 +9,9 @@
     "sc01_sh05",
     "sc02_sh01",
     "sc02_sh02",
-    "sc02_sh03"
+    "sc02_sh03",
+    "sc02_sh04",
+    "sc02_sh05",
+    "sc02_sh06"
   ]
 }

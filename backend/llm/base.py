@@ -25,6 +25,23 @@ class LLMProvider(ABC):
         self.model = model
         self.max_retries = max_retries
         self._consecutive_failures = 0
+        # Classification of the most recent failure: '' | 'provider_unreachable'
+        # | 'schema_invalid' | 'token_limit'. Callers read this after a failed
+        # generate_structured() to record the right review-queue degrade reason
+        # — "provider down" and "model produced bad schema" demand opposite
+        # responses and must not look identical.
+        self.last_failure: str = ""
+
+    def health_check(self) -> bool:
+        """Reachability probe. Subclasses override; default assumes healthy."""
+        return True
+
+    def _classify_error(self, e: Exception) -> str:
+        """Map a transport/API exception to a degrade reason without burning retries."""
+        msg = str(e).lower()
+        if type(e).__name__ == "BadRequestError" and ("context" in msg or "token" in msg):
+            return "token_limit"
+        return "provider_unreachable"
 
     @abstractmethod
     def _generate_raw(self, prompt: str, **kwargs) -> str:
@@ -38,6 +55,7 @@ class LLMProvider(ABC):
     def generate(self, prompt: str, **kwargs) -> str:
         """Generate raw text with retry on transient failures."""
         last_error = None
+        self.last_failure = ""
         for attempt in range(self.max_retries):
             try:
                 result = self._generate_raw(prompt, **kwargs)
@@ -45,7 +63,12 @@ class LLMProvider(ABC):
                 return result
             except Exception as e:
                 last_error = e
-                logger.warning(f"LLM attempt {attempt + 1}/{self.max_retries} failed: {e}")
+                self.last_failure = self._classify_error(e)
+                logger.warning(f"LLM attempt {attempt + 1}/{self.max_retries} failed: {e} [{self.last_failure}]")
+                if self.last_failure == "provider_unreachable" and not self.health_check():
+                    break  # dead provider — don't burn the retry budget
+                if self.last_failure == "token_limit":
+                    break  # deterministic rejection — retrying won't help
                 if attempt < self.max_retries - 1:
                     time.sleep(2 ** attempt)  # exponential backoff
 
@@ -73,6 +96,7 @@ class LLMProvider(ABC):
             )
             return degrade_value, False
 
+        self.last_failure = ""
         for attempt in range(self.max_retries):
             try:
                 raw = self._generate_raw(prompt, **kwargs)
@@ -82,6 +106,7 @@ class LLMProvider(ABC):
                 self._consecutive_failures = 0
                 return instance, True
             except (json.JSONDecodeError, ValidationError) as e:
+                self.last_failure = "schema_invalid"
                 logger.warning(
                     f"Schema validation attempt {attempt + 1}/{self.max_retries} "
                     f"failed for {schema.__name__}: {e}"
@@ -89,7 +114,18 @@ class LLMProvider(ABC):
                 if attempt < self.max_retries - 1:
                     time.sleep(1)
             except Exception as e:
-                logger.warning(f"LLM call failed (attempt {attempt + 1}): {e}")
+                self.last_failure = self._classify_error(e)
+                logger.warning(
+                    f"LLM call failed (attempt {attempt + 1}/{self.max_retries}): "
+                    f"{e} [{self.last_failure}]"
+                )
+                # A dead provider must not silently burn the retry budget: a
+                # vLLM outage presents identically to "bad schema three times"
+                # unless we probe health before retrying.
+                if self.last_failure == "provider_unreachable" and not self.health_check():
+                    break
+                if self.last_failure == "token_limit":
+                    break
                 if attempt < self.max_retries - 1:
                     time.sleep(2 ** attempt)
 

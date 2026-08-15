@@ -52,12 +52,15 @@ class DeepSeekClient(LLMProvider):
             api_key=self.api_key,
             timeout=self.timeout,
         )
-        response = client.chat.completions.create(
+        create_kwargs = dict(
             model=self.model,
             messages=[{"role": "user", "content": prompt}],
             temperature=kwargs.get("temperature", 0.1),
             max_tokens=kwargs.get("max_tokens", 4096),
         )
+        if kwargs.get("seed") is not None:
+            create_kwargs["seed"] = kwargs["seed"]  # pinned for reproducible shot books
+        response = client.chat.completions.create(**create_kwargs)
         return response.choices[0].message.content or ""
 
     def health_check(self) -> bool:

@@ -215,3 +215,124 @@ def test_golden_script_keyless_shots():
             indent=2,
         )
     )
+
+
+# ---------------------------------------------------------------------------
+# Phase 1 amendments (2026-08-10): orphan cleanup, degrade_reason, determinism
+# ---------------------------------------------------------------------------
+
+
+def _director_shot(shot_id: str, seq: int, project_id: str = "") -> ShotSpec:
+    return ShotSpec(
+        shot_id=shot_id,
+        sequence_index=seq,
+        project_id=project_id,
+        scene=SceneSpec(context="x", visual_style="naturalistic", lighting="soft", mood="quiet"),
+        character=CharacterSpec(name="Maya", expression_cues="eyebrows draw together"),
+        camera=CameraSpec(shot_call="Medium Close-Up"),
+    )
+
+
+def test_regenerate_removes_orphans_and_keeps_bindings(tmp_path):
+    """delete-then-insert: a rerun with fewer shots must drop the stale rows,
+    and manual asset toggles must survive the regeneration."""
+    import sqlite3
+
+    from backend.services.asset_service import AssetService
+    from backend.services.director_service import DirectorService
+    from backend.services.shot_spec import AssetSpec
+
+    db = tmp_path / "t.db"
+    svc = DirectorService(db_path=db)
+    shots5 = [_director_shot(f"sc01_sh{i:02d}", seq=i, project_id="p1") for i in range(1, 6)]
+    svc._persist_shots(shots5, project_id="p1")
+
+    # manual toggle on one shot
+    assets = AssetService(db_path=db)
+    assets._dedup_and_persist([AssetSpec(asset_id="char_maya", name="Maya", type="character")], "")
+    assets.toggle_shot_asset("sc01_sh01", "char_maya", True)
+
+    # regenerate with FEWER shots (the orphan scenario: 5 → 2)
+    svc._persist_shots(shots5[:2], project_id="p1")
+
+    with sqlite3.connect(str(db)) as conn:
+        remaining = [
+            r[0]
+            for r in conn.execute(
+                "SELECT shot_id FROM shots WHERE project_id='p1' ORDER BY sequence_index"
+            ).fetchall()
+        ]
+    assert remaining == ["sc01_sh01", "sc01_sh02"], f"orphans not removed: {remaining}"
+
+    shot = assets._load_shot("sc01_sh01")
+    assert {a.asset_id for a in shot.assets} == {"char_maya"}, "toggle lost on regeneration"
+
+
+def test_degrade_reason_stored_on_review_rows(tmp_path):
+    import sqlite3
+
+    from backend.audio.review_queue import ReviewQueue
+
+    q = ReviewQueue(db_path=tmp_path / "t.db")
+    q.enqueue("f1", "r1", batch_group="g", degrade_reason="provider_unreachable")
+    q.enqueue("f2", "r2", batch_group="g", degrade_reason="schema_invalid")
+
+    with sqlite3.connect(str(tmp_path / "t.db")) as conn:
+        rows = conn.execute(
+            "SELECT file_path, degrade_reason FROM review_queue ORDER BY id"
+        ).fetchall()
+    assert rows == [("f1", "provider_unreachable"), ("f2", "schema_invalid")]
+
+
+def test_review_table_migration_adds_degrade_reason(tmp_path):
+    import sqlite3
+
+    from backend.audio.review_queue import ensure_review_table
+
+    db = tmp_path / "m.db"
+    with sqlite3.connect(str(db)) as conn:  # old schema, no degrade_reason
+        conn.execute(
+            """CREATE TABLE review_queue (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                file_path TEXT NOT NULL, reason TEXT NOT NULL, category_hint TEXT,
+                surfaced_on TEXT, batch_group TEXT, status TEXT DEFAULT 'pending',
+                created_at TEXT DEFAULT (datetime('now')), UNIQUE(file_path, reason)
+            )"""
+        )
+        conn.commit()
+    ensure_review_table(db)
+    with sqlite3.connect(str(db)) as conn:
+        cols = {r[1] for r in conn.execute("PRAGMA table_info(review_queue)")}
+    assert "degrade_reason" in cols
+
+
+def test_provider_kwargs_pins_seed_and_temperature():
+    from backend.services.llm_resolver import DIRECTOR_SEED, provider_kwargs
+
+    for name in ("vllm", "deepseek", "ollama"):
+        kw = provider_kwargs(name)
+        assert kw["seed"] == DIRECTOR_SEED, f"{name} seed not pinned"
+        assert kw["temperature"] == 0.1, f"{name} temperature not pinned"
+
+
+def test_dead_provider_breaks_early_without_burning_retries():
+    from backend.llm.base import LLMProvider
+    from backend.services.shot_spec import ShotListOutput
+
+    class DeadProvider(LLMProvider):
+        def __init__(self):
+            super().__init__(model="dead", max_retries=3)
+            self.calls = 0
+
+        def health_check(self):
+            return False
+
+        def _generate_raw(self, prompt, **kwargs):
+            self.calls += 1
+            raise ConnectionError("connection refused")
+
+    p = DeadProvider()
+    out, ok = p.generate_structured("x", ShotListOutput, degrade_value=None)
+    assert not ok
+    assert p.calls == 1, f"retry budget burned on a dead provider: {p.calls} calls"
+    assert p.last_failure == "provider_unreachable"

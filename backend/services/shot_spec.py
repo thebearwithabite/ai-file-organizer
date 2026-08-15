@@ -141,3 +141,42 @@ class ScenePlan(BaseModel):
 class ShotListOutput(BaseModel):
     """LLM output wrapper for the director pass: validated ShotSpec[]."""
     shots: List[ShotSpec] = Field(default_factory=list)
+
+
+class AssetSpec(BaseModel):
+    """One asset extracted from a script (Phase 2) — becomes a veo_assets row."""
+    asset_id: str = Field(
+        ..., pattern=r"^[a-z0-9_]+$", description="e.g. char_maya, loc_kitchen, prop_letter"
+    )
+    name: str = Field(..., description="Proper name as used in the script")
+    type: AssetType = AssetType.character
+    description: str = Field("", description="One concise line (appearance / place / object)")
+
+
+class AssetExtractionOutput(BaseModel):
+    """LLM output wrapper for the asset extraction pass: validated AssetSpec[]."""
+    assets: List[AssetSpec] = Field(default_factory=list)
+
+
+# Single source of truth for the shots table DDL — shared by DirectorService
+# (creator) and AssetService (reader/writer). Do not duplicate in services.
+SHOTS_TABLE_DDL = """CREATE TABLE IF NOT EXISTS shots (
+    shot_id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL DEFAULT '',
+    sequence_index INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'draft',
+    version INTEGER NOT NULL DEFAULT 1,
+    shot_json TEXT NOT NULL,
+    created_at REAL DEFAULT (strftime('%s','now')),
+    updated_at REAL DEFAULT (strftime('%s','now'))
+)"""
+
+# Explicit "do not bind this asset to this shot" intent. Toggle-off writes a
+# row; auto_bind and regeneration both honor it — a human deselection must
+# survive both the reconciliation pass and a shot-list rebuild.
+EXCLUSIONS_TABLE_DDL = """CREATE TABLE IF NOT EXISTS shot_asset_exclusions (
+    shot_id TEXT NOT NULL,
+    asset_id TEXT NOT NULL,
+    created_at REAL DEFAULT (strftime('%s','now')),
+    PRIMARY KEY (shot_id, asset_id)
+)"""

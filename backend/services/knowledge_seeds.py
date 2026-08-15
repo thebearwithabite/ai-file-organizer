@@ -141,12 +141,21 @@ ENGINE ROUTING — which renderer for which job, and the GPU rules.
 - ComfyUI (Gateway REST :3000): precision passes — effect LoRAs, style
   transfer, upscale. Never direct websockets.
 
-GPU co-residency (measured 2026-08-09, RTX 5090 Laptop 24.5 GB):
-- vLLM (Qwen3.5-4B) holds ~11 GB at --gpu-memory-utilization 0.45; it never
-  releases memory while running.
-- Q4 GGUF renders (ltx2_22B_distilled_gguf_q4_k_m) CO-RESIDE with vLLM for
-  small jobs (measured peak 24,038/24,463 MiB on a 9-frame job — 425 MiB
-  headroom; validated in practice over dozens of overnight renders).
+GPU co-residency (RTX 5090 Laptop 24.5 GB):
+- vLLM (Qwen3.5-4B) at --gpu-memory-utilization 0.7 commits ~17 GiB for the
+  life of the process. It has died unprompted twice (2026-08-09 overnight,
+  2026-08-10 between sessions) with the card idle — no OOM, no contention.
+  Managed by a systemd user unit (vllm-qwen35.service, Restart=on-failure)
+  since 2026-08-10. Until proven otherwise, "golden test degraded through
+  Ollama" means vLLM is down.
+- INVALIDATED 2026-08-10: the Q4 co-residency measurement (peak
+  24,038/24,463 MiB on a 9-frame job) was taken with vLLM at its UNCAPPED
+  default (baseline 13,182 MiB; the render needed ~10.6 GiB above baseline).
+  With vLLM capped at 0.7 (~17 GiB), only 7.5 GiB is free — 3 GiB short of
+  what the render consumed. Q4 co-residency is NOT established at the
+  current config. THE LIFECYCLE RULE APPLIES TO EVERY JOB (Q4 included)
+  until the sweep is re-run at the current config (harness:
+  tests/fixtures/wangp_mcp/run_sweep.sh).
 - int8 renders (ltx2_22B_distilled) DO NOT co-reside: the memory scheduler
   stalls silently (done:false, no error, flat VRAM). Stop vLLM before
   dispatching int8-class jobs; start it after (~2 min warmup).
