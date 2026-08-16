@@ -193,6 +193,7 @@ export default function ClassificationPreview({ result, onClose }: Classificatio
         <button
           onClick={handleSkip}
           className="p-3 bg-white/10 hover:bg-white/20 rounded-xl transition-colors text-white"
+          aria-label="Skip"
         >
           <X size={20} />
         </button>
