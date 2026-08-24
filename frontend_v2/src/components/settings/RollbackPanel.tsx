@@ -161,6 +161,7 @@ export default function RollbackPanel() {
           <SearchIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
           <input
             type="text"
+            aria-label="Search rollbacks"
             placeholder="Search by filename or path..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
