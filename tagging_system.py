@@ -619,7 +619,22 @@ class ComprehensiveTaggingSystem:
         """Find files that match specified tags"""
         
         with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.execute("SELECT * FROM file_tags")
+            if not tags:
+                return []
+
+            # Pre-filter using SQLite LIKE to avoid full-table JSON parsing
+            conditions = []
+            params = []
+            for tag in tags:
+                # Safely escape tag for LIKE matching inside JSON array
+                safe_tag = json.dumps(tag)[1:-1]
+                conditions.append("(auto_tags LIKE ? OR user_tags LIKE ?)")
+                params.extend([f'%"{safe_tag}"%', f'%"{safe_tag}"%'])
+
+            where_clause = " OR ".join(conditions) if not match_all else " AND ".join(conditions)
+            query = f"SELECT * FROM file_tags WHERE {where_clause}"
+
+            cursor = conn.execute(query, params)
             columns = [desc[0] for desc in cursor.description]
             results = []
             
