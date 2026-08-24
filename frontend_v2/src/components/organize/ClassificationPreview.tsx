@@ -169,7 +169,7 @@ export default function ClassificationPreview({ result, onClose }: Classificatio
         <button
           onClick={handleConfirm}
           disabled={isConfirming}
-          className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-success hover:bg-success/90 rounded-xl font-medium transition-colors text-white disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-success hover:bg-success/90 rounded-xl font-medium transition-colors text-white disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none"
         >
           {isConfirming ? (
             <>
@@ -185,22 +185,23 @@ export default function ClassificationPreview({ result, onClose }: Classificatio
         </button>
         <button
           onClick={handleReclassify}
-          className="flex items-center justify-center gap-2 px-4 py-3 bg-white/10 hover:bg-white/20 rounded-xl font-medium transition-colors text-white"
+          className="flex items-center justify-center gap-2 px-4 py-3 bg-white/10 hover:bg-white/20 rounded-xl font-medium transition-colors text-white focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none"
         >
           <RefreshCw size={20} />
           Reclassify
         </button>
         <button
           onClick={handleSkip}
-          className="p-3 bg-white/10 hover:bg-white/20 rounded-xl transition-colors text-white"
+          aria-label="Skip file"
+          className="p-3 bg-white/10 hover:bg-white/20 rounded-xl transition-colors text-white focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none"
         >
-          <X size={20} />
+          <X size={20} aria-hidden="true" />
         </button>
       </div>
 
       <button
         onClick={handleSkip}
-        className="w-full mt-3 text-sm text-white/60 hover:text-white transition-colors"
+        className="w-full mt-3 text-sm text-white/60 hover:text-white transition-colors focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none rounded"
       >
         Skip (organize later)
       </button>
