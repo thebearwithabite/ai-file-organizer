@@ -132,8 +132,9 @@ export default function ClassificationPreview({ result, onClose }: Classificatio
         </div>
 
         <div>
-          <label className="text-xs text-white/50 mb-1 block">Project Name</label>
+          <label htmlFor="project-name" className="text-xs text-white/50 mb-1 block">Project Name</label>
           <input
+            id="project-name"
             type="text"
             list="project-suggestions"
             value={project}
@@ -149,8 +150,9 @@ export default function ClassificationPreview({ result, onClose }: Classificatio
         </div>
 
         <div>
-          <label className="text-xs text-white/50 mb-1 block">Episode/Version</label>
+          <label htmlFor="episode-version" className="text-xs text-white/50 mb-1 block">Episode/Version</label>
           <input
+            id="episode-version"
             type="text"
             value={episode}
             onChange={(e) => setEpisode(e.target.value)}
@@ -169,38 +171,40 @@ export default function ClassificationPreview({ result, onClose }: Classificatio
         <button
           onClick={handleConfirm}
           disabled={isConfirming}
-          className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-success hover:bg-success/90 rounded-xl font-medium transition-colors text-white disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-success hover:bg-success/90 rounded-xl font-medium transition-colors text-white disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-success focus-visible:outline-none"
         >
           {isConfirming ? (
             <>
-              <Loader2 size={20} className="animate-spin" />
+              <Loader2 size={20} className="animate-spin" aria-hidden="true" />
               Organizing...
             </>
           ) : (
             <>
-              <Check size={20} />
+              <Check size={20} aria-hidden="true" />
               Confirm & Organize
             </>
           )}
         </button>
         <button
           onClick={handleReclassify}
-          className="flex items-center justify-center gap-2 px-4 py-3 bg-white/10 hover:bg-white/20 rounded-xl font-medium transition-colors text-white"
+          className="flex items-center justify-center gap-2 px-4 py-3 bg-white/10 hover:bg-white/20 rounded-xl font-medium transition-colors text-white focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none"
         >
-          <RefreshCw size={20} />
+          <RefreshCw size={20} aria-hidden="true" />
           Reclassify
         </button>
         <button
           onClick={handleSkip}
-          className="p-3 bg-white/10 hover:bg-white/20 rounded-xl transition-colors text-white"
+          aria-label="Skip file"
+          title="Skip file"
+          className="p-3 bg-white/10 hover:bg-white/20 rounded-xl transition-colors text-white focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none"
         >
-          <X size={20} />
+          <X size={20} aria-hidden="true" />
         </button>
       </div>
 
       <button
         onClick={handleSkip}
-        className="w-full mt-3 text-sm text-white/60 hover:text-white transition-colors"
+        className="w-full mt-3 text-sm text-white/60 hover:text-white transition-colors focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none rounded-xl"
       >
         Skip (organize later)
       </button>
