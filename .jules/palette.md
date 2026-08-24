@@ -15,3 +15,7 @@
 ## 2024-05-24 - Accessible Disconnected Banners
 **Learning:** Offline or disconnection warning banners (like `ConnectionStatus.tsx`) often bypass standard design system components and fail to announce themselves to screen readers upon mounting. Furthermore, their associated retry actions lack dynamic interaction text or explicit `aria-busy` state during asynchronous checks, leading to confusion during degraded system states.
 **Action:** Whenever introducing or modifying ad-hoc connection error banners, explicitly add `role="alert"` and `aria-live="assertive"` so screen readers announce them immediately. Any associated retry buttons must include `aria-busy`, explicit visual disabled states (`disabled:opacity-70`), and dynamic interaction text (e.g., "Retrying...") to provide clear feedback.
+
+## 2024-05-18 - Missing focus-visible on complex custom components
+**Learning:** In the `ShotCard` component, complex custom styled buttons (with custom background blurs, hover effects, and shadow layers) completely lacked explicit `focus-visible` states, rendering them invisible to keyboard-only navigation despite being fully interactive buttons.
+**Action:** Always verify keyboard accessibility on custom-styled interactive components. Apply explicit `focus-visible:ring-2 focus-visible:outline-none` with context-aware ring colors (e.g., `focus-visible:ring-indigo-400` for an indigo button) to match the component's aesthetic without sacrificing accessibility.
