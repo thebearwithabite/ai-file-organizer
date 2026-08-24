@@ -222,7 +222,7 @@ export default function Duplicates() {
                 {group.files.map((file, index) => (
                   <div
                     key={index}
-                    className={`p-3 rounded-lg border-2 transition-all cursor-pointer ${selectedKeepIndex[group.group_id] === index
+                    className={`p-3 rounded-lg border-2 transition-all cursor-pointer focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2 focus-within:ring-offset-background ${selectedKeepIndex[group.group_id] === index
                         ? 'bg-primary/20 border-primary/40'
                         : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20'
                       }`}
@@ -231,9 +231,10 @@ export default function Duplicates() {
                     <div className="flex items-start gap-3">
                       <input
                         type="radio"
+                        aria-label={`Select ${getFileName(file.path)} to keep`}
                         checked={selectedKeepIndex[group.group_id] === index}
                         onChange={() => setSelectedKeepIndex({ ...selectedKeepIndex, [group.group_id]: index })}
-                        className="mt-1"
+                        className="mt-1 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
                       />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
