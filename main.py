@@ -157,11 +157,6 @@ async def lifespan(app: FastAPI):
         from api.veo_prompts_api import init_veo_prompts_table
         ensure_rollback_db()
         init_veo_prompts_table()
-        try:
-            from api.veo_studio_api import init_veo_studio_tables
-            init_veo_studio_tables()
-        except ImportError:
-            logger.warning("veo_studio_api not available - skipping table init")
         logger.info("✅ Core DBs & Tables initialized")
     except Exception as e:
         logger.exception("Failed to initialize core DBs: %s", e)
@@ -251,18 +246,9 @@ monitor_paths = []
 # Move router inclusion AFTER lifespan definition
 from api.taxonomy_router import router as taxonomy_router
 from api.identity_router import router as identity_router
-# Optional routers (graceful degradation if dependencies missing)
-try:
-    from api.veo_studio_api import router as veo_studio_router
-except ImportError:
-    veo_studio_router = None
-    logging.getLogger(__name__).warning("veo_studio_api unavailable - skipping")
-
 # Include VEO API routers
 app.include_router(veo_router)
 app.include_router(clip_router)
-if veo_studio_router:
-    app.include_router(veo_studio_router)
 app.include_router(taxonomy_router)
 app.include_router(identity_router)
 # V2 Routes (Phase 3)

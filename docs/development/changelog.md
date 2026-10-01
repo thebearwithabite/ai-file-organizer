@@ -5,6 +5,17 @@ All notable changes to the AI File Organizer project will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] — Prompt Machine Phase 0: dead cloud VEO path rip-out
+
+### Removed
+- Cloud VEO generation path, official per Prompt Machine v1.2 Phase 0: `api/veo_brain_api.py` (imported the never-landed `veo_brain.py`), `api/veo_studio_api.py`, `api/veo_api.py`, `kie_client.py`, the `/api/veo/video/*` endpoints and KIE key handling, and the VeoStudio frontend island (`bfcde68`, `2b14edf`). Git history is the archive.
+- Final residue: dangling `api.veo_studio_api` import blocks in `main.py`; root-level `test_veo_studio_integration.py`; stale bytecode for the removed modules.
+- `git grep -il "kie_client\|veo_brain" -- '*.py'` is now empty for Python files, repo-wide.
+
+### Added
+- `core/path_guard.py` + `tests/test_path_guard.py` — deletion guard that recognizes `D:\Wan2GP` and `/mnt/d/wan2gp` as the same directory (Windows case-insensitivity); cleanup scripts must call `assert_deletable()` before removing a path.
+- `docs/host-topology.md` — v1.2 host topology (orchestrator WSL2 / renderer native Windows) and the Docker/WSL WanGP build deprecation record.
+
 ## [3.2.1] - 2025-11-03
 
 ### Added - Sprint 2.5: Learning Stats API & UI Integration (COMPLETE)
