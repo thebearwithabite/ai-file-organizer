@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "note": "Template registry for backend/services/prompt_compiler.py. Selection is deterministic: no LLM is consulted. Each entry names a pure WanGP settings file next to this index; selection metadata lives here so the settings files stay exactly what the renderer expects.",
+  "defaults": {
+    "aspect": "16:9",
+    "target": "ltx23",
+    "max_prompt_tokens": 512
+  },
+  "templates": [
+    {
+      "template_id": "ltx2_3_distilled_16x9",
+      "file": "ltx2_3_distilled_16x9.json",
+      "targets": ["ltx23", "wangp"],
+      "aspect": "16:9",
+      "min_duration_s": 0.0,
+      "max_duration_s": 8.0,
+      "priority": 20,
+      "max_prompt_tokens": 512,
+      "description": "Production default. LTX-2 2.3 Distilled 22B, 8 steps, 24fps, 8n+1 frame lattice."
+    },
+    {
+      "template_id": "ltx2_3_distilled_16x9_long",
+      "file": "ltx2_3_distilled_16x9_long.json",
+      "targets": ["ltx23", "wangp"],
+      "aspect": "16:9",
+      "min_duration_s": 8.0,
+      "max_duration_s": 20.0,
+      "priority": 20,
+      "max_prompt_tokens": 512,
+      "description": "Same model and grade, 10s default length, for beats over 8 seconds."
+    },
+    {
+      "template_id": "ltx2_3_distilled_9x16",
+      "file": "ltx2_3_distilled_9x16.json",
+      "targets": ["ltx23", "wangp"],
+      "aspect": "9:16",
+      "min_duration_s": 0.0,
+      "max_duration_s": 20.0,
+      "priority": 20,
+      "max_prompt_tokens": 512,
+      "description": "Vertical delivery (Shorts / Reels). Same model, same grade."
+    },
+    {
+      "template_id": "ltx2_3_distilled_draft_16x9",
+      "file": "ltx2_3_distilled_draft_16x9.json",
+      "targets": ["ltx23", "wangp"],
+      "aspect": "16:9",
+      "min_duration_s": 0.0,
+      "max_duration_s": 8.0,
+      "priority": 10,
+      "max_prompt_tokens": 512,
+      "description": "Draft pass for review-loop iterations: half resolution, 6 steps. Lower priority than the production template on purpose."
+    }
+  ]
+}

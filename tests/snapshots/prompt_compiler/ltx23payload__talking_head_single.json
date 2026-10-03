@@ -1,0 +1,92 @@
+{
+  "manifest": {
+    "aspect_hint": "16:9",
+    "duration_seconds": 6.5,
+    "entities": [
+      {
+        "description": "woman, mid-30s, shoulder-length dark hair parted left, grey knit sweater, silver ring on the right hand",
+        "entity_id": "char_maya",
+        "kind": "character",
+        "name": "Maya",
+        "reference_images": [
+          "refs/char_maya_front.png",
+          "refs/char_maya_three_quarter.png"
+        ]
+      }
+    ],
+    "overrides": {},
+    "project_id": "golden",
+    "prompt_digest": "ad0ec71664b0c7f4e6b88e5c2c6cef6466d52f983ce165d66801da21c47eb5ee",
+    "prompt_sha256_16": "ad0ec71664b0c7f4",
+    "prompt_tokens_estimated": 227,
+    "seed": 811223,
+    "sequence_index": 0,
+    "settings": {
+      "activated_loras": [],
+      "force_fps": 24,
+      "loras_multipliers": "",
+      "model": {
+        "architecture": "ltx2_22B",
+        "ltx2_pipeline": "distilled",
+        "name": "LTX-2 2.3 Distilled 1.0 22B"
+      },
+      "model_type": "ltx2_22B_distilled",
+      "negative_prompt": "text, captions, subtitles, watermark, logo, letterbox bars, black borders, deformed hands, extra fingers, extra limbs, flicker, warped faces",
+      "num_inference_steps": 8,
+      "prompt": "",
+      "prompt_enhancer": false,
+      "resolution": "1280x720",
+      "seed": -1,
+      "video_length": 161
+    },
+    "shot_id": "sc01_sh01",
+    "target": "ltx23",
+    "template": {
+      "aspect": "16:9",
+      "duration_range_s": [
+        0.0,
+        8.0
+      ],
+      "file": "ltx2_3_distilled_16x9.json",
+      "max_prompt_tokens": 512,
+      "model": "LTX-2 2.3 Distilled 1.0 22B",
+      "model_type": "ltx2_22B_distilled",
+      "priority": 20,
+      "targets": [
+        "ltx23",
+        "wangp"
+      ],
+      "template_id": "ltx2_3_distilled_16x9"
+    },
+    "template_selection": {
+      "reason": "duration+aspect+target",
+      "requested_id": null,
+      "selected_id": "ltx2_3_distilled_16x9"
+    },
+    "version": 1
+  },
+  "payload": {
+    "negative_prompt": "text, captions, subtitles, watermark, logo, letterbox bars, black borders, deformed hands, extra fingers, extra limbs, flicker, warped faces",
+    "prompt": "Eye-Level Medium Close-Up of a rented studio kitchen at dawn, unwashed window, one cardboard box half unpacked by the fridge. Soft overcast window light from camera-left, weak bounce fill from a white card on the right, naturalistic handheld documentary, slightly desaturated, fine film grain, no stylization. Maya stands at the counter, looks straight into the lens, and speaks one short line without moving her hands. Maya, woman, mid-30s, shoulder-length dark hair parted left, grey knit sweater, silver ring on the right hand; Maya blinks once before speaking, keeps both hands flat on the counter. The camera is locked off, a barely perceptible handheld breath, ending on Maya, woman, mid-30s, shoulder-length dark hair parted left, grey knit sweater, silver ring on the right hand, shot on 50mm, natural perspective, shallow-ish depth. The sound is distant traffic, a refrigerator cycling on. Maya says \"Everything I own fits in that box.\", level, unhurried, one beat of silence before the line.",
+    "seed": 811223,
+    "settings": {
+      "activated_loras": [],
+      "force_fps": 24,
+      "loras_multipliers": "",
+      "model": {
+        "architecture": "ltx2_22B",
+        "ltx2_pipeline": "distilled",
+        "name": "LTX-2 2.3 Distilled 1.0 22B"
+      },
+      "model_type": "ltx2_22B_distilled",
+      "negative_prompt": "text, captions, subtitles, watermark, logo, letterbox bars, black borders, deformed hands, extra fingers, extra limbs, flicker, warped faces",
+      "num_inference_steps": 8,
+      "prompt": "",
+      "prompt_enhancer": false,
+      "resolution": "1280x720",
+      "seed": -1,
+      "video_length": 161
+    },
+    "target": "ltx23"
+  }
+}

@@ -1,0 +1,92 @@
+{
+  "manifest": {
+    "aspect_hint": "16:9",
+    "duration_seconds": 11.0,
+    "entities": [
+      {
+        "description": "woman, mid-30s, shoulder-length dark hair parted left, grey knit sweater, silver ring on the right hand",
+        "entity_id": "char_maya",
+        "kind": "character",
+        "name": "Maya",
+        "reference_images": [
+          "refs/char_maya_front.png",
+          "refs/char_maya_three_quarter.png"
+        ]
+      },
+      {
+        "description": "man, late 30s, close-cropped hair, olive field jacket, canvas bag on the shoulder",
+        "entity_id": "char_theo",
+        "kind": "character",
+        "name": "Theo",
+        "reference_images": [
+          "refs/char_theo_front.png"
+        ]
+      }
+    ],
+    "overrides": {},
+    "project_id": "golden",
+    "prompt_digest": "0a07f1b8ebead873174529513e4b9eb8d29d43df34eca192d34ab0cd13fae17a",
+    "prompt_sha256_16": "0a07f1b8ebead873",
+    "prompt_tokens_estimated": 244,
+    "seed": 4471,
+    "sequence_index": 0,
+    "settings": {
+      "activated_loras": [],
+      "force_fps": 24,
+      "loras_multipliers": "",
+      "model": {
+        "architecture": "ltx2_22B",
+        "ltx2_pipeline": "distilled",
+        "name": "LTX-2 2.3 Distilled 1.0 22B"
+      },
+      "model_type": "ltx2_22B_distilled",
+      "num_inference_steps": 8,
+      "resolution": "1280x720",
+      "video_length": 265
+    },
+    "shot_id": "sc03_sh01",
+    "target": "wangp",
+    "template": {
+      "aspect": "16:9",
+      "duration_range_s": [
+        8.0,
+        20.0
+      ],
+      "file": "ltx2_3_distilled_16x9_long.json",
+      "max_prompt_tokens": 512,
+      "model": "LTX-2 2.3 Distilled 1.0 22B",
+      "model_type": "ltx2_22B_distilled",
+      "priority": 20,
+      "targets": [
+        "ltx23",
+        "wangp"
+      ],
+      "template_id": "ltx2_3_distilled_16x9_long"
+    },
+    "template_selection": {
+      "reason": "duration+aspect+target",
+      "requested_id": null,
+      "selected_id": "ltx2_3_distilled_16x9_long"
+    },
+    "version": 1
+  },
+  "payload": {
+    "activated_loras": [],
+    "force_fps": 24,
+    "loras_multipliers": "",
+    "model": {
+      "architecture": "ltx2_22B",
+      "ltx2_pipeline": "distilled",
+      "name": "LTX-2 2.3 Distilled 1.0 22B"
+    },
+    "model_type": "ltx2_22B_distilled",
+    "negative_prompt": "text, captions, subtitles, watermark, logo, letterbox bars, black borders, deformed hands, extra fingers, extra limbs, flicker, warped faces",
+    "num_inference_steps": 8,
+    "output_filename": "golden_sc03_sh01_v1",
+    "prompt": "Over-the-Shoulder Two-Shot of a bare corridor outside the studio, late afternoon, long empty stretch of wall. Flat fluorescent corridor light, no key, no fill shaping, naturalistic, neutral grade, slight green cast from the fixtures. The second character turns from the wall and looks past camera; Maya stands out of focus in the near foreground. Maya, woman, mid-30s, shoulder-length dark hair parted left, grey knit sweater, silver ring on the right hand; Maya out of focus in the foreground, shoulder only; Theo, man, late 30s, close-cropped hair, olive field jacket, canvas bag on the shoulder; Theo jaw tightens, gaze holds past camera without blinking. The camera slow lateral slide left, holding the shoulder as a wipe, ending on Maya, woman, mid-30s, shoulder-length dark hair parted left, grey knit sweater, silver ring on the right hand, shot on 85mm, foreground falloff, background compressed. The sound is fluorescent hum, a distant door, fabric shift as he turns. Maya says \"You already know what it says.\", flat, no emphasis, trailing off.",
+    "prompt_enhancer": false,
+    "resolution": "1280x720",
+    "seed": 4471,
+    "video_length": 265
+  }
+}

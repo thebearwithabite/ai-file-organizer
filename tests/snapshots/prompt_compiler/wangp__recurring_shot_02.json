@@ -1,0 +1,101 @@
+{
+  "manifest": {
+    "aspect_hint": "16:9",
+    "duration_seconds": 7.0,
+    "entities": [
+      {
+        "description": "woman, mid-30s, shoulder-length dark hair parted left, grey knit sweater, silver ring on the right hand",
+        "entity_id": "char_maya",
+        "kind": "character",
+        "name": "Maya",
+        "reference_images": [
+          "refs/char_maya_front.png",
+          "refs/char_maya_three_quarter.png"
+        ]
+      },
+      {
+        "description": "small rented studio kitchen, unwashed window, pale laminate counter, cardboard box by the fridge",
+        "entity_id": "loc_kitchen",
+        "kind": "location",
+        "name": "Kitchen",
+        "reference_images": [
+          "refs/loc_kitchen_wide.png"
+        ]
+      },
+      {
+        "description": "a cream envelope, edges softened, handwriting on the front",
+        "entity_id": "prop_letter",
+        "kind": "prop",
+        "name": "The letter",
+        "reference_images": [
+          "refs/prop_letter.png"
+        ]
+      }
+    ],
+    "overrides": {},
+    "project_id": "golden",
+    "prompt_digest": "358886bb88c194e5667b89cb13477957baa17c64edf4f89266d557a61b6cdc78",
+    "prompt_sha256_16": "358886bb88c194e5",
+    "prompt_tokens_estimated": 247,
+    "seed": 554237521,
+    "sequence_index": 0,
+    "settings": {
+      "activated_loras": [],
+      "force_fps": 24,
+      "loras_multipliers": "",
+      "model": {
+        "architecture": "ltx2_22B",
+        "ltx2_pipeline": "distilled",
+        "name": "LTX-2 2.3 Distilled 1.0 22B"
+      },
+      "model_type": "ltx2_22B_distilled",
+      "num_inference_steps": 8,
+      "resolution": "1280x720",
+      "video_length": 169
+    },
+    "shot_id": "sc02_sh02",
+    "target": "wangp",
+    "template": {
+      "aspect": "16:9",
+      "duration_range_s": [
+        0.0,
+        8.0
+      ],
+      "file": "ltx2_3_distilled_16x9.json",
+      "max_prompt_tokens": 512,
+      "model": "LTX-2 2.3 Distilled 1.0 22B",
+      "model_type": "ltx2_22B_distilled",
+      "priority": 20,
+      "targets": [
+        "ltx23",
+        "wangp"
+      ],
+      "template_id": "ltx2_3_distilled_16x9"
+    },
+    "template_selection": {
+      "reason": "duration+aspect+target",
+      "requested_id": null,
+      "selected_id": "ltx2_3_distilled_16x9"
+    },
+    "version": 1
+  },
+  "payload": {
+    "activated_loras": [],
+    "force_fps": 24,
+    "loras_multipliers": "",
+    "model": {
+      "architecture": "ltx2_22B",
+      "ltx2_pipeline": "distilled",
+      "name": "LTX-2 2.3 Distilled 1.0 22B"
+    },
+    "model_type": "ltx2_22B_distilled",
+    "negative_prompt": "text, captions, subtitles, watermark, logo, letterbox bars, black borders, deformed hands, extra fingers, extra limbs, flicker, warped faces",
+    "num_inference_steps": 8,
+    "output_filename": "golden_sc02_sh02_v1",
+    "prompt": "Medium Close-Up of the same kitchen, later that morning, sun now higher, box gone, envelope flat on the counter where nothing was before. Hard midday window light from the left, deep falloff into the right half of the room, naturalistic handheld documentary, slightly desaturated, fine film grain, no stylization. Maya unfolds the letter, reads a single line, then turns and exits frame right. Maya, woman, mid-30s, shoulder-length dark hair parted left, grey knit sweater, silver ring on the right hand; Maya eyebrows draw together, lips press into a thin line, fingers stay still on the envelope. Kitchen, small rented studio kitchen, unwashed window, pale laminate counter, cardboard box by the fridge, and the letter, a cream envelope, edges softened, handwriting on the front. The camera is static, slight handheld drift, ending on Maya, woman, mid-30s, shoulder-length dark hair parted left, grey knit sweater, silver ring on the right hand, shot on 50mm, shallow depth of field. The sound is faint street traffic, refrigerator hum, paper rustling, a drawer closing.",
+    "prompt_enhancer": false,
+    "resolution": "1280x720",
+    "seed": 554237521,
+    "video_length": 169
+  }
+}

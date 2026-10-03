@@ -1,0 +1,18 @@
+{
+  "model": {
+    "name": "LTX-2 2.3 Distilled 1.0 22B",
+    "architecture": "ltx2_22B",
+    "ltx2_pipeline": "distilled"
+  },
+  "model_type": "ltx2_22B_distilled",
+  "prompt": "",
+  "negative_prompt": "text, captions, subtitles, watermark, logo, letterbox bars, black borders, deformed hands, extra fingers, extra limbs, flicker, warped faces",
+  "resolution": "1280x720",
+  "video_length": 241,
+  "force_fps": 24,
+  "num_inference_steps": 8,
+  "activated_loras": [],
+  "loras_multipliers": "",
+  "prompt_enhancer": false,
+  "seed": -1
+}

@@ -1,0 +1,92 @@
+{
+  "manifest": {
+    "aspect_hint": "16:9",
+    "duration_seconds": 3.2,
+    "entities": [
+      {
+        "description": "woman, mid-30s, shoulder-length dark hair parted left, grey knit sweater, silver ring on the right hand",
+        "entity_id": "char_maya",
+        "kind": "character",
+        "name": "Maya",
+        "reference_images": [
+          "refs/char_maya_front.png",
+          "refs/char_maya_three_quarter.png"
+        ]
+      },
+      {
+        "description": "small rented studio kitchen, unwashed window, pale laminate counter, cardboard box by the fridge",
+        "entity_id": "loc_kitchen",
+        "kind": "location",
+        "name": "Kitchen",
+        "reference_images": [
+          "refs/loc_kitchen_wide.png"
+        ]
+      }
+    ],
+    "overrides": {},
+    "project_id": "golden",
+    "prompt_digest": "163770c1863b9ea3d28b69417b5014add5650e18be95b09f5e45b6365a6bd84b",
+    "prompt_sha256_16": "163770c1863b9ea3",
+    "prompt_tokens_estimated": 244,
+    "seed": 1505701611,
+    "sequence_index": 0,
+    "settings": {
+      "activated_loras": [],
+      "force_fps": 24,
+      "loras_multipliers": "",
+      "model": {
+        "architecture": "ltx2_22B",
+        "ltx2_pipeline": "distilled",
+        "name": "LTX-2 2.3 Distilled 1.0 22B"
+      },
+      "model_type": "ltx2_22B_distilled",
+      "num_inference_steps": 8,
+      "resolution": "1280x720",
+      "video_length": 81
+    },
+    "shot_id": "sc04_sh01",
+    "target": "wangp",
+    "template": {
+      "aspect": "16:9",
+      "duration_range_s": [
+        0.0,
+        8.0
+      ],
+      "file": "ltx2_3_distilled_16x9.json",
+      "max_prompt_tokens": 512,
+      "model": "LTX-2 2.3 Distilled 1.0 22B",
+      "model_type": "ltx2_22B_distilled",
+      "priority": 20,
+      "targets": [
+        "ltx23",
+        "wangp"
+      ],
+      "template_id": "ltx2_3_distilled_16x9"
+    },
+    "template_selection": {
+      "reason": "duration+aspect+target",
+      "requested_id": null,
+      "selected_id": "ltx2_3_distilled_16x9"
+    },
+    "version": 1
+  },
+  "payload": {
+    "activated_loras": [],
+    "force_fps": 24,
+    "loras_multipliers": "",
+    "model": {
+      "architecture": "ltx2_22B",
+      "ltx2_pipeline": "distilled",
+      "name": "LTX-2 2.3 Distilled 1.0 22B"
+    },
+    "model_type": "ltx2_22B_distilled",
+    "negative_prompt": "text, captions, subtitles, watermark, logo, letterbox bars, black borders, deformed hands, extra fingers, extra limbs, flicker, warped faces",
+    "num_inference_steps": 8,
+    "output_filename": "golden_sc04_sh01_v1",
+    "prompt": "Low-Angle Wide of the kitchen interior, seen from outside the broken window as the room inverts upward. The room's own light flips cold and hard from below, edges blooming, no visible practical source, high-contrast graphic poster look, heavy letterbox vignette, crushed blacks, saturated cyan cast. Every loose object in the room lifts and hangs motionless in the air; the camera drops to floor level looking up through the glass. Maya, woman, mid-30s, shoulder-length dark hair parted left, grey knit sweater, silver ring on the right hand; Maya frozen mid-reach, hair lifted clear of her shoulders. Kitchen, small rented studio kitchen, unwashed window, pale laminate counter, cardboard box by the fridge. The camera fast tilts down, into a floor-level hold, then a hard stop, ending on Maya, woman, mid-30s, shoulder-length dark hair parted left, grey knit sweater, silver ring on the right hand, shot on 24mm, pronounced barrel distortion at the frame edge. The sound is all room tone drops out, leaving a ringing pressure, a single low impact, then nothing.",
+    "prompt_enhancer": false,
+    "resolution": "1280x720",
+    "seed": 1505701611,
+    "video_length": 81
+  }
+}
