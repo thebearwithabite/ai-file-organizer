@@ -190,15 +190,16 @@ def test_golden_script_keyless_shots():
     for i, shot in enumerate(shots):
         assert re.fullmatch(r"sc\d\d_sh\d\d", shot.shot_id), f"bad shot_id: {shot.shot_id}"
         assert shot.sequence_index == i, "sequence_index must be contiguous"
-        assert shot.scene.context and shot.scene.lighting and shot.scene.mood
-        assert shot.camera.shot_call
-        assert shot.character.name
+        assert shot.narrative_intent and shot.setting and shot.lighting and shot.style_grade
+        assert shot.camera.framing
+        assert shot.entities, f"shot {shot.shot_id} must carry its subjects as entities"
         # Pydantic enforced this, but assert it again for the record:
-        words = set(__import__("re").findall(r"[a-z']+", shot.character.expression_cues.lower()))
-        assert not (words & EMOTION_LABELS), f"emotion label leaked into {shot.shot_id}"
+        for ent in shot.entities:
+            words = set(re.findall(r"[a-z']+", (ent.expression_cues or "").lower()))
+            assert not (words & EMOTION_LABELS), f"emotion label leaked into {shot.shot_id} ({ent.name})"
 
     # The cast should be discoverable in the shots
-    names = {s.character.name.lower() for s in shots}
+    names = {e.name.lower() for s in shots for e in s.entities}
     assert any("maya" in n for n in names), "golden script cast (Maya) not found in shots"
 
     # Persistence check (shots table)
