@@ -56,16 +56,41 @@ DEFAULT_WEIGHTS = {
     AssetType.style: 0.4,
 }
 
+# ShotSpec field paths searched when fuzzy-matching a non-character asset to a
+# shot. Paths are resolved by _shot_text(), which expands the "entities"
+# pseudo-path to every entity name/kind/description in the shot.
 _SCRIPT_TEXT_FIELDS = {
-    "location": ("scene.context", "scene.visual_style", "scene.lighting", "camera.negatives"),
-    "prop": ("scene.context", "character.behavior", "audio.sfx", "audio.ambience"),
-    "style": ("scene.visual_style", "scene.mood"),
+    "location": ("setting", "action", "lighting", "style_grade"),
+    "prop": ("setting", "action", "entities", "audio.sfx"),
+    "style": ("style_grade", "lighting", "narrative_intent"),
 }
 
 
 # ---------------------------------------------------------------------------
 # Matching helpers (module-level for direct unit testing)
 # ---------------------------------------------------------------------------
+
+
+def _shot_text(shot: ShotSpec, path: str) -> str:
+    """Resolve a ShotSpec field path to searchable text.
+
+    ``entities`` is a pseudo-path that expands to every entity's name, kind and
+    description, so prop/location matching sees the same recurring descriptive
+    phrasing the compiler will use.
+    """
+    if path == "entities":
+        return " ".join(
+            f"{e.name} {e.kind.value} {e.description}"
+            for e in getattr(shot, "entities", []) or []
+        )
+    value: object = shot
+    for part in path.split("."):
+        value = getattr(value, part, None)
+        if value is None:
+            return ""
+    if isinstance(value, (list, tuple)):
+        return " ".join(str(v) for v in value)
+    return str(value)
 
 
 def _normalize(s: str) -> str:
@@ -392,13 +417,16 @@ SCRIPT:
     def _asset_matches_shot(self, shot: ShotSpec, asset: dict) -> bool:
         atype = asset["type"]
         if atype == "character":
-            return name_matches(asset["name"], shot.character.name)
-        fields = _SCRIPT_TEXT_FIELDS.get(atype, ("scene.context",))
-        haystacks = []
-        for f in fields:
-            section, _, field_name = f.partition(".")
-            value = getattr(getattr(shot, section, shot), field_name, "") or ""
-            haystacks.append(str(value))
+            # Characters match on entity names; a shot may carry several, and a
+            # recurring character appears in every shot of the scene.
+            names = [
+                e.name
+                for e in getattr(shot, "entities", []) or []
+                if e.kind == AssetType.character
+            ]
+            return any(name_matches(asset["name"], n) for n in names)
+        fields = _SCRIPT_TEXT_FIELDS.get(atype, ("setting", "action"))
+        haystacks = [h for h in (_shot_text(shot, f) for f in fields) if h]
         return text_matches(asset["name"], haystacks)
 
     def auto_bind(self, project_id: str = "") -> dict:

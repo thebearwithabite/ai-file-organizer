@@ -1,0 +1,317 @@
+{
+  "$defs": {
+    "AssetBinding": {
+      "additionalProperties": false,
+      "description": "Production binding of an extracted asset to this shot (Phase 2).",
+      "properties": {
+        "asset_id": {
+          "description": "Reference to an extracted asset row (see AssetService)",
+          "title": "Asset Id",
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/$defs/AssetType",
+          "default": "character"
+        },
+        "lora_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lora Path"
+        },
+        "trigger_token": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Trigger Token"
+        },
+        "ref_image": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "StorageRef to a reference image",
+          "title": "Ref Image"
+        },
+        "weight": {
+          "default": 0.9,
+          "description": "Character 0.8-1.0, scene 0.5-0.7, effect 0.3-0.6",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Weight",
+          "type": "number"
+        }
+      },
+      "required": [
+        "asset_id"
+      ],
+      "title": "AssetBinding",
+      "type": "object"
+    },
+    "AssetType": {
+      "enum": [
+        "character",
+        "location",
+        "prop",
+        "style"
+      ],
+      "title": "AssetType",
+      "type": "string"
+    },
+    "AudioSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "dialogue": {
+          "default": "",
+          "description": "Quoted speech, e.g. '\"That's it... Dad's lost it.\"'",
+          "title": "Dialogue",
+          "type": "string"
+        },
+        "delivery": {
+          "default": "",
+          "description": "Delivery notes (physical: pacing, volume, pauses)",
+          "title": "Delivery",
+          "type": "string"
+        },
+        "ambience": {
+          "default": "",
+          "description": "Room tone / environmental sound",
+          "title": "Ambience",
+          "type": "string"
+        },
+        "sfx": {
+          "default": "",
+          "description": "Sound effects",
+          "title": "Sfx",
+          "type": "string"
+        }
+      },
+      "title": "AudioSpec",
+      "type": "object"
+    },
+    "CameraSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "framing": {
+          "description": "e.g. 'Eye-Level Close-Up', 'Low-Angle Wide'",
+          "minLength": 1,
+          "title": "Framing",
+          "type": "string"
+        },
+        "movement": {
+          "default": "",
+          "description": "Camera movement, e.g. 'slow dolly in'",
+          "title": "Movement",
+          "type": "string"
+        },
+        "lens_feel": {
+          "default": "",
+          "description": "Lens character, e.g. '85mm, shallow depth of field'",
+          "title": "Lens Feel",
+          "type": "string"
+        }
+      },
+      "required": [
+        "framing"
+      ],
+      "title": "CameraSpec",
+      "type": "object"
+    },
+    "EntityRef": {
+      "additionalProperties": false,
+      "description": "A subject/entity in this shot, with the reference material that keeps\nit consistent across shots and its physical performance cues here.\n\nConsistency mechanism: a subject recurring across shots repeats the same\n``entity_id``, ``name``, ``description`` and ``reference_images`` in every\nshot. The ``description`` is the stable phrasing the compiler carries into\noutput; ``expression_cues`` is per-shot and physical only.",
+      "properties": {
+        "entity_id": {
+          "description": "Stable slug reused verbatim across shots, e.g. 'char_maya'",
+          "pattern": "^[a-z0-9_]+$",
+          "title": "Entity Id",
+          "type": "string"
+        },
+        "name": {
+          "description": "Proper name, e.g. 'Maya'",
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/AssetType",
+          "default": "character",
+          "description": "character | location | prop | style"
+        },
+        "description": {
+          "description": "Stable appearance description — repeat verbatim across shots",
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "reference_images": {
+          "description": "Reference image paths used to keep this subject consistent",
+          "items": {
+            "type": "string"
+          },
+          "title": "Reference Images",
+          "type": "array"
+        },
+        "expression_cues": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "PHYSICAL cues only for this shot — facial/body action, no emotion labels (never: happy, sad, angry, scared, etc.)",
+          "title": "Expression Cues"
+        }
+      },
+      "required": [
+        "entity_id",
+        "name",
+        "description"
+      ],
+      "title": "EntityRef",
+      "type": "object"
+    },
+    "ShotStatus": {
+      "enum": [
+        "draft",
+        "pending_review",
+        "approved",
+        "regen_requested"
+      ],
+      "title": "ShotStatus",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "One shot, engine-neutral (see module docstring).\n\nRequired creative core: narrative_intent, setting, action, lighting,\nstyle_grade, duration_seconds, camera.framing. Everything else has\ndefaults; ``notes`` is the free-form escape hatch.",
+  "properties": {
+    "project_id": {
+      "default": "",
+      "description": "Optional project identifier",
+      "title": "Project Id",
+      "type": "string"
+    },
+    "shot_id": {
+      "description": "e.g. sc01_sh01",
+      "pattern": "^sc\\d+_sh\\d+$",
+      "title": "Shot Id",
+      "type": "string"
+    },
+    "sequence_index": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Sequence Index",
+      "type": "integer"
+    },
+    "status": {
+      "$ref": "#/$defs/ShotStatus",
+      "default": "draft"
+    },
+    "version": {
+      "default": 1,
+      "minimum": 1,
+      "title": "Version",
+      "type": "integer"
+    },
+    "narrative_intent": {
+      "description": "What this shot must accomplish dramatically",
+      "minLength": 1,
+      "title": "Narrative Intent",
+      "type": "string"
+    },
+    "setting": {
+      "description": "Where and when it takes place",
+      "minLength": 1,
+      "title": "Setting",
+      "type": "string"
+    },
+    "action": {
+      "description": "The visible action — one clear beat",
+      "minLength": 1,
+      "title": "Action",
+      "type": "string"
+    },
+    "lighting": {
+      "description": "One coherent lighting description",
+      "minLength": 1,
+      "title": "Lighting",
+      "type": "string"
+    },
+    "style_grade": {
+      "description": "Look / grade of the shot",
+      "minLength": 1,
+      "title": "Style Grade",
+      "type": "string"
+    },
+    "duration_seconds": {
+      "description": "Positive seconds — no upper bound is encoded in the schema",
+      "exclusiveMinimum": 0,
+      "title": "Duration Seconds",
+      "type": "number"
+    },
+    "camera": {
+      "$ref": "#/$defs/CameraSpec"
+    },
+    "entities": {
+      "items": {
+        "$ref": "#/$defs/EntityRef"
+      },
+      "title": "Entities",
+      "type": "array"
+    },
+    "audio": {
+      "$ref": "#/$defs/AudioSpec"
+    },
+    "assets": {
+      "items": {
+        "$ref": "#/$defs/AssetBinding"
+      },
+      "title": "Assets",
+      "type": "array"
+    },
+    "seed": {
+      "default": -1,
+      "description": "RNG seed; -1 = unset, derived at compile time",
+      "title": "Seed",
+      "type": "integer"
+    },
+    "notes": {
+      "default": "",
+      "description": "Free-form escape hatch",
+      "title": "Notes",
+      "type": "string"
+    }
+  },
+  "required": [
+    "shot_id",
+    "narrative_intent",
+    "setting",
+    "action",
+    "lighting",
+    "style_grade",
+    "duration_seconds",
+    "camera"
+  ],
+  "title": "ShotSpec",
+  "type": "object"
+}

@@ -1,0 +1,40 @@
+{
+  "project_id": "golden",
+  "shot_id": "sc01_sh01",
+  "sequence_index": 0,
+  "status": "draft",
+  "version": 1,
+  "narrative_intent": "Maya addresses the camera directly; we learn her situation before the plot starts moving.",
+  "setting": "A rented studio kitchen at dawn. Unwashed window, one cardboard box half unpacked by the fridge.",
+  "action": "Maya stands at the counter, looks straight into the lens, and speaks one short line without moving her hands.",
+  "lighting": "soft overcast window light from camera-left, weak bounce fill from a white card on the right",
+  "style_grade": "naturalistic handheld documentary, slightly desaturated, fine film grain, no stylization",
+  "duration_seconds": 6.5,
+  "camera": {
+    "framing": "Eye-Level Medium Close-Up",
+    "movement": "locked off, a barely perceptible handheld breath",
+    "lens_feel": "50mm, natural perspective, shallow-ish depth"
+  },
+  "entities": [
+    {
+      "entity_id": "char_maya",
+      "name": "Maya",
+      "kind": "character",
+      "description": "woman, mid-30s, shoulder-length dark hair parted left, grey knit sweater, silver ring on the right hand",
+      "reference_images": [
+        "refs/char_maya_front.png",
+        "refs/char_maya_three_quarter.png"
+      ],
+      "expression_cues": "blinks once before speaking, keeps both hands flat on the counter"
+    }
+  ],
+  "audio": {
+    "dialogue": "\"Everything I own fits in that box.\"",
+    "delivery": "level, unhurried, one beat of silence before the line",
+    "ambience": "distant traffic, a refrigerator cycling on",
+    "sfx": ""
+  },
+  "assets": [],
+  "seed": 811223,
+  "notes": "Reference plates for Maya come from the character sheet session."
+}

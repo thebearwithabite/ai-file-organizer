@@ -1,7 +1,7 @@
 """Prompt Machine tests (PROMPT-MACHINE-DIRECTIVE v1.2, Phase 1).
 
 Three layers:
-  1. schema unit tests — ShotSpec validation incl. the expression_cues
+  1. schema unit tests — ShotSpec validation incl. the entities[].expression_cues
      no-emotion-labels lock (no LLM needed, runs anywhere)
   2. knowledge seed test — the three seeds land in the knowledge table
   3. golden integration test — 2-page golden script → validated ShotSpec[]
@@ -25,9 +25,7 @@ from backend.services.shot_spec import (
     AssetBinding,
     AudioSpec,
     CameraSpec,
-    CharacterSpec,
-    GenerationSpec,
-    SceneSpec,
+    EntityRef,
     ShotSpec,
 )
 
@@ -43,7 +41,7 @@ SEED_IDS = {"FILMMAKING_PRINCIPLES", "LTX23_PROMPT_GUIDE", "ENGINE_ROUTING"}
 
 def _valid_shot(
     shot_id: str = "sc01_sh01",
-    character: CharacterSpec | None = None,
+    entity: EntityRef | None = None,
     assets: list[AssetBinding] | None = None,
     **overrides,
 ) -> ShotSpec:
@@ -51,26 +49,29 @@ def _valid_shot(
     payload = dict(
         shot_id=shot_id,
         sequence_index=0,
-        scene=SceneSpec(
-            context="Maya enters the kitchen and finds the letter.",
-            visual_style="naturalistic",
-            lighting="soft morning window light from the left",
-            mood="quiet, suspended",
-            duration_s=6.0,
-            aspect_ratio="16:9",
+        narrative_intent="Maya finds the letter and the room's cheer drops away.",
+        setting="The rented studio kitchen at dawn.",
+        action="Maya walks in, stops at the counter, and picks up the envelope.",
+        lighting="soft morning window light from the left",
+        style_grade="naturalistic handheld documentary, desaturated",
+        duration_seconds=6.0,
+        camera=CameraSpec(
+            framing="Eye-Level Medium Close-Up",
+            movement="slow push-in",
+            lens_feel="85mm, shallow depth of field",
         ),
-        character=character
-        or CharacterSpec(
-            name="Maya",
-            gender_age="woman, mid-30s",
-            physical_description="dark hair, grey knit sweater",
-            behavior="walks slowly, stops at the counter",
-            expression_cues="eyebrows draw together, fingers still on the envelope",
-        ),
-        camera=CameraSpec(shot_call="Eye-Level Medium Close-Up", movement="slow push-in"),
+        entities=[
+            entity
+            or EntityRef(
+                entity_id="char_maya",
+                name="Maya",
+                description="woman, mid-30s, shoulder-length dark hair, grey knit sweater",
+                reference_images=["refs/char_maya_front.png"],
+                expression_cues="eyebrows draw together, fingers still on the envelope",
+            )
+        ],
         audio=AudioSpec(dialogue='"When did this get here?"'),
         assets=assets or [AssetBinding(asset_id="char_maya", type="character", weight=0.9)],
-        generation=GenerationSpec(),
     )
     payload.update(overrides)
     return ShotSpec(**payload)
@@ -94,8 +95,10 @@ def test_expression_cues_rejects_emotion_labels(emotion):
     """The directive's design lock: physical cues only, no emotion labels."""
     with pytest.raises(ValueError, match="no emotion labels"):
         _valid_shot(
-            character=CharacterSpec(
+            entity=EntityRef(
+                entity_id="char_maya",
                 name="Maya",
+                description="woman, mid-30s, dark hair",
                 expression_cues=f"eyes widen, looks {emotion}",
             )
         )
@@ -103,12 +106,14 @@ def test_expression_cues_rejects_emotion_labels(emotion):
 
 def test_expression_cues_allows_physical_cues():
     shot = _valid_shot(
-        character=CharacterSpec(
+        entity=EntityRef(
+            entity_id="char_maya",
             name="Maya",
+            description="woman, mid-30s, dark hair",
             expression_cues="jaw tightens, breath held, gaze drops to the paper",
         )
     )
-    assert "jaw tightens" in shot.character.expression_cues
+    assert "jaw tightens" in shot.entities[0].expression_cues
 
 
 def test_asset_weight_bounds():
@@ -227,9 +232,21 @@ def _director_shot(shot_id: str, seq: int, project_id: str = "") -> ShotSpec:
         shot_id=shot_id,
         sequence_index=seq,
         project_id=project_id,
-        scene=SceneSpec(context="x", visual_style="naturalistic", lighting="soft", mood="quiet"),
-        character=CharacterSpec(name="Maya", expression_cues="eyebrows draw together"),
-        camera=CameraSpec(shot_call="Medium Close-Up"),
+        narrative_intent="Maya finds the letter and the room's cheer drops away.",
+        setting="x",
+        action="Maya stops at the counter and picks up the envelope.",
+        lighting="soft",
+        style_grade="naturalistic",
+        duration_seconds=6.0,
+        camera=CameraSpec(framing="Medium Close-Up"),
+        entities=[
+            EntityRef(
+                entity_id="char_maya",
+                name="Maya",
+                description="woman, mid-30s, shoulder-length dark hair",
+                expression_cues="eyebrows draw together",
+            )
+        ],
     )
 
 

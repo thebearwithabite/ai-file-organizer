@@ -1,0 +1,32 @@
+{
+  "shot_id": "sc05_sh01",
+  "sequence_index": 0,
+  "narrative_intent": "Deliberately malformed fixture; see docs/shotspec.md.",
+  "setting": "A room.",
+  "action": "Nothing happens.",
+  "lighting": "None.",
+  "style_grade": "None.",
+  "duration_seconds": -4.0,
+  "camera": {
+    "framing": "",
+    "movement": "still"
+  },
+  "entities": [
+    {
+      "entity_id": "Char Maya",
+      "name": "Maya",
+      "kind": "character",
+      "description": "an invalid entity_id casing",
+      "reference_images": [],
+      "expression_cues": "she looks happy about it"
+    }
+  ],
+  "audio": {
+    "dialogue": "",
+    "delivery": "",
+    "ambience": "",
+    "sfx": ""
+  },
+  "seed": -1,
+  "notes": "Must fail with clear field paths: duration_seconds, camera.framing, entities[0]."
+}

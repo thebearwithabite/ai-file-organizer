@@ -1,0 +1,61 @@
+{
+  "project_id": "golden",
+  "shot_id": "sc03_sh01",
+  "sequence_index": 0,
+  "status": "draft",
+  "version": 1,
+  "narrative_intent": "Two-hander: we meet the second character and hold on the unanswered half of the exchange.",
+  "setting": "A bare corridor outside the studio, late afternoon, long empty stretch of wall.",
+  "action": "The second character turns from the wall and looks past camera; Maya stands out of focus in the near foreground.",
+  "lighting": "flat fluorescent corridor light, no key, no fill shaping",
+  "style_grade": "naturalistic, neutral grade, slight green cast from the fixtures",
+  "duration_seconds": 11.0,
+  "camera": {
+    "framing": "Over-the-Shoulder Two-Shot",
+    "movement": "slow lateral slide left, holding the shoulder as a wipe",
+    "lens_feel": "85mm, foreground falloff, background compressed"
+  },
+  "entities": [
+    {
+      "entity_id": "char_maya",
+      "name": "Maya",
+      "kind": "character",
+      "description": "woman, mid-30s, shoulder-length dark hair parted left, grey knit sweater, silver ring on the right hand",
+      "reference_images": [
+        "refs/char_maya_front.png",
+        "refs/char_maya_three_quarter.png"
+      ],
+      "expression_cues": "out of focus in the foreground, shoulder only"
+    },
+    {
+      "entity_id": "char_theo",
+      "name": "Theo",
+      "kind": "character",
+      "description": "man, late 30s, close-cropped hair, olive field jacket, canvas bag on the shoulder",
+      "reference_images": [
+        "refs/char_theo_front.png"
+      ],
+      "expression_cues": "jaw tightens, gaze holds past camera without blinking"
+    }
+  ],
+  "audio": {
+    "dialogue": "\"You already know what it says.\"",
+    "delivery": "flat, no emphasis, trailing off",
+    "ambience": "fluorescent hum, a distant door",
+    "sfx": "fabric shift as he turns"
+  },
+  "assets": [
+    {
+      "asset_id": "char_maya",
+      "type": "character",
+      "weight": 0.9
+    },
+    {
+      "asset_id": "char_theo",
+      "type": "character",
+      "weight": 0.9
+    }
+  ],
+  "seed": 4471,
+  "notes": "11s -- over any default engine clip length and still schema-valid."
+}

@@ -1,0 +1,61 @@
+{
+  "project_id": "golden",
+  "shot_id": "sc04_sh01",
+  "sequence_index": 0,
+  "status": "draft",
+  "version": 1,
+  "narrative_intent": "Stylized impact beat: the house itself reacts. Deliberately breaks the naturalistic grammar of the rest of the film for two seconds.",
+  "setting": "The kitchen interior, seen from outside the broken window as the room inverts upward.",
+  "action": "Every loose object in the room lifts and hangs motionless in the air; the camera drops to floor level looking up through the glass.",
+  "lighting": "the room's own light flips cold and hard from below, edges blooming, no visible practical source",
+  "style_grade": "high-contrast graphic poster look, heavy letterbox vignette, crushed blacks, saturated cyan cast",
+  "duration_seconds": 3.2,
+  "camera": {
+    "framing": "Low-Angle Wide",
+    "movement": "fast tilt down into a floor-level hold, then a hard stop",
+    "lens_feel": "24mm, pronounced barrel distortion at the frame edge"
+  },
+  "entities": [
+    {
+      "entity_id": "char_maya",
+      "name": "Maya",
+      "kind": "character",
+      "description": "woman, mid-30s, shoulder-length dark hair parted left, grey knit sweater, silver ring on the right hand",
+      "reference_images": [
+        "refs/char_maya_front.png",
+        "refs/char_maya_three_quarter.png"
+      ],
+      "expression_cues": "frozen mid-reach, hair lifted clear of her shoulders"
+    },
+    {
+      "entity_id": "loc_kitchen",
+      "name": "Kitchen",
+      "kind": "location",
+      "description": "small rented studio kitchen, unwashed window, pale laminate counter, cardboard box by the fridge",
+      "reference_images": [
+        "refs/loc_kitchen_wide.png"
+      ],
+      "expression_cues": ""
+    }
+  ],
+  "audio": {
+    "dialogue": "",
+    "delivery": "",
+    "ambience": "all room tone drops out, leaving a ringing pressure",
+    "sfx": "a single low impact, then nothing"
+  },
+  "assets": [
+    {
+      "asset_id": "char_maya",
+      "type": "character",
+      "weight": 0.95
+    },
+    {
+      "asset_id": "loc_kitchen",
+      "type": "location",
+      "weight": 0.65
+    }
+  ],
+  "seed": -1,
+  "notes": "Duration is deliberately sub-4s and over-long values are legal too -- the schema encodes no engine duration cap. Compiler decides."
+}

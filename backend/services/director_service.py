@@ -28,13 +28,15 @@ from typing import List, Optional
 
 from core.paths import get_metadata_root
 
-from backend.llm import LLMProvider
+from backend.llm import LLMProvider, OllamaClient
+from backend.llm.errors import DegradedRoutingError, InvalidLLMOutputError
 from backend.services.llm_resolver import (
+    DIRECTOR_LOCAL_FALLBACK_MODEL,
     DegradeReason,
     enqueue_llm_degrade,
     provider_kwargs,
-    resolve_provider,
 )
+from backend.services.llm_router import LLMRouter, RouteMetrics, build_cloud_client
 
 from .shot_spec import (
     EXCLUSIONS_TABLE_DDL,
@@ -52,26 +54,27 @@ EXAMPLE_SHOT = {
     "sequence_index": 0,
     "status": "draft",
     "version": 1,
-    "scene": {
-        "context": "Maya enters the kitchen and finds the letter on the counter.",
-        "visual_style": "naturalistic, handheld documentary feel",
-        "lighting": "soft morning window light from the left",
-        "mood": "quiet, suspended",
-        "duration_s": 6.0,
-        "aspect_ratio": "16:9",
-    },
-    "character": {
-        "name": "Maya",
-        "gender_age": "woman, mid-30s",
-        "physical_description": "shoulder-length dark hair, grey knit sweater, silver ring on right hand",
-        "behavior": "walks slowly, stops at the counter, picks up the envelope with both hands",
-        "expression_cues": "eyebrows draw together, lips press into a thin line, fingers still on the envelope",
-    },
+    "narrative_intent": "Maya finds the letter and the room's cheer drops away.",
+    "setting": "The rented studio kitchen at dawn, one cardboard box half unpacked.",
+    "action": "Maya walks in, slows at the counter, and picks up the envelope with both hands.",
+    "lighting": "soft morning window light from the left, weak bounce fill from the right",
+    "style_grade": "naturalistic handheld documentary, slightly desaturated, fine film grain",
+    "duration_seconds": 6.0,
     "camera": {
-        "shot_call": "Eye-Level Medium Close-Up",
+        "framing": "Eye-Level Medium Close-Up",
         "movement": "slow push-in",
-        "negatives": "no readable text on the letter, no other people in frame",
+        "lens_feel": "85mm, shallow depth of field",
     },
+    "entities": [
+        {
+            "entity_id": "char_maya",
+            "name": "Maya",
+            "kind": "character",
+            "description": "woman, mid-30s, shoulder-length dark hair parted left, grey knit sweater, silver ring on the right hand",
+            "reference_images": [],
+            "expression_cues": "eyebrows draw together, lips press into a thin line, fingers still on the envelope",
+        }
+    ],
     "audio": {
         "dialogue": "",
         "delivery": "",
@@ -88,13 +91,8 @@ EXAMPLE_SHOT = {
             "weight": 0.9,
         }
     ],
-    "generation": {
-        "engine": "wangp",
-        "template_id": "LTX-2 2.3 Distilled",
-        "overrides": {},
-        "seed": -1,
-        "comfy_workflow_id": None,
-    },
+    "seed": -1,
+    "notes": "",
 }
 
 
@@ -109,12 +107,54 @@ class ShotListResult:
 class DirectorService:
     """Breaks scripts into scene plans and validated shot lists."""
 
-    def __init__(self, db_path: Optional[Path] = None, provider: Optional[LLMProvider] = None):
+    def __init__(
+        self,
+        db_path: Optional[Path] = None,
+        provider: Optional[LLMProvider] = None,
+        router: Optional[LLMRouter] = None,
+        render_state=None,
+    ):
         if db_path is None:
             db_path = get_metadata_root() / "organizer.db"
         self.db_path = db_path
-        self._provider = provider  # injected (tests); otherwise resolved per call
+        self._provider = provider  # injected local client (tests); otherwise Ollama
+        self._router = router  # explicit routing layer (tests / production wiring)
+        self._render_state = render_state  # renderer job state — never a VRAM guess
+        self._metrics = RouteMetrics()
+        self._default_routers: dict = {}
         self._init_shots_table()
+
+    def _router_for(self, allow_cloud_script: bool) -> LLMRouter:
+        """Routing layer for one call: local-first, cloud only with consent + key.
+
+        ``render_state`` is the renderer's job state (or an ExplicitRenderFlag
+        the renderer client sets). When it is not wired the router says so in
+        its reason strings and assumes idle, so keyless local runs keep working.
+        """
+        if self._router is not None:
+            return self._router
+        router = self._default_routers.get(allow_cloud_script)
+        if router is None:
+            local = (
+                self._provider
+                if self._provider is not None
+                else OllamaClient(model=DIRECTOR_LOCAL_FALLBACK_MODEL)
+            )
+            cloud = None
+            cloud_note = "cloud fallback disabled for this call (allow_cloud_script=False)"
+            if allow_cloud_script:
+                from secret_manager import get_secret
+
+                cloud, cloud_note = build_cloud_client(secret_loader=get_secret)
+            router = LLMRouter(
+                local=local,
+                cloud=cloud,
+                render_state=self._render_state,
+                cloud_note=cloud_note if cloud is None else "",
+                metrics=self._metrics,
+            )
+            self._default_routers[allow_cloud_script] = router
+        return router
 
     # ------------------------------------------------------------------
     # Shots table
@@ -203,29 +243,31 @@ class DirectorService:
 
     def analyze_script(self, script: str, project_id: str = "", allow_cloud_script: bool = False) -> dict:
         """Script → engine-agnostic ScenePlan (beats, runtime goals, extend policy)."""
-        provider, name = resolve_provider(allow_cloud_script, injected=self._provider)
-        if provider is None:
+        router = self._router_for(allow_cloud_script)
+        prompt = self._build_scene_plan_prompt(script)
+
+        try:
+            routed = router.complete_structured(
+                prompt,
+                ScenePlan,
+                job="director.scene_plan",
+                kwargs_for=lambda provider_name: provider_kwargs(provider_name),
+            )
+        except DegradedRoutingError as e:
             enqueue_llm_degrade(
-                script, project_id, "no local LLM provider available",
+                script, project_id, f"no usable LLM route: {e}",
                 degrade_reason=DegradeReason.provider_unreachable.value,
             )
-            return {"plan": ScenePlan(), "provider": "none", "degraded": True,
-                    "reason": "no local LLM provider available (vLLM and Ollama unreachable)"}
-
-        prompt = self._build_scene_plan_prompt(script)
-        kwargs = provider_kwargs(name)
-        plan, ok = provider.generate_structured(prompt, ScenePlan, degrade_value=None, **kwargs)
-
-        if not ok or plan is None:
-            reason = getattr(provider, "last_failure", "") or DegradeReason.schema_invalid.value
+            return {"plan": ScenePlan(), "provider": "none", "degraded": True, "reason": str(e)}
+        except InvalidLLMOutputError as e:
             enqueue_llm_degrade(
-                script, project_id, f"scene plan generation failed ({name})",
-                degrade_reason=reason,
+                script, project_id, f"scene plan failed schema validation ({e.provider})",
+                degrade_reason=DegradeReason.schema_invalid.value,
             )
-            return {"plan": ScenePlan(), "provider": name, "degraded": True,
-                    "reason": f"scene plan generation failed after retries ({name})"}
+            return {"plan": ScenePlan(), "provider": e.provider, "degraded": True,
+                    "reason": f"scene plan generation failed schema validation ({e.provider}) after {e.attempts} attempts"}
 
-        return {"plan": plan, "provider": name, "degraded": False, "reason": ""}
+        return {"plan": routed.value, "provider": routed.record.provider, "degraded": False, "reason": ""}
 
     # ------------------------------------------------------------------
     # Shot list
@@ -237,36 +279,40 @@ class DirectorService:
         project_id: str = "",
         allow_cloud_script: bool = False,
     ) -> ShotListResult:
-        """Script → validated ShotSpec[] (Pydantic-validated, bounded retry, degrade-to-queue)."""
-        provider, name = resolve_provider(allow_cloud_script, injected=self._provider)
-        if provider is None:
+        """Script → validated ShotSpec[] (one repair retry, typed errors, degrade-to-queue)."""
+        router = self._router_for(allow_cloud_script)
+        prompt = self._build_shot_list_prompt(script)
+
+        try:
+            routed = router.director_shot_list(
+                prompt,
+                kwargs_for=lambda provider_name: provider_kwargs(provider_name),
+            )
+        except DegradedRoutingError as e:
             enqueue_llm_degrade(
-                script, project_id, "no local LLM provider available",
+                script, project_id, f"no usable LLM route: {e}",
                 degrade_reason=DegradeReason.provider_unreachable.value,
             )
-            return ShotListResult(provider="none", degraded=True,
-                                  reason="no local LLM provider available (vLLM and Ollama unreachable)")
-
-        prompt = self._build_shot_list_prompt(script)
-        kwargs = provider_kwargs(name)
-        output, ok = provider.generate_structured(prompt, ShotListOutput, degrade_value=None, **kwargs)
-
-        if not ok or output is None:
-            reason = getattr(provider, "last_failure", "") or DegradeReason.schema_invalid.value
+            return ShotListResult(provider="none", degraded=True, reason=str(e))
+        except InvalidLLMOutputError as e:
             enqueue_llm_degrade(
-                script, project_id, f"shot list generation failed ({name})",
-                degrade_reason=reason,
+                script, project_id, f"shot list failed schema validation ({e.provider})",
+                degrade_reason=DegradeReason.schema_invalid.value,
             )
-            return ShotListResult(provider=name, degraded=True,
-                                  reason=f"shot list generation failed after retries ({name})")
+            first = (
+                f"; first error: {e.errors[0]['path']}: {e.errors[0]['reason']}"
+                if e.errors else ""
+            )
+            return ShotListResult(provider=e.provider, degraded=True,
+                                  reason=f"shot list generation failed schema validation ({e.provider}) after {e.attempts} attempts{first}")
 
-        shots = output.shots
+        shots = routed.value.shots
         # Normalize project_id + sequence index before persisting
         for i, shot in enumerate(shots):
             shot.project_id = project_id or shot.project_id
             shot.sequence_index = i
         self._persist_shots(shots, project_id)
-        return ShotListResult(shots=shots, provider=name, degraded=False, reason="")
+        return ShotListResult(shots=shots, provider=routed.record.provider, degraded=False, reason="")
 
     # ------------------------------------------------------------------
     # Prompts
@@ -312,7 +358,7 @@ SCRIPT:
 FILMMAKING PRINCIPLES:
 {principles or "(none loaded)"}
 
-LTX 2.3 PROMPT GUIDE (your scene/lighting/character/camera/audio fields will later be compiled into LTX prompts, so follow these rules now):
+PROMPT GUIDE (your setting/lighting/entities/camera/audio fields are engine-neutral; a prompt compiler turns them into per-engine prompts later, so describe them precisely now):
 {ltx_guide or "(none loaded)"}
 
 TASK: Break the script into 6-12 shots. One clear dramatic action per shot. Produce STRICT JSON matching exactly this shape:
@@ -324,13 +370,22 @@ Each ShotSpec object has EXACTLY this shape (copy the keys verbatim; adapt value
 Hard constraints:
 - shot_id format: "sc##_sh##" where ## is a two-digit number (sc01_sh01, sc02_sh03). Unique across the list.
 - sequence_index: 0-based, in order.
-- expression_cues: PHYSICAL cues only — facial/body action. NEVER emotion labels (happy, sad, angry, scared, excited, etc.).
+- entities: one entry per subject present (characters, locations, props). entity_id is a lowercase
+  underscore slug ("char_maya", "loc_kitchen") and MUST be identical every time the same subject
+  appears across shots — that repeated id/name/description is what keeps a recurring character consistent.
+- entities[].expression_cues: PHYSICAL cues only — facial/body action. NEVER emotion labels
+  (happy, sad, angry, scared, excited, etc.). Write "eyebrows draw together", not "looks worried".
+- narrative_intent: one sentence on what this shot must accomplish dramatically.
+- action: the visible action, one clear beat. Not a summary of the scene.
 - audio.dialogue: quote exact spoken lines with double quotes inside the string. Empty string if the shot has no dialogue.
-- camera.shot_call: use standard framing vocabulary (Extreme Wide, Wide, Medium, Close-Up, Extreme Close-Up, etc.).
-- scene.lighting: one coherent lighting description — never conflicting sources.
-- scene.duration_s: 3-10 seconds per shot.
-- assets: include one entry per character present, type "character", weight 0.9. No lora_path, trigger_token, or ref_image for now (null).
-- generation: leave as the template defaults shown above (engine "wangp", template_id "LTX-2 2.3 Distilled", seed -1).
+- camera.framing: use standard framing vocabulary (Extreme Wide, Wide, Medium, Close-Up, Extreme Close-Up, etc.).
+- lighting: one coherent lighting description — never conflicting sources.
+- duration_seconds: a positive number of seconds. Aim for 3-10s per shot, but the field accepts any
+  positive value — do not invent a cap and do not clamp.
+- assets: include one entry per character present, type "character", weight 0.9. No lora_path,
+  trigger_token, or ref_image for now (null).
+- Do NOT add any "generation", "engine", "template", or "prompt" field. ShotSpec is engine-neutral;
+  per-engine payloads are produced later by the prompt compiler.
 - Output ONLY the JSON object. No markdown fences, no commentary, no trailing text.
 
 SCRIPT:

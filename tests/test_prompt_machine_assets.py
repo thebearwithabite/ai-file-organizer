@@ -29,8 +29,7 @@ from backend.services.shot_spec import (
     AssetSpec,
     AssetType,
     CameraSpec,
-    CharacterSpec,
-    SceneSpec,
+    EntityRef,
     ShotSpec,
 )
 
@@ -51,15 +50,23 @@ def _make_shot(
         shot_id=shot_id,
         sequence_index=seq,
         project_id=project_id,
-        scene=SceneSpec(
-            context=context,
-            visual_style="naturalistic",
-            lighting="soft window light",
-            mood="quiet",
-        ),
-        character=CharacterSpec(name=name, expression_cues="eyebrows draw together"),
-        camera=CameraSpec(shot_call="Medium Close-Up"),
+        narrative_intent="Maya finds the letter and the room's cheer drops away.",
+        setting=context,
+        action="Maya walks in, stops at the counter, and picks up the envelope.",
+        lighting="soft window light",
+        style_grade="naturalistic, desaturated",
+        duration_seconds=6.0,
+        camera=CameraSpec(framing="Medium Close-Up", movement="slow push-in"),
+        entities=[
+            EntityRef(
+                entity_id="char_maya",
+                name=name,
+                description="woman, mid-30s, shoulder-length dark hair",
+                expression_cues="eyebrows draw together",
+            )
+        ],
     )
+
 
 
 # ---------------------------------------------------------------------------

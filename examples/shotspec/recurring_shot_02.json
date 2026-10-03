@@ -1,0 +1,76 @@
+{
+  "project_id": "golden",
+  "shot_id": "sc02_sh02",
+  "sequence_index": 0,
+  "status": "draft",
+  "version": 1,
+  "narrative_intent": "Maya reads one line, looks up past camera, and leaves the frame. Second half of the pair; must cut to sc02_sh01 on the same action.",
+  "setting": "The same kitchen, later that morning. Sun now higher, box gone, envelope flat on the counter where nothing was before.",
+  "action": "Maya unfolds the letter, reads a single line, then turns and exits frame right.",
+  "lighting": "hard midday window light from the left, deep falloff into the right half of the room",
+  "style_grade": "naturalistic handheld documentary, slightly desaturated, fine film grain, no stylization",
+  "duration_seconds": 7.0,
+  "camera": {
+    "framing": "Medium Close-Up",
+    "movement": "static, slight handheld drift",
+    "lens_feel": "50mm, shallow depth of field"
+  },
+  "entities": [
+    {
+      "entity_id": "char_maya",
+      "name": "Maya",
+      "kind": "character",
+      "description": "woman, mid-30s, shoulder-length dark hair parted left, grey knit sweater, silver ring on the right hand",
+      "reference_images": [
+        "refs/char_maya_front.png",
+        "refs/char_maya_three_quarter.png"
+      ],
+      "expression_cues": "eyebrows draw together, lips press into a thin line, fingers stay still on the envelope"
+    },
+    {
+      "entity_id": "loc_kitchen",
+      "name": "Kitchen",
+      "kind": "location",
+      "description": "small rented studio kitchen, unwashed window, pale laminate counter, cardboard box by the fridge",
+      "reference_images": [
+        "refs/loc_kitchen_wide.png"
+      ],
+      "expression_cues": ""
+    },
+    {
+      "entity_id": "prop_letter",
+      "name": "The letter",
+      "kind": "prop",
+      "description": "a cream envelope, edges softened, handwriting on the front",
+      "reference_images": [
+        "refs/prop_letter.png"
+      ],
+      "expression_cues": ""
+    }
+  ],
+  "audio": {
+    "dialogue": "",
+    "delivery": "",
+    "ambience": "faint street traffic, refrigerator hum",
+    "sfx": "paper rustling, a drawer closing"
+  },
+  "assets": [
+    {
+      "asset_id": "char_maya",
+      "type": "character",
+      "weight": 0.9
+    },
+    {
+      "asset_id": "loc_kitchen",
+      "type": "location",
+      "weight": 0.6
+    },
+    {
+      "asset_id": "prop_letter",
+      "type": "prop",
+      "weight": 0.5
+    }
+  ],
+  "seed": -1,
+  "notes": "Pairs with sc02_sh01. Recurring character and location entities are reproduced verbatim; only this shot's action, framing and cues differ."
+}
