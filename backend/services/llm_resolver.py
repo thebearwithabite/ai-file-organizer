@@ -73,7 +73,7 @@ def provider_kwargs(provider_name: str, max_tokens: int = SHOT_LIST_MAX_TOKENS) 
     speaks num_predict. Temperature and seed are pinned for reproducibility;
     Ollama gets think=False so reasoning tokens never leak (the vLLM-era
     guarantee, preserved)."""
-    if provider_name == "deepseek":
+    if provider_name in ("deepseek", "nim"):  # cloud fallbacks speak OpenAI-style kwargs
         return {"max_tokens": max_tokens, "temperature": 0.1, "seed": DIRECTOR_SEED}
     return {"num_predict": max_tokens, "temperature": 0.1, "seed": DIRECTOR_SEED, "think": False}
 

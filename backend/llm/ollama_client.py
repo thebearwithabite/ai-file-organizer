@@ -61,6 +61,9 @@ class OllamaClient(LLMProvider):
         response.raise_for_status()
         result = response.json()
 
+        # Token accounting: Ollama reports prompt_eval_count / eval_count.
+        self._record_usage(result.get("prompt_eval_count"), result.get("eval_count"))
+
         return result.get("response", "")
 
     def health_check(self) -> bool:

@@ -11,11 +11,35 @@ import json
 import logging
 import time
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from typing import Any, Optional, Type
 
 from pydantic import BaseModel, ValidationError
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class TokenUsage:
+    """Token counts reported by a provider for its most recent call.
+
+    ``total_tokens`` is derived. Zeroed by default so keyless stubs and
+    providers that do not report usage stay uniform for the routing records.
+    """
+
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+
+    @property
+    def total_tokens(self) -> int:
+        return self.prompt_tokens + self.completion_tokens
+
+    def as_dict(self) -> dict:
+        return {
+            "prompt_tokens": self.prompt_tokens,
+            "completion_tokens": self.completion_tokens,
+            "total_tokens": self.total_tokens,
+        }
 
 
 class LLMProvider(ABC):
@@ -31,6 +55,9 @@ class LLMProvider(ABC):
         # — "provider down" and "model produced bad schema" demand opposite
         # responses and must not look identical.
         self.last_failure: str = ""
+        # Token accounting for the most recent call — routing records read
+        # this after every request.
+        self.last_usage: TokenUsage = TokenUsage()
 
     def health_check(self) -> bool:
         """Reachability probe. Subclasses override; default assumes healthy."""
@@ -48,6 +75,20 @@ class LLMProvider(ABC):
         """Send prompt to the backend, return raw text. Implemented by subclasses."""
         ...
 
+    def _record_usage(self, prompt_tokens: Any = None, completion_tokens: Any = None) -> None:
+        """Capture provider-reported token usage for this call."""
+
+        def _as_int(value: Any) -> int:
+            try:
+                return int(value)
+            except (TypeError, ValueError):
+                return 0
+
+        self.last_usage = TokenUsage(
+            prompt_tokens=_as_int(prompt_tokens),
+            completion_tokens=_as_int(completion_tokens),
+        )
+
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
@@ -56,6 +97,7 @@ class LLMProvider(ABC):
         """Generate raw text with retry on transient failures."""
         last_error = None
         self.last_failure = ""
+        self.last_usage = TokenUsage()
         for attempt in range(self.max_retries):
             try:
                 result = self._generate_raw(prompt, **kwargs)
@@ -97,6 +139,7 @@ class LLMProvider(ABC):
             return degrade_value, False
 
         self.last_failure = ""
+        self.last_usage = TokenUsage()
         for attempt in range(self.max_retries):
             try:
                 raw = self._generate_raw(prompt, **kwargs)

@@ -61,6 +61,12 @@ class DeepSeekClient(LLMProvider):
         if kwargs.get("seed") is not None:
             create_kwargs["seed"] = kwargs["seed"]  # pinned for reproducible shot books
         response = client.chat.completions.create(**create_kwargs)
+        usage = getattr(response, "usage", None)
+        if usage is not None:
+            self._record_usage(
+                getattr(usage, "prompt_tokens", None),
+                getattr(usage, "completion_tokens", None),
+            )
         return response.choices[0].message.content or ""
 
     def health_check(self) -> bool:

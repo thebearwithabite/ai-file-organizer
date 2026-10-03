@@ -9,9 +9,17 @@ Provider hierarchy:
 All structured outputs go through Pydantic validation.
 Repeated schema violations degrade to NEVER confidence mode.
 """
-from .base import LLMProvider
+from .base import LLMProvider, TokenUsage
+from .errors import DegradedRoutingError, InvalidLLMOutputError, LLMRoutingError
 from .ollama_client import OllamaClient, AutoDetectOllama
 from .deepseek_client import DeepSeekClient
+from .nim_client import NIMClient
+from .structured_output import (
+    StructuredAttempt,
+    StructuredResult,
+    enforce_structured,
+    enforce_structured_with_client,
+)
 from .schemas import (
     ClassificationOutput,
     QueryOutput,
@@ -21,9 +29,18 @@ from .schemas import (
 
 __all__ = [
     "LLMProvider",
+    "TokenUsage",
     "OllamaClient",
     "AutoDetectOllama",
     "DeepSeekClient",
+    "NIMClient",
+    "LLMRoutingError",
+    "DegradedRoutingError",
+    "InvalidLLMOutputError",
+    "StructuredAttempt",
+    "StructuredResult",
+    "enforce_structured",
+    "enforce_structured_with_client",
     "ClassificationOutput",
     "QueryOutput",
     "AudioTranscriptionOutput",

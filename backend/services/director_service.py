@@ -2,20 +2,24 @@
 
 A script (.txt/.md/.fountain/.pdf) becomes an engine-agnostic scene plan
 (``analyze_script``) and a Pydantic-validated ``ShotSpec[]``
-(``generate_shot_list``) via the ``backend/llm/`` provider chain:
+(``generate_shot_list``) via ``backend/services/llm_router.py``:
 
-    vLLM (localhost:8000, qwen3.5:4b)  →  Ollama (gemma4:12b)  →  DeepSeek (key + consent only)
+    Ollama (localhost:11434, qwen3.5:4b, think=false)  →  NIM (key + consent only)
 
-Local-first. The cloud fallback is reachable ONLY when a DEEPSEEK_API_KEY
-exists in GCP Secret Manager AND the caller explicitly allows script content
-to leave the box (``allow_cloud_script=True``). The Checkpoint 1 gate: the
-full pipeline completes keyless on local models alone.
+Local-first. The cloud overflow/fallback is reachable ONLY when
+``allow_cloud_script=True`` *and* an ``NIM_API_KEY`` exists in the process
+environment. The consent gate is structural: with consent withheld no cloud
+client is built at all, so there is no cloud path to call even if a key is
+present. The Checkpoint 1 gate: the full pipeline completes keyless on local
+models alone.
 
-Degradation (parent 2.1 pattern): repeated schema failure is handled inside
-LLMProvider (3 attempts, then permanent degrade). When the director receives
-a failed result it enqueues the script to the review queue
-(batch_group='director-degrade') and returns degraded=True — the system
-waits, it never floods and never silently guesses.
+Degradation follows the parent 2.1 pattern, split by cause so the two never look
+identical: ``DegradedRoutingError`` (no usable route) enqueues with
+``provider_unreachable``; ``InvalidLLMOutputError`` (the model answered, the
+answer did not conform) enqueues with ``schema_invalid``. Either way the script
+lands in the review queue (batch_group='director-degrade') and
+``degraded=True`` is returned — the system waits, it never floods and never
+silently guesses.
 """
 from __future__ import annotations
 
@@ -127,9 +131,15 @@ class DirectorService:
     def _router_for(self, allow_cloud_script: bool) -> LLMRouter:
         """Routing layer for one call: local-first, cloud only with consent + key.
 
-        ``render_state`` is the renderer's job state (or an ExplicitRenderFlag
-        the renderer client sets). When it is not wired the router says so in
-        its reason strings and assumes idle, so keyless local runs keep working.
+        ``render_state`` is the renderer's job state (any object exposing
+        ``render_in_flight()`` — the WangPClient itself, or an
+        ExplicitRenderFlag the renderer client sets). When it is not wired the
+        router says so in its reason strings and assumes idle, so keyless local
+        runs keep working.
+
+        Credentials come from the environment. The consent gate is enforced by
+        *not building* a cloud client when ``allow_cloud_script`` is False, so
+        there is no cloud path to call even if a key is present in the env.
         """
         if self._router is not None:
             return self._router
@@ -143,9 +153,7 @@ class DirectorService:
             cloud = None
             cloud_note = "cloud fallback disabled for this call (allow_cloud_script=False)"
             if allow_cloud_script:
-                from secret_manager import get_secret
-
-                cloud, cloud_note = build_cloud_client(secret_loader=get_secret)
+                cloud, cloud_note = build_cloud_client()
             router = LLMRouter(
                 local=local,
                 cloud=cloud,
