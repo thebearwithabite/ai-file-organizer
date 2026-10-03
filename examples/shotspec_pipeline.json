@@ -1,0 +1,132 @@
+{
+  "shots": [
+    {
+      "shot_id": "sc01_sh01",
+      "sequence_index": 0,
+      "status": "draft",
+      "version": 1,
+      "project_id": "sample_dawn",
+      "narrative_intent": "Establish Maya alone in a half-unpacked kitchen, holding an envelope she has not yet opened.",
+      "setting": "A rented studio kitchen at dawn, one cardboard box half unpacked by the door, an unwashed window",
+      "action": "Maya stands at the counter holding a single paper envelope flat against the surface with her right hand, her thumb pressed into one worn corner.",
+      "lighting": "flat grey winter daylight through an unwashed window from camera left, no other source",
+      "style_grade": "naturalistic handheld documentary, desaturated, fine film grain",
+      "duration_seconds": 5.0,
+      "camera": {
+        "framing": "Eye-Level Medium",
+        "movement": "slow push in",
+        "lens_feel": "40mm, shallow depth of field"
+      },
+      "entities": [
+        {
+          "entity_id": "char_maya",
+          "name": "Maya",
+          "kind": "character",
+          "description": "woman, mid-30s, shoulder-length dark hair parted left, grey knit sweater, silver ring on the right hand",
+          "reference_images": [],
+          "expression_cues": "jaw set, eyes fixed on the envelope, thumb still in the worn corner"
+        },
+        {
+          "entity_id": "loc_kitchen",
+          "name": "Studio Kitchen",
+          "kind": "location",
+          "description": "small rented studio kitchen, one cardboard box half unpacked by the door, unwashed window over the sink",
+          "reference_images": [],
+          "expression_cues": null
+        },
+        {
+          "entity_id": "prop_envelope",
+          "name": "Envelope",
+          "kind": "prop",
+          "description": "a single unopened paper envelope, cream, thumb-worn at one corner",
+          "reference_images": [],
+          "expression_cues": null
+        }
+      ],
+      "audio": {
+        "dialogue": "",
+        "delivery": "",
+        "ambience": "refrigerator hum, distant street traffic",
+        "sfx": "paper settling on a counter"
+      },
+      "assets": [
+        {
+          "asset_id": "char_maya",
+          "type": "character",
+          "weight": 0.9
+        },
+        {
+          "asset_id": "prop_envelope",
+          "type": "prop",
+          "weight": 0.5
+        }
+      ],
+      "seed": -1,
+      "notes": "Recurring character and location: entity ids and descriptions repeat verbatim in sc01_sh02."
+    },
+    {
+      "shot_id": "sc01_sh02",
+      "sequence_index": 1,
+      "status": "draft",
+      "version": 1,
+      "project_id": "sample_dawn",
+      "narrative_intent": "Maya refuses to open the envelope and pushes it away from herself.",
+      "setting": "A rented studio kitchen at dawn, one cardboard box half unpacked by the door, an unwashed window",
+      "action": "Maya places the envelope in the exact centre of the counter, then pushes it a half-inch away from her and withdraws her hand.",
+      "lighting": "flat grey winter daylight through an unwashed window from camera left, no other source",
+      "style_grade": "naturalistic handheld documentary, desaturated, fine film grain",
+      "duration_seconds": 5.5,
+      "camera": {
+        "framing": "Eye-Level Close-Up",
+        "movement": "locked off",
+        "lens_feel": "85mm, shallow depth of field"
+      },
+      "entities": [
+        {
+          "entity_id": "char_maya",
+          "name": "Maya",
+          "kind": "character",
+          "description": "woman, mid-30s, shoulder-length dark hair parted left, grey knit sweater, silver ring on the right hand",
+          "reference_images": [],
+          "expression_cues": "brows drawing together, lips pressing into a thin line, hand withdrawing from the envelope"
+        },
+        {
+          "entity_id": "loc_kitchen",
+          "name": "Studio Kitchen",
+          "kind": "location",
+          "description": "small rented studio kitchen, one cardboard box half unpacked by the door, unwashed window over the sink",
+          "reference_images": [],
+          "expression_cues": null
+        },
+        {
+          "entity_id": "prop_envelope",
+          "name": "Envelope",
+          "kind": "prop",
+          "description": "a single unopened paper envelope, cream, thumb-worn at one corner",
+          "reference_images": [],
+          "expression_cues": null
+        }
+      ],
+      "audio": {
+        "dialogue": "\"No.\"",
+        "delivery": "one word, low, clipped off",
+        "ambience": "refrigerator hum, a bus sighing to a stop outside",
+        "sfx": "paper sliding on a counter"
+      },
+      "assets": [
+        {
+          "asset_id": "char_maya",
+          "type": "character",
+          "weight": 0.9
+        },
+        {
+          "asset_id": "prop_envelope",
+          "type": "prop",
+          "weight": 0.5
+        }
+      ],
+      "seed": -1,
+      "notes": "Same entities as sc01_sh01, verbatim; only action, framing, duration, cues, and audio differ."
+    }
+  ]
+}
