@@ -31,6 +31,7 @@ gdrive_credentials.json
 gdrive_credentials_BACKUP.json
 .ai_organizer_config/
 *config*.json
+.env
 .env.local
 .git allowed
 
